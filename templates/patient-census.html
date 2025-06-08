@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Census Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .census-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+
+        .census-header {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 24px;
+            border-left: 4px solid #0066cc;
+        }
+
+        .census-title {
+            color: #1a365d;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .census-subtitle {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .census-controls {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .add-patient-form {
+            display: flex;
+            gap: 12px;
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .patient-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .patient-input:focus {
+            outline: none;
+            border-color: #0066cc;
+            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+        }
+
+        .add-btn {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+
+        .add-btn:hover {
+            background: #0052a3;
+        }
+
+        .sort-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .sort-btn {
+            padding: 8px 12px;
+            border: 1px solid #cbd5e0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .sort-btn:hover {
+            background: #f7fafc;
+            border-color: #0066cc;
+        }
+
+        .sort-btn.active {
+            background: #0066cc;
+            color: white;
+            border-color: #0066cc;
+        }
+
+        .patient-list {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .patient-item {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: move;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .patient-item:hover {
+            background: #f8fafc;
+        }
+
+        .patient-item.dragging {
+            opacity: 0.5;
+            transform: rotate(2deg);
+        }
+
+        .patient-item.drag-over {
+            border-top: 3px solid #0066cc;
+        }
+
+        .drag-handle {
+            color: #94a3b8;
+            font-size: 18px;
+            margin-right: 12px;
+            cursor: grab;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .patient-info {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 120px 100px 80px;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .patient-name {
+            font-weight: 600;
+            color: #1a365d;
+            font-size: 16px;
+        }
+
+        .patient-id {
+            color: #64748b;
+            font-size: 14px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .patient-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .status-active {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-complete {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .patient-time {
+            color: #64748b;
+            font-size: 12px;
+            text-align: right;
+        }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 6px;
+            transition: background 0.2s;
+            margin-left: 12px;
+        }
+
+        .delete-btn:hover {
+            background: #fef2f2;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: #64748b;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .census-stats {
+            display: none;
+        }
+
+        .stat-card {
+            display: none;
+        }
+
+        .stat-number {
+            display: none;
+        }
+
+        .stat-label {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .census-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .patient-info {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            
+            .census-stats {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="census-container">
+        <div class="census-header">
+            <h1 class="census-title">Patient Census</h1>
+            <p class="census-subtitle">Manage your patient list with drag-and-drop organization</p>
+        </div>
+
+
+
+        <div class="census-controls">
+            <div class="add-patient-form">
+                <input type="text" class="patient-input" id="patientName" placeholder="Patient Name (Last, First)" />
+                <input type="text" class="patient-input" id="patientId" placeholder="Patient ID" />
+                <button class="add-btn" onclick="addPatient()">Add Patient</button>
+            </div>
+            <div class="sort-controls">
+                <button class="sort-btn active" onclick="sortPatients('name')">Name</button>
+                <button class="sort-btn" onclick="sortPatients('id')">ID</button>
+                <button class="sort-btn" onclick="sortPatients('status')">Status</button>
+                <button class="sort-btn" onclick="sortPatients('time')">Time</button>
+            </div>
+        </div>
+
+        <div class="patient-list" id="patientList">
+            <div class="empty-state">
+                <div class="empty-icon">👥</div>
+                <p>No patients in census</p>
+                <p style="font-size: 14px; margin-top: 8px;">Add your first patient above</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let patients = [
+            {
+                id: 'PT001',
+                name: 'Anderson, Sarah',
+                status: 'active',
+                time: '09:00 AM',
+                timestamp: new Date('2024-01-01 09:00')
+            },
+            {
+                id: 'PT002',
+                name: 'Johnson, Michael',
+                status: 'pending',
+                time: '10:30 AM',
+                timestamp: new Date('2024-01-01 10:30')
+            },
+            {
+                id: 'PT003',
+                name: 'Williams, Emma',
+                status: 'complete',
+                time: '11:15 AM',
+                timestamp: new Date('2024-01-01 11:15')
+            }
+        ];
+
+        let draggedElement = null;
+        let currentSort = 'name';
+
+        function renderPatients() {
+            const listContainer = document.getElementById('patientList');
+            
+            if (patients.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">👥</div>
+                        <p>No patients in census</p>
+                        <p style="font-size: 14px; margin-top: 8px;">Add your first patient above</p>
+                    </div>
+                `;
+                updateStats();
+                return;
+            }
+
+            listContainer.innerHTML = patients.map((patient, index) => `
+                <div class="patient-item" draggable="true" data-index="${index}">
+                    <div class="drag-handle">⋮⋮</div>
+                    <div class="patient-info">
+                        <div class="patient-name">${patient.name}</div>
+                        <div class="patient-id">${patient.id}</div>
+                        <div class="patient-status status-${patient.status}">${patient.status.charAt(0).toUpperCase() + patient.status.slice(1)}</div>
+                        <div class="patient-time">${patient.time}</div>
+                    </div>
+                    <button class="delete-btn" onclick="deletePatient(${index})">✕</button>
+                </div>
+            `).join('');
+
+            // Add drag and drop event listeners
+            const items = listContainer.querySelectorAll('.patient-item');
+            items.forEach(item => {
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragover', handleDragOver);
+                item.addEventListener('drop', handleDrop);
+                item.addEventListener('dragend', handleDragEnd);
+            });
+
+            updateStats();
+        }
+
+        function addPatient() {
+            const nameInput = document.getElementById('patientName');
+            const idInput = document.getElementById('patientId');
+            
+            const name = nameInput.value.trim();
+            const id = idInput.value.trim();
+            
+            if (!name || !id) {
+                alert('Please enter both patient name and ID');
+                return;
+            }
+
+            // Check for duplicate ID
+            if (patients.some(p => p.id === id)) {
+                alert('Patient ID already exists');
+                return;
+            }
+
+            const now = new Date();
+            const newPatient = {
+                id: id,
+                name: name,
+                status: 'active',
+                time: now.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                }),
+                timestamp: now
+            };
+
+            patients.push(newPatient);
+            nameInput.value = '';
+            idInput.value = '';
+            
+            renderPatients();
+        }
+
+        function deletePatient(index) {
+            if (confirm('Are you sure you want to remove this patient from the census?')) {
+                patients.splice(index, 1);
+                renderPatients();
+            }
+        }
+
+        function sortPatients(criteria) {
+            // Update active sort button
+            document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            currentSort = criteria;
+            
+            switch(criteria) {
+                case 'name':
+                    patients.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+                case 'id':
+                    patients.sort((a, b) => a.id.localeCompare(b.id));
+                    break;
+                case 'status':
+                    const statusOrder = { 'active': 1, 'pending': 2, 'complete': 3 };
+                    patients.sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+                    break;
+                case 'time':
+                    patients.sort((a, b) => a.timestamp - b.timestamp);
+                    break;
+            }
+            
+            renderPatients();
+        }
+
+        function updateStats() {
+            // Stats removed - clean component without statistics section
+        }
+
+        // Drag and Drop Functions
+        function handleDragStart(e) {
+            draggedElement = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            
+            this.classList.add('drag-over');
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+
+            if (draggedElement !== this) {
+                const draggedIndex = parseInt(draggedElement.dataset.index);
+                const targetIndex = parseInt(this.dataset.index);
+                
+                // Reorder the patients array
+                const draggedPatient = patients[draggedIndex];
+                patients.splice(draggedIndex, 1);
+                patients.splice(targetIndex, 0, draggedPatient);
+                
+                renderPatients();
+            }
+
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.patient-item').forEach(item => {
+                item.classList.remove('drag-over');
+            });
+        }
+
+        // Handle Enter key for adding patients
+        document.getElementById('patientName').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('patientId').focus();
+            }
+        });
+
+        document.getElementById('patientId').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addPatient();
+            }
+        });
+
+        // Initialize the component
+        renderPatients();
+    </script>
+</body>
+</html>
