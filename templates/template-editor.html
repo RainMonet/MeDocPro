@@ -1,0 +1,1926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Document Template Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .template-editor-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+
+        .editor-header {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 16px;
+            border-left: 4px solid #0066cc;
+        }
+
+        .editor-title {
+            color: #1a365d;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .editor-subtitle {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .template-controls {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .controls-header {
+            background: #f8fafc;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .controls-title {
+            color: #1a365d;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .template-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            border: 1px solid #cbd5e0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+            color: #4a5568;
+        }
+
+        .action-btn:hover {
+            background: #f7fafc;
+            border-color: #0066cc;
+        }
+
+        .action-btn.primary {
+            background: #0066cc;
+            color: white;
+            border-color: #0066cc;
+        }
+
+        .action-btn.primary:hover {
+            background: #0052a3;
+        }
+
+        .action-btn.success {
+            background: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+
+        .action-btn.success:hover {
+            background: #059669;
+        }
+
+        .controls-content {
+            padding: 20px;
+        }
+
+        .template-metadata {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 16px;
+            margin-bottom: 20px;
+            align-items: end;
+        }
+
+        .metadata-input {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .text-input {
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+            color: #2d3748;
+        }
+
+        .text-input:focus {
+            outline: none;
+            border-color: #0066cc;
+            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+        }
+
+        .placeholder-manager {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .placeholder-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .placeholder-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .add-placeholder-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .add-placeholder-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .placeholder-content {
+            padding: 20px;
+        }
+
+        .placeholder-grid {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .placeholder-item {
+            display: grid;
+            grid-template-columns: 150px 200px 1fr auto;
+            gap: 12px;
+            align-items: center;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 3px solid #e2e8f0;
+        }
+
+        .placeholder-item.phi-data {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+
+        .placeholder-key {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            color: #0066cc;
+            background: white;
+            padding: 6px 8px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .placeholder-description {
+            font-size: 13px;
+            color: #4a5568;
+        }
+
+        .placeholder-type {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .type-text {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .type-date {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .type-number {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .type-phi {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .remove-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .remove-btn:hover {
+            background: #fef2f2;
+        }
+
+        .new-placeholder {
+            display: grid;
+            grid-template-columns: 150px 200px 1fr 100px auto;
+            gap: 12px;
+            align-items: end;
+            padding: 16px;
+            background: #f1f5f9;
+            border-radius: 8px;
+            border: 2px dashed #cbd5e0;
+            margin-bottom: 20px;
+        }
+
+        .phi-warning {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            color: #991b1b;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .warning-icon {
+            color: #ef4444;
+            font-weight: bold;
+        }
+
+        .main-editor {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .editor-toolbar {
+            padding: 16px 20px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .toolbar-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .insert-btn {
+            padding: 6px 12px;
+            border: 1px solid #cbd5e0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            color: #4a5568;
+        }
+
+        .insert-btn:hover {
+            background: #f7fafc;
+            border-color: #0066cc;
+        }
+
+        .template-textarea {
+            min-height: 400px;
+            padding: 20px;
+            border: none;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+            font-family: inherit;
+            outline: none;
+            width: 100%;
+        }
+
+        .template-preview {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .preview-header {
+            background: #f8fafc;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-title {
+            color: #1a365d;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .preview-content {
+            padding: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #2d3748;
+            white-space: pre-wrap;
+        }
+
+        .placeholder-highlight {
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 3px;
+            padding: 2px 4px;
+            margin: 0 2px;
+            font-weight: 600;
+            color: #0066cc;
+        }
+
+        .ai-enhancement-zone {
+            background: rgba(147, 51, 234, 0.1);
+            border: 2px dashed #9333ea;
+            border-radius: 6px;
+            padding: 8px;
+            margin: 4px 0;
+            position: relative;
+        }
+
+        .ai-zone-label {
+            position: absolute;
+            top: -10px;
+            left: 8px;
+            background: #9333ea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .ai-enhancement-panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 16px;
+            overflow: hidden;
+            transition: opacity 0.3s ease;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .ai-enhancement-panel.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .ai-panel-header {
+            background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%);
+            color: white;
+            padding: 16px 20px;
+        }
+
+        .ai-panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .ai-panel-subtitle {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .ai-enhancement-controls {
+            padding: 20px;
+        }
+
+        .enhancement-settings {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .setting-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .setting-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .enhancement-type-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .enhancement-type-btn {
+            padding: 8px 12px;
+            border: 1px solid #cbd5e0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .enhancement-type-btn:hover {
+            background: #f7fafc;
+            border-color: #9333ea;
+        }
+
+        .enhancement-type-btn.active {
+            background: #9333ea;
+            color: white;
+            border-color: #9333ea;
+        }
+
+        .ai-zones-list {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .ai-zone-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border-left: 3px solid #9333ea;
+        }
+
+        .zone-info {
+            flex: 1;
+        }
+
+        .zone-text {
+            font-size: 12px;
+            color: #4a5568;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 4px;
+        }
+
+        .zone-settings {
+            font-size: 10px;
+            color: #64748b;
+        }
+
+        .zone-remove-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .zone-remove-btn:hover {
+            background: #fef2f2;
+        }
+
+        .ollama-config {
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .test-connection-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .test-connection-btn:hover {
+            background: #059669;
+        }
+
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            margin-left: 8px;
+        }
+
+        .status-connected {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-disconnected {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .status-testing {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .template-library {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .library-header {
+            background: #f8fafc;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .library-title {
+            color: #1a365d;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .template-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .template-item {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .template-item:hover {
+            background: #f8fafc;
+        }
+
+        .template-info {
+            flex: 1;
+        }
+
+        .template-name {
+            font-weight: 600;
+            color: #1a365d;
+            margin-bottom: 4px;
+        }
+
+        .template-desc {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .template-date {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .empty-library {
+            text-align: center;
+            padding: 48px 20px;
+            color: #64748b;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .template-editor-container {
+                padding: 12px;
+            }
+            
+            .template-metadata {
+                grid-template-columns: 1fr;
+            }
+            
+            .placeholder-item,
+            .new-placeholder {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            
+            .controls-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="template-editor-container">
+        <div class="editor-header">
+            <h1 class="editor-title">Medical Document Template Editor</h1>
+            <p class="editor-subtitle">Create and manage HIPAA-compliant clinical documentation templates with custom placeholders</p>
+        </div>
+
+        <div class="template-controls">
+            <div class="controls-header">
+                <h2 class="controls-title">Template Information</h2>
+                <div class="template-actions">
+                    <button class="action-btn" onclick="newTemplate()">New Template</button>
+                    <button class="action-btn primary" onclick="saveTemplate()">Save Template</button>
+                    <button class="action-btn success" onclick="exportTemplate()">Export</button>
+                </div>
+            </div>
+            <div class="controls-content">
+                <div class="template-metadata">
+                    <div class="metadata-input">
+                        <label class="input-label">Template Name</label>
+                        <input type="text" class="text-input" id="templateName" placeholder="e.g., Progress Note - Psychiatric Evaluation">
+                    </div>
+                    <div class="metadata-input">
+                        <label class="input-label">Category</label>
+                        <select class="text-input" id="templateCategory">
+                            <option value="progress">Progress Notes</option>
+                            <option value="assessment">Psychiatric Assessment</option>
+                            <option value="treatment">Treatment Plans</option>
+                            <option value="intake">Intake Forms</option>
+                            <option value="discharge">Discharge Summaries</option>
+                            <option value="custom">Custom Documentation</option>
+                        </select>
+                    </div>
+                    <div class="metadata-input">
+                        <label class="input-label">Version</label>
+                        <input type="text" class="text-input" id="templateVersion" placeholder="1.0" value="1.0">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="placeholder-manager">
+            <div class="placeholder-header">
+                <h3 class="placeholder-title">Placeholder Management</h3>
+                <button class="add-placeholder-btn" onclick="showAddPlaceholder()">+ Add Placeholder</button>
+            </div>
+            <div class="placeholder-content">
+                <div class="phi-warning">
+                    <span class="warning-icon">⚠</span>
+                    <span>Templates with PHI placeholders are for development/testing only. Never use real patient data in templates.</span>
+                </div>
+
+                <div class="new-placeholder" id="newPlaceholderForm" style="display: none;">
+                    <div class="metadata-input">
+                        <label class="input-label">Placeholder Key</label>
+                        <input type="text" class="text-input" id="newPlaceholderKey" placeholder="patient_name">
+                    </div>
+                    <div class="metadata-input">
+                        <label class="input-label">Description</label>
+                        <input type="text" class="text-input" id="newPlaceholderDesc" placeholder="Patient's full name">
+                    </div>
+                    <div class="metadata-input">
+                        <label class="input-label">Example Value</label>
+                        <input type="text" class="text-input" id="newPlaceholderExample" placeholder="Doe, John">
+                    </div>
+                    <div class="metadata-input">
+                        <label class="input-label">Data Type</label>
+                        <select class="text-input" id="newPlaceholderType">
+                            <option value="text">Text</option>
+                            <option value="date">Date</option>
+                            <option value="number">Number</option>
+                            <option value="phi">PHI (Protected)</option>
+                        </select>
+                    </div>
+                    <button class="action-btn primary" onclick="addPlaceholder()">Add</button>
+                </div>
+
+                <div class="placeholder-grid" id="placeholderList">
+                    </div>
+            </div>
+        </div>
+
+        <div class="main-editor">
+            <div class="editor-toolbar">
+                <div class="toolbar-group">
+                    <span class="toolbar-label">Insert:</span>
+                    <button class="insert-btn" onclick="insertText('{{patient_name}}')">Patient Name</button>
+                    <button class="insert-btn" onclick="insertText('{{date_of_service}}')">Service Date</button>
+                    <button class="insert-btn" onclick="insertText('{{provider_name}}')">Provider</button>
+                </div>
+                <div class="toolbar-group">
+                    <span class="toolbar-label">Common:</span>
+                    <button class="insert-btn" onclick="insertText('{{chief_complaint}}')">Chief Complaint</button>
+                    <button class="insert-btn" onclick="insertText('{{assessment}}')">Assessment</button>
+                    <button class="insert-btn" onclick="insertText('{{plan}}')">Plan</button>
+                </div>
+                <div class="toolbar-group">
+                    <span class="toolbar-label">AI Enhancement:</span>
+                    <button class="insert-btn" onclick="toggleAIPanel()" style="background: #9333ea; color: white;">Mark for AI</button>
+                    <button class="insert-btn" onclick="clearAIZones()">Clear AI Zones</button>
+                </div>
+            </div>
+            
+            <textarea 
+                class="template-textarea" 
+                id="templateContent" 
+                placeholder="Begin creating your clinical template here. Use {{placeholder_name}} syntax to insert dynamic fields. Select text and click 'Mark for AI' to designate areas for AI enhancement..."
+                oninput="updatePreview()"
+                onselect="handleTextSelection()"
+                onmouseup="handleTextSelection()"
+                onkeyup="handleTextSelection()"></textarea>
+        </div>
+
+        <div class="ai-enhancement-panel" id="aiEnhancementPanel">
+            <div class="ai-panel-header">
+                <div class="ai-panel-title">AI Enhancement Zone Configuration</div>
+                <div class="ai-panel-subtitle">Configure how selected text will be enhanced when templates are populated</div>
+            </div>
+            
+            <div class="ai-enhancement-controls">
+                <div class="enhancement-type-selector">
+                    <button class="enhancement-type-btn active" data-type="clinical" onclick="selectEnhancementType('clinical')">
+                        Clinical Language
+                    </button>
+                    <button class="enhancement-type-btn" data-type="narrative" onclick="selectEnhancementType('narrative')">
+                        Narrative Flow
+                    </button>
+                    <button class="enhancement-type-btn" data-type="diagnostic" onclick="selectEnhancementType('diagnostic')">
+                        Diagnostic Focus
+                    </button>
+                </div>
+
+                <div class="enhancement-settings">
+                    <div class="setting-group">
+                        <label class="setting-label">Enhancement Intensity</label>
+                        <input type="range" class="text-input" id="aiIntensity" min="0" max="100" value="50" style="height: 38px;">
+                        <span style="font-size: 11px; color: #64748b;" id="intensityDisplay">50% - Moderate Enhancement</span>
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-label">Enhancement Style</label>
+                        <select class="text-input" id="aiStyle">
+                            <option value="professional">Professional Medical</option>
+                            <option value="concise">Concise & Direct</option>
+                            <option value="detailed">Detailed & Comprehensive</option>
+                            <option value="empathetic">Patient-Centered</option>
+                            <option value="objective">Objective & Factual</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="ollama-config">
+                    <div class="setting-label" style="margin-bottom: 12px;">Ollama API Configuration</div>
+                    <div class="config-grid">
+                        <div class="metadata-input">
+                            <input type="text" class="text-input" id="ollamaUrl" placeholder="Ollama URL" value="http://localhost:11434">
+                        </div>
+                        <div class="metadata-input">
+                            <input type="text" class="text-input" id="ollamaModel" placeholder="Model name" value="llama2">
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; margin-top: 8px;">
+                        <button class="test-connection-btn" onclick="testOllamaConnection()">Test Connection</button>
+                        <span class="connection-status status-disconnected" id="connectionStatus">
+                            <span>●</span> Not Connected
+                        </span>
+                    </div>
+                </div>
+
+                <div class="ai-zones-list" id="aiZonesList">
+                    <div class="setting-label" style="margin-bottom: 12px;">AI Enhancement Zones</div>
+                    <div id="aiZonesContent">
+                        <p style="text-align: center; color: #64748b; font-size: 12px; padding: 20px;">
+                            No AI enhancement zones defined. Select text in the template and click "Add Zone" to create one.
+                        </p>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button class="action-btn" onclick="closeAIPanel()">Cancel</button>
+                    <button class="action-btn primary" onclick="addAIZone()">Add Zone</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="template-preview">
+            <div class="preview-header">
+                <h3 class="preview-title">Template Preview</h3>
+                <button class="action-btn" onclick="togglePreviewMode()">Toggle Sample Data</button>
+            </div>
+            <div class="preview-content" id="templatePreview">
+                Start typing in the template editor to see a preview here...
+            </div>
+        </div>
+
+        <div class="template-library">
+            <div class="library-header">
+                <h3 class="library-title">Saved Templates</h3>
+            </div>
+            <div class="template-list" id="templateList">
+                <div class="empty-library">
+                    <div class="empty-icon">📄</div>
+                    <p>No saved templates</p>
+                    <p style="font-size: 14px; margin-top: 8px;">Create your first template above</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Prevent any accidental template data rendering
+        (function() {
+            'use strict';
+            
+            // Override document.write to prevent accidental data output
+            const originalDocumentWrite = document.write;
+            document.write = function(content) {
+                if (typeof content === 'string' && (content.includes('sampleTemplate') || content.includes('loadSampleTemplate'))) {
+                    console.warn('Blocked potential template data leak');
+                    return;
+                }
+                originalDocumentWrite.call(document, content);
+            };
+        })();
+
+        let placeholders = [
+            {
+                key: 'patient_name',
+                description: "Patient's full name",
+                example: 'Doe, John',
+                type: 'phi'
+            },
+            {
+                key: 'date_of_service',
+                description: 'Date of service',
+                example: new Date().toLocaleDateString(),
+                type: 'date'
+            },
+            {
+                key: 'provider_name',
+                description: 'Healthcare provider name',
+                example: 'Dr. Smith',
+                type: 'text'
+            }
+        ];
+
+        let savedTemplates = [];
+        let showSampleData = false;
+        let aiEnhancementZones = [];
+        let selectedText = '';
+        let selectionStart = 0;
+        let selectionEnd = 0;
+        let currentEnhancementType = 'clinical';
+        let ollamaConnected = false;
+
+        function renderPlaceholders() {
+            const listContainer = document.getElementById('placeholderList');
+            
+            if (placeholders.length === 0) {
+                listContainer.innerHTML = '<p style="text-align: center; color: #64748b; padding: 20px;">No placeholders defined</p>';
+                return;
+            }
+
+            listContainer.innerHTML = placeholders.map((placeholder, index) => `
+                <div class="placeholder-item ${placeholder.type === 'phi' ? 'phi-data' : ''}">
+                    <div class="placeholder-key">{{${placeholder.key}}}</div>
+                    <div class="placeholder-description">${placeholder.description}</div>
+                    <div class="placeholder-description" style="font-family: 'Courier New', monospace; font-size: 11px;">${placeholder.example}</div>
+                    <div class="placeholder-type type-${placeholder.type}">${placeholder.type.toUpperCase()}</div>
+                    <button class="remove-btn" onclick="removePlaceholder(${index})">✕</button>
+                </div>
+            `).join('');
+        }
+
+        function showAddPlaceholder() {
+            const form = document.getElementById('newPlaceholderForm');
+            form.style.display = form.style.display === 'none' ? 'grid' : 'none';
+        }
+
+        function addPlaceholder() {
+            const key = document.getElementById('newPlaceholderKey').value.trim();
+            const description = document.getElementById('newPlaceholderDesc').value.trim();
+            const example = document.getElementById('newPlaceholderExample').value.trim();
+            const type = document.getElementById('newPlaceholderType').value;
+
+            if (!key || !description || !example) {
+                alert('Please fill in all placeholder fields');
+                return;
+            }
+
+            // Check for duplicate keys
+            if (placeholders.some(p => p.key === key)) {
+                alert('Placeholder key already exists');
+                return;
+            }
+
+            // Validate key format (alphanumeric and underscores only)
+            if (!/^[a-zA-Z0-9_]+$/.test(key)) {
+                alert('Placeholder key can only contain letters, numbers, and underscores');
+                return;
+            }
+
+            placeholders.push({
+                key: key,
+                description: description,
+                example: example,
+                type: type
+            });
+
+            // Clear form
+            document.getElementById('newPlaceholderKey').value = '';
+            document.getElementById('newPlaceholderDesc').value = '';
+            document.getElementById('newPlaceholderExample').value = '';
+            document.getElementById('newPlaceholderType').value = 'text';
+
+            // Hide form
+            document.getElementById('newPlaceholderForm').style.display = 'none';
+
+            renderPlaceholders();
+            updatePreview();
+        }
+
+        function removePlaceholder(index) {
+            if (confirm('Are you sure you want to remove this placeholder?')) {
+                placeholders.splice(index, 1);
+                renderPlaceholders();
+                updatePreview();
+            }
+        }
+
+        function insertText(text) {
+            const textarea = document.getElementById('templateContent');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const currentValue = textarea.value;
+            
+            textarea.value = currentValue.substring(0, start) + text + currentValue.substring(end);
+            textarea.focus();
+            textarea.setSelectionRange(start + text.length, start + text.length);
+            
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const content = document.getElementById('templateContent').value;
+            const preview = document.getElementById('templatePreview');
+            
+            if (!content.trim()) {
+                preview.textContent = 'Start typing in the template editor to see a preview here...';
+                return;
+            }
+
+            let processedContent = content;
+
+            if (showSampleData) {
+                // Replace placeholders with sample data
+                placeholders.forEach(placeholder => {
+                    const regex = new RegExp(`{{${placeholder.key}}}`, 'g');
+                    processedContent = processedContent.replace(regex, placeholder.example);
+                });
+                
+                // Show AI enhancement zones in preview
+                processedContent = highlightAIZones(processedContent);
+                preview.innerHTML = processedContent;
+            } else {
+                // Highlight placeholders
+                placeholders.forEach(placeholder => {
+                    const regex = new RegExp(`{{${placeholder.key}}}`, 'g');
+                    processedContent = processedContent.replace(regex, 
+                        `<span class="placeholder-highlight">{{${placeholder.key}}}</span>`);
+                });
+                
+                // Show AI enhancement zones
+                processedContent = highlightAIZones(processedContent);
+                preview.innerHTML = processedContent;
+            }
+        }
+
+        function highlightAIZones(content) {
+            let highlightedContent = content;
+            
+            // Sort zones by start position (descending) to avoid position shifting
+            const sortedZones = [...aiEnhancementZones].sort((a, b) => b.start - a.start);
+            
+            sortedZones.forEach(zone => {
+                const beforeZone = highlightedContent.substring(0, zone.start);
+                const zoneContent = highlightedContent.substring(zone.start, zone.end);
+                const afterZone = highlightedContent.substring(zone.end);
+                
+                const wrappedZone = `<div class="ai-enhancement-zone">
+                    <div class="ai-zone-label">${zone.type}</div>
+                    ${zoneContent}
+                </div>`;
+                
+                highlightedContent = beforeZone + wrappedZone + afterZone;
+            });
+            
+            return highlightedContent;
+        }
+
+        function handleTextSelection() {
+            const textarea = document.getElementById('templateContent');
+            const selection = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+            
+            if (selection.length > 0) {
+                selectedText = selection;
+                selectionStart = textarea.selectionStart;
+                selectionEnd = textarea.selectionEnd;
+            }
+        }
+
+        function toggleAIPanel() {
+            const panel = document.getElementById('aiEnhancementPanel');
+            const isActive = panel.classList.contains('active');
+            
+            if (isActive) {
+                closeAIPanel();
+            } else {
+                if (!selectedText) {
+                    alert('Please select text in the template first');
+                    return;
+                }
+                showAIPanel();
+            }
+        }
+
+        function showAIPanel() {
+            const panel = document.getElementById('aiEnhancementPanel');
+            panel.classList.add('active');
+        }
+
+        function closeAIPanel() {
+            const panel = document.getElementById('aiEnhancementPanel');
+            panel.classList.remove('active');
+            selectedText = '';
+        }
+
+        function selectEnhancementType(type) {
+            currentEnhancementType = type;
+            document.querySelectorAll('.enhancement-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-type="${type}"]`).classList.add('active');
+        }
+
+        function addAIZone() {
+            if (!selectedText) {
+                alert('Please select text in the template first');
+                return;
+            }
+            
+            // Check for overlapping zones
+            const hasOverlap = aiEnhancementZones.some(zone => 
+                (selectionStart >= zone.start && selectionStart < zone.end) ||
+                (selectionEnd > zone.start && selectionEnd <= zone.end) ||
+                (selectionStart <= zone.start && selectionEnd >= zone.end)
+            );
+            
+            if (hasOverlap) {
+                alert('Selected text overlaps with an existing AI enhancement zone');
+                return;
+            }
+            
+            const intensity = document.getElementById('aiIntensity').value;
+            const style = document.getElementById('aiStyle').value;
+            
+            const newZone = {
+                id: Date.now().toString(),
+                start: selectionStart,
+                end: selectionEnd,
+                text: selectedText,
+                type: currentEnhancementType,
+                intensity: parseInt(intensity),
+                style: style,
+                created: new Date().toISOString()
+            };
+            
+            aiEnhancementZones.push(newZone);
+            renderAIZones();
+            updatePreview();
+            closeAIPanel();
+            
+            // Clear selection
+            selectedText = '';
+            const textarea = document.getElementById('templateContent');
+            textarea.focus();
+        }
+
+        function removeAIZone(zoneId) {
+            aiEnhancementZones = aiEnhancementZones.filter(zone => zone.id !== zoneId);
+            renderAIZones();
+            updatePreview();
+        }
+
+        function clearAIZones() {
+            if (aiEnhancementZones.length === 0) {
+                alert('No AI enhancement zones to clear');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to remove all AI enhancement zones?')) {
+                aiEnhancementZones = [];
+                renderAIZones();
+                updatePreview();
+            }
+        }
+
+        function renderAIZones() {
+            const container = document.getElementById('aiZonesContent');
+            
+            if (aiEnhancementZones.length === 0) {
+                container.innerHTML = `
+                    <p style="text-align: center; color: #64748b; font-size: 12px; padding: 20px;">
+                        No AI enhancement zones defined. Select text in the template and click "Add Zone" to create one.
+                    </p>
+                `;
+                return;
+            }
+            
+            // Sort zones by position for display
+            const sortedZones = [...aiEnhancementZones].sort((a, b) => a.start - b.start);
+            
+            container.innerHTML = sortedZones.map(zone => `
+                <div class="ai-zone-item">
+                    <div class="zone-info">
+                        <div class="zone-text">"${zone.text.length > 50 ? zone.text.substring(0, 50) + '...' : zone.text}"</div>
+                        <div class="zone-settings">${zone.type} • ${zone.intensity}% intensity • ${zone.style} style</div>
+                    </div>
+                    <button class="zone-remove-btn" onclick="removeAIZone('${zone.id}')">✕</button>
+                </div>
+            `).join('');
+        }
+
+        async function testOllamaConnection() {
+            const url = document.getElementById('ollamaUrl').value;
+            const model = document.getElementById('ollamaModel').value;
+            const statusElement = document.getElementById('connectionStatus');
+            
+            if (!url || !model) {
+                alert('Please provide both Ollama URL and model name');
+                return;
+            }
+            
+            statusElement.className = 'connection-status status-testing';
+            statusElement.innerHTML = '<span>●</span> Testing...';
+            
+            try {
+                const response = await fetch(`${url}/api/tags`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const modelExists = data.models && data.models.some(m => m.name.includes(model));
+                    
+                    if (modelExists) {
+                        statusElement.className = 'connection-status status-connected';
+                        statusElement.innerHTML = '<span>●</span> Connected';
+                        ollamaConnected = true;
+                    } else {
+                        statusElement.className = 'connection-status status-disconnected';
+                        statusElement.innerHTML = '<span>●</span> Model Not Found';
+                        ollamaConnected = false;
+                    }
+                } else {
+                    throw new Error('Connection failed');
+                }
+            } catch (error) {
+                statusElement.className = 'connection-status status-disconnected';
+                statusElement.innerHTML = '<span>●</span> Connection Failed';
+                ollamaConnected = false;
+            }
+        }
+
+        // Function to generate enhanced notes (called when template is populated)
+        async function generateEnhancedNote(populatedTemplate) {
+            if (!ollamaConnected || aiEnhancementZones.length === 0) {
+                return populatedTemplate;
+            }
+            
+            let enhancedTemplate = populatedTemplate;
+            const url = document.getElementById('ollamaUrl').value;
+            const model = document.getElementById('ollamaModel').value;
+            
+            // Sort zones by position (descending) to maintain text positions
+            const sortedZones = [...aiEnhancementZones].sort((a, b) => b.start - a.start);
+            
+            for (const zone of sortedZones) {
+                try {
+                    const textToEnhance = enhancedTemplate.substring(zone.start, zone.end);
+                    const prompt = generateEnhancementPrompt(textToEnhance, zone);
+                    
+                    const response = await fetch(`${url}/api/generate`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: model,
+                            prompt: prompt,
+                            stream: false,
+                            options: {
+                                temperature: zone.intensity / 100,
+                                max_tokens: 200
+                            }
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const enhancedText = data.response.trim();
+                        
+                        const before = enhancedTemplate.substring(0, zone.start);
+                        const after = enhancedTemplate.substring(zone.end);
+                        enhancedTemplate = before + enhancedText + after;
+                    }
+                } catch (error) {
+                    console.error('AI enhancement failed for zone:', zone.id, error);
+                }
+            }
+            
+            return enhancedTemplate;
+        }
+
+        function generateEnhancementPrompt(text, zone) {
+            const typeInstructions = {
+                clinical: "Enhance this clinical text with professional medical terminology and standard clinical language.",
+                narrative: "Improve the narrative flow and readability while maintaining clinical accuracy.",
+                diagnostic: "Focus on diagnostic criteria, clinical reasoning, and medical decision-making processes."
+            };
+            
+            const styleInstructions = {
+                professional: "Use formal, professional medical language.",
+                concise: "Be brief and direct while maintaining clarity.",
+                detailed: "Provide comprehensive, thorough documentation.",
+                empathetic: "Use patient-centered, compassionate language.",
+                objective: "Focus on objective, measurable observations."
+            };
+            
+            return `You are a medical documentation assistant. ${typeInstructions[zone.type]} ${styleInstructions[zone.style]}
+
+Enhancement intensity: ${zone.intensity}%
+Original text: "${text}"
+
+Please provide only the enhanced text without additional commentary:`;
+        }
+
+        function togglePreviewMode() {
+            showSampleData = !showSampleData;
+            updatePreview();
+        }
+
+        function newTemplate() {
+            if (confirm('This will clear the current template. Continue?')) {
+                document.getElementById('templateName').value = '';
+                document.getElementById('templateCategory').value = 'progress';
+                document.getElementById('templateVersion').value = '1.0';
+                document.getElementById('templateContent').value = '';
+                
+                // Clear AI enhancement zones
+                aiEnhancementZones = [];
+                selectedText = '';
+                
+                // Reset placeholders to default
+                placeholders = [
+                    {
+                        key: 'patient_name',
+                        description: "Patient's full name",
+                        example: 'Doe, John',
+                        type: 'phi'
+                    },
+                    {
+                        key: 'date_of_service',
+                        description: 'Date of service',
+                        example: new Date().toLocaleDateString(),
+                        type: 'date'
+                    },
+                    {
+                        key: 'provider_name',
+                        description: 'Healthcare provider name',
+                        example: 'Dr. Smith',
+                        type: 'text'
+                    }
+                ];
+                
+                // Re-render everything
+                renderPlaceholders();
+                renderAIZones();
+                updatePreview();
+                closeAIPanel();
+            }
+        }
+
+        function saveTemplate() {
+            const name = document.getElementById('templateName').value.trim();
+            const category = document.getElementById('templateCategory').value;
+            const version = document.getElementById('templateVersion').value;
+            const content = document.getElementById('templateContent').value.trim();
+
+            if (!name || !content) {
+                alert('Please provide a template name and content');
+                return;
+            }
+
+            const template = {
+                id: Date.now().toString(),
+                name: name,
+                category: category,
+                version: version,
+                content: content,
+                placeholders: [...placeholders],
+                aiEnhancementZones: [...aiEnhancementZones],
+                ollamaConfig: {
+                    url: document.getElementById('ollamaUrl').value,
+                    model: document.getElementById('ollamaModel').value
+                },
+                created: new Date().toISOString(),
+                modified: new Date().toISOString()
+            };
+
+            // Check if updating existing template
+            const existingIndex = savedTemplates.findIndex(t => t.name === name);
+            if (existingIndex !== -1) {
+                if (confirm('A template with this name already exists. Update it?')) {
+                    template.id = savedTemplates[existingIndex].id;
+                    template.created = savedTemplates[existingIndex].created;
+                    savedTemplates[existingIndex] = template;
+                } else {
+                    return;
+                }
+            } else {
+                savedTemplates.push(template);
+            }
+
+            renderTemplateLibrary();
+            alert('Template saved successfully!');
+        }
+        function exportTemplate() {
+            const name = document.getElementById('templateName').value.trim();
+            const category = document.getElementById('templateCategory').value;
+            const version = document.getElementById('templateVersion').value;
+            const content = document.getElementById('templateContent').value.trim();
+
+            if (!name || !content) {
+                alert('Please provide a template name and content to export');
+                return;
+            }
+
+            const exportData = {
+                name: name,
+                category: category,
+                version: version,
+                content: content,
+                placeholders: placeholders,
+                aiEnhancementZones: aiEnhancementZones,
+                ollamaConfig: {
+                    url: document.getElementById('ollamaUrl').value,
+                    model: document.getElementById('ollamaModel').value
+                },
+                exported: new Date().toISOString(),
+                hipaaCompliant: true,
+                medocpro: {
+                    component: 'template-editor',
+                    version: '2.0',
+                    features: ['placeholders', 'ai-enhancement']
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_template.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function loadTemplate(template) {
+            try {
+                // Clear any existing data first
+                document.getElementById('templateName').value = '';
+                document.getElementById('templateCategory').value = 'progress';
+                document.getElementById('templateVersion').value = '1.0';
+                document.getElementById('templateContent').value = '';
+                
+                // Load template data safely
+                if (template.name) document.getElementById('templateName').value = template.name;
+                if (template.category) document.getElementById('templateCategory').value = template.category;
+                if (template.version) document.getElementById('templateVersion').value = template.version;
+                if (template.content) document.getElementById('templateContent').value = template.content;
+                
+                // Load arrays safely
+                placeholders = Array.isArray(template.placeholders) ? [...template.placeholders] : [];
+                aiEnhancementZones = Array.isArray(template.aiEnhancementZones) ? [...template.aiEnhancementZones] : [];
+                
+                // Load Ollama config if available
+                if (template.ollamaConfig && typeof template.ollamaConfig === 'object') {
+                    const ollamaUrl = document.getElementById('ollamaUrl');
+                    const ollamaModel = document.getElementById('ollamaModel');
+                    if (ollamaUrl) ollamaUrl.value = template.ollamaConfig.url || 'http://localhost:11434';
+                    if (ollamaModel) ollamaModel.value = template.ollamaConfig.model || 'llama2';
+                }
+                
+                // Re-render everything
+                renderPlaceholders();
+                renderAIZones();
+                updatePreview();
+                closeAIPanel();
+            } catch (error) {
+                console.error('Error in loadTemplate:', error);
+                alert('Error loading template data. Please try again.');
+            }
+        }
+
+        function renderTemplateLibrary() {
+            const listContainer = document.getElementById('templateList');
+            
+            if (!listContainer) return;
+            
+            if (savedTemplates.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="empty-library">
+                        <div class="empty-icon">📄</div>
+                        <p>No saved templates</p>
+                        <p style="font-size: 14px; margin-top: 8px;">Create your first template above</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Clear existing content completely
+            listContainer.innerHTML = '';
+            
+            // Create template items safely
+            savedTemplates.forEach((template, index) => {
+                const templateDiv = document.createElement('div');
+                templateDiv.className = 'template-item';
+                templateDiv.setAttribute('data-template-index', index);
+                
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'template-info';
+                
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'template-name';
+                nameDiv.textContent = template.name;
+                
+                const descDiv = document.createElement('div');
+                descDiv.className = 'template-desc';
+                descDiv.textContent = `${template.category} • v${template.version} • ${template.placeholders ? template.placeholders.length : 0} placeholders • ${template.aiEnhancementZones ? template.aiEnhancementZones.length : 0} AI zones`;
+                
+                const dateDiv = document.createElement('div');
+                dateDiv.className = 'template-date';
+                dateDiv.textContent = `Modified: ${new Date(template.modified).toLocaleDateString()}`;
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.textContent = '✕';
+                removeBtn.setAttribute('data-template-id', template.id);
+                
+                // Assemble elements
+                infoDiv.appendChild(nameDiv);
+                infoDiv.appendChild(descDiv);
+                infoDiv.appendChild(dateDiv);
+                
+                templateDiv.appendChild(infoDiv);
+                templateDiv.appendChild(removeBtn);
+                
+                listContainer.appendChild(templateDiv);
+            });
+            
+            // Add single event listener for all template interactions
+            listContainer.removeEventListener('click', handleTemplateLibraryClick);
+            listContainer.addEventListener('click', handleTemplateLibraryClick);
+        }
+        
+        function handleTemplateLibraryClick(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            const removeBtn = event.target.closest('.remove-btn');
+            const templateItem = event.target.closest('.template-item');
+            
+            if (removeBtn) {
+                const templateId = removeBtn.getAttribute('data-template-id');
+                if (templateId && confirm('Are you sure you want to delete this template?')) {
+                    savedTemplates = savedTemplates.filter(t => t.id !== templateId);
+                    renderTemplateLibrary();
+                }
+            } else if (templateItem) {
+                const index = parseInt(templateItem.getAttribute('data-template-index'));
+                if (!isNaN(index) && index >= 0 && index < savedTemplates.length) {
+                    loadTemplateByIndex(index);
+                }
+            }
+        }
+
+        function loadTemplateByIndex(index) {
+            try {
+                if (index >= 0 && index < savedTemplates.length) {
+                    const template = savedTemplates[index];
+                    loadTemplate(template);
+                }
+            } catch (error) {
+                console.error('Error loading template:', error);
+                alert('Error loading template. Please try again.');
+            }
+        }
+
+        // Load sample template on startup
+        function loadSampleTemplate() {
+            // Simple sample template without complex data to prevent leakage
+            const sampleTemplate = {
+                id: 'sample-1',
+                name: 'Basic Progress Note Template',
+                category: 'progress',
+                version: '1.0',
+                content: `PROGRESS NOTE
+
+Date: {{date_of_service}}
+Patient: {{patient_name}}
+Provider: {{provider_name}}
+
+CHIEF COMPLAINT:
+{{chief_complaint}}
+
+ASSESSMENT:
+{{assessment}}
+
+PLAN:
+{{plan}}
+
+Provider: {{provider_signature}}`,
+                placeholders: [
+                    { key: 'patient_name', description: "Patient name", example: 'Smith, J.', type: 'phi' },
+                    { key: 'date_of_service', description: 'Service date', example: '6/9/2025', type: 'date' },
+                    { key: 'provider_name', description: 'Provider', example: 'Dr. Johnson', type: 'text' },
+                    { key: 'chief_complaint', description: 'Chief complaint', example: 'Follow-up visit', type: 'text' },
+                    { key: 'assessment', description: 'Assessment', example: 'Stable condition', type: 'text' },
+                    { key: 'plan', description: 'Treatment plan', example: 'Continue current treatment', type: 'text' },
+                    { key: 'provider_signature', description: 'Provider signature', example: 'Dr. Johnson, MD', type: 'text' }
+                ],
+                aiEnhancementZones: [],
+                ollamaConfig: {
+                    url: 'http://localhost:11434',
+                    model: 'llama2'
+                },
+                created: new Date().toISOString(),
+                modified: new Date().toISOString()
+            };
+
+            // Only add to saved templates, don't load it automatically
+            savedTemplates.push(sampleTemplate);
+        }
+
+        // File import functionality
+        function importTemplate() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        
+                        // Validate imported template structure
+                        if (!importedData.name || !importedData.content || !importedData.placeholders) {
+                            alert('Invalid template file format');
+                            return;
+                        }
+
+                        // Load the imported template
+                        document.getElementById('templateName').value = importedData.name;
+                        document.getElementById('templateCategory').value = importedData.category || 'custom';
+                        document.getElementById('templateVersion').value = importedData.version || '1.0';
+                        document.getElementById('templateContent').value = importedData.content;
+                        
+                        placeholders = importedData.placeholders || [];
+                        aiEnhancementZones = importedData.aiEnhancementZones || [];
+                        
+                        // Load Ollama config if available
+                        if (importedData.ollamaConfig) {
+                            document.getElementById('ollamaUrl').value = importedData.ollamaConfig.url || 'http://localhost:11434';
+                            document.getElementById('ollamaModel').value = importedData.ollamaConfig.model || 'llama2';
+                        }
+                        
+                        renderPlaceholders();
+                        renderAIZones();
+                        updatePreview();
+                        
+                        alert('Template imported successfully!');
+                    } catch (error) {
+                        alert('Error importing template: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // Enhanced validation for clinical content
+        function validateClinicalContent(content) {
+            const clinicalKeywords = [
+                'patient', 'diagnosis', 'treatment', 'assessment', 'history',
+                'examination', 'mental status', 'mood', 'affect', 'symptoms',
+                'medication', 'therapy', 'plan', 'provider', 'clinical'
+            ];
+            
+            const contentLower = content.toLowerCase();
+            const hasKeywords = clinicalKeywords.some(keyword => contentLower.includes(keyword));
+            
+            if (!hasKeywords) {
+                return {
+                    valid: false,
+                    message: 'Template appears to lack clinical terminology. Consider adding medical keywords.'
+                };
+            }
+            
+            // Check for potential PHI patterns (for warning purposes)
+            const phiPatterns = [
+                /\d{3}-\d{2}-\d{4}/, // SSN pattern
+                /\(\d{3}\)\s?\d{3}-\d{4}/, // Phone pattern
+                /@\w+\.\w+/ // Email pattern
+            ];
+            
+            const hasPotentialPHI = phiPatterns.some(pattern => pattern.test(content));
+            
+            if (hasPotentialPHI) {
+                return {
+                    valid: false,
+                    message: 'Template contains potential PHI patterns. Use placeholders instead of real data.'
+                };
+            }
+            
+            return { valid: true };
+        }
+
+        // Enhanced save with validation
+        function saveTemplateWithValidation() {
+            const content = document.getElementById('templateContent').value.trim();
+            
+            if (!content) {
+                alert('Please provide template content');
+                return;
+            }
+            
+            const validation = validateClinicalContent(content);
+            if (!validation.valid) {
+                if (!confirm(validation.message + '\n\nSave anyway?')) {
+                    return;
+                }
+            }
+            
+            saveTemplate();
+        }
+
+        // Demo function to show AI enhancement in action
+        function demoAIEnhancement() {
+            if (!ollamaConnected) {
+                alert('Please test and establish Ollama connection first');
+                return;
+            }
+            
+            if (aiEnhancementZones.length === 0) {
+                alert('No AI enhancement zones defined. Please add some zones first.');
+                return;
+            }
+            
+            const content = document.getElementById('templateContent').value;
+            if (!content.trim()) {
+                alert('Please provide template content first');
+                return;
+            }
+            
+            // Create a popup to show the demo
+            const popup = window.open('', 'demo', 'width=800,height=600,scrollbars=yes');
+            popup.document.write(`
+                <html>
+                    <head>
+                        <title>AI Enhancement Demo</title>
+                        <style>
+                            body { font-family: 'Segoe UI', sans-serif; padding: 20px; }
+                            .demo-section { margin-bottom: 30px; padding: 20px; border-radius: 8px; }
+                            .original { background: #f8f9fa; border-left: 4px solid #6c757d; }
+                            .enhanced { background: #e7f3ff; border-left: 4px solid #0066cc; }
+                            .zone-highlight { background: rgba(147, 51, 234, 0.2); padding: 2px 4px; border-radius: 3px; }
+                            h3 { margin-bottom: 15px; }
+                            pre { white-space: pre-wrap; font-family: inherit; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>AI Enhancement Demo</h1>
+                        <div class="demo-section original">
+                            <h3>Original Template (with sample data)</h3>
+                            <pre id="original-content">Processing...</pre>
+                        </div>
+                        <div class="demo-section enhanced">
+                            <h3>AI Enhanced Version</h3>
+                            <pre id="enhanced-content">Processing with AI...</pre>
+                        </div>
+                        <button onclick="window.close()" style="padding: 10px 20px; background: #0066cc; color: white; border: none; border-radius: 6px; cursor: pointer;">Close Demo</button>
+                    </body>
+                </html>
+            `);
+            
+            // Populate with sample data first
+            let populatedContent = content;
+            placeholders.forEach(placeholder => {
+                const regex = new RegExp(`{{${placeholder.key}}}`, 'g');
+                populatedContent = populatedContent.replace(regex, placeholder.example);
+            });
+            
+            popup.document.getElementById('original-content').textContent = populatedContent;
+            
+            // Generate enhanced version
+            generateEnhancedNote(populatedContent).then(enhanced => {
+                popup.document.getElementById('enhanced-content').textContent = enhanced;
+            }).catch(error => {
+                popup.document.getElementById('enhanced-content').textContent = 
+                    'Error generating enhanced version: ' + error.message;
+            });
+        }
+
+        // Initialize component
+        document.addEventListener('DOMContentLoaded', function() {
+            // Prevent any accidental data output
+            const originalConsoleLog = console.log;
+            console.log = function(...args) {
+                // Filter out any template data from console output
+                const filteredArgs = args.filter(arg => {
+                    if (typeof arg === 'string' && arg.includes('sampleTemplate')) {
+                        return false;
+                    }
+                    return true;
+                });
+                if (filteredArgs.length > 0) {
+                    originalConsoleLog.apply(console, filteredArgs);
+                }
+            };
+
+            // Clear any existing content first
+            const templateListContainer = document.getElementById('templateList');
+            if (templateListContainer) {
+                templateListContainer.innerHTML = '';
+            }
+
+            renderPlaceholders();
+            loadSampleTemplate();
+            renderTemplateLibrary();
+            
+            // Add import button to template actions
+            const actionsContainer = document.querySelector('.template-actions');
+            if (actionsContainer) {
+                const importBtn = document.createElement('button');
+                importBtn.className = 'action-btn';
+                importBtn.textContent = 'Import';
+                importBtn.onclick = importTemplate;
+                actionsContainer.insertBefore(importBtn, actionsContainer.children[1]);
+                
+                // Add demo button
+                const demoBtn = document.createElement('button');
+                demoBtn.className = 'action-btn';
+                demoBtn.textContent = 'Demo AI';
+                demoBtn.onclick = demoAIEnhancement;
+                demoBtn.style.background = '#9333ea';
+                demoBtn.style.color = 'white';
+                actionsContainer.appendChild(demoBtn);
+                
+                // Replace save button with validated version
+                const saveBtn = actionsContainer.querySelector('.action-btn.primary');
+                if (saveBtn) {
+                    saveBtn.onclick = saveTemplateWithValidation;
+                }
+            }
+            
+            // Update intensity display
+            const intensitySlider = document.getElementById('aiIntensity');
+            if (intensitySlider) {
+                intensitySlider.addEventListener('input', function() {
+                    const value = this.value;
+                    const display = document.getElementById('intensityDisplay');
+                    if (display) {
+                        const levels = {
+                            0: '0% - No Enhancement',
+                            25: '25% - Light Enhancement',
+                            50: '50% - Moderate Enhancement',
+                            75: '75% - Strong Enhancement',
+                            100: '100% - Maximum Enhancement'
+                        };
+                        const level = Math.floor(value / 25) * 25;
+                        display.textContent = `${value}% - ${levels[level].split(' - ')[1]}`;
+                    }
+                });
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 's':
+                        e.preventDefault();
+                        saveTemplateWithValidation();
+                        break;
+                    case 'n':
+                        e.preventDefault();
+                        newTemplate();
+                        break;
+                    case 'e':
+                        e.preventDefault();
+                        exportTemplate();
+                        break;
+                    case 'm':
+                        e.preventDefault();
+                        toggleAIPanel();
+                        break;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
