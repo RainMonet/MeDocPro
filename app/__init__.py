@@ -1,8 +1,8 @@
-# In app/__init__.py
+# app/__init__.py
 
 from flask import Flask
 from config import Config
-from .extensions import db, migrate, jwt # <-- Import from new extensions.py file
+from .extensions import db, migrate, jwt
 
 def create_app(config_class=Config):
     """The application factory."""

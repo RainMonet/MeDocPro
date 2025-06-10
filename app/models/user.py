@@ -1,4 +1,4 @@
-﻿# MeDocPro/app/models/user.py
+﻿# app/models/user.py
 
 from ..extensions import db
 from datetime import datetime

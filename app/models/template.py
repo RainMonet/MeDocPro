@@ -1,4 +1,4 @@
-﻿# MeDocPro/app/models/template.py
+﻿# app/models/template.py
 
 from ..extensions import db
 

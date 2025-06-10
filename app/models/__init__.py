@@ -1,4 +1,9 @@
-from flask_sqlalchemy import SQLAlchemy
+# app/models/__init__.py
 
-# Create the SQLAlchemy instance. It's not yet attached to an app.
-db = SQLAlchemy()
+from ..extensions import db
+from .user import User
+from .template import Template
+from .audit_log import AuditLog
+
+# Make models available for import
+__all__ = ['db', 'User', 'Template', 'AuditLog']
