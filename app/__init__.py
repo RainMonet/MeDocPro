@@ -1,4 +1,4 @@
-# app/__init__.py
+﻿# app/__init__.py
 
 from flask import Flask
 from config import Config
@@ -17,8 +17,17 @@ def create_app(config_class=Config):
     # Register blueprints here
     # Use a with block to ensure app context is available for blueprint registration
     with app.app_context():
+        # Health endpoints (no prefix for easy access)
+        from .routes.health import health_bp
+        app.register_blueprint(health_bp)
+        
+        # Auth endpoints
         from .routes.auth import auth_bp
         app.register_blueprint(auth_bp, url_prefix='/auth')
+        
+        # Template endpoints
+        from .routes.templates import templates_bp
+        app.register_blueprint(templates_bp, url_prefix='/api')
 
         # Import models here to ensure they are registered with SQLAlchemy
         from . import models
