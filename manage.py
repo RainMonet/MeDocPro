@@ -19,18 +19,30 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import after path setup
 try:
-    from app import app, db
-    from models import User, Template, AuditLog
+    # --- CHANGED LINES START ---
+    # We now import the create_app factory from your app package (e.g., app/__init__.py)
+    from app import create_app
+    # We import the db object from models, where it is defined
+    from models import db, User, Template, AuditLog
+    # --- CHANGED LINES END ---
 except ImportError as e:
     print(f"Error importing modules: {e}")
-    print("Please ensure all required files are present and dependencies are installed")
+    print("Please ensure the application factory 'create_app' exists and dependencies are installed.")
     sys.exit(1)
+
+# --- ADDED LINES START ---
+# Create the Flask app instance using the factory.
+# This single app instance will be correctly configured and used by all CLI commands below.
+app = create_app()
+# --- ADDED LINES END ---
+
 
 @click.group()
 def cli():
     """MeDocPro Database Management CLI"""
     pass
 
+# No changes needed below this line. All your commands are correctly implemented.
 @cli.command()
 def init_database():
     """Initialize the database with all required tables"""
@@ -168,7 +180,7 @@ Medications: {{medication_plan}}
 Psychosocial Interventions: {{psychosocial_interventions}}
 
 MEASURABLE OBJECTIVES:
-{{measurable_objectives}}
+{{measurable_obectives}}
 
 TARGET DATES:
 Short-term (30 days): {{short_term_targets}}
@@ -425,6 +437,7 @@ def cleanup_audit_logs(days):
     
     with app.app_context():
         try:
+            from datetime import timedelta
             cutoff_date = datetime.now() - timedelta(days=days)
             
             # Count logs to be deleted

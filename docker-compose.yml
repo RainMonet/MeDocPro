@@ -1,4 +1,4 @@
-version: '3.8'
+# version: '3.8' was removed as it is obsolete.
 
 services:
   # PostgreSQL Database
@@ -125,6 +125,8 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    # FIXED: Changed app:app to "app:create_app()" to support the application factory pattern.
+    command: ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:5000", "--keep-alive", "5", "app:create_app()"]
     deploy:
       resources:
         limits:

@@ -1,2 +1,4 @@
 cd "C:\Users\admin\Desktop\MeDocPro"
-.\.venv\Scripts\Activate.ps1
+.venv\scripts\activate
+
+docker-compose logs api

@@ -1,459 +1,270 @@
-# MeDocPro Backend Setup Script
-# HIPAA-compliant medical documentation system setup for Windows
+# MeDocPro Setup Script for Windows
+# Usage:
+#   .\setup.ps1              - Sets up a local development environment without Docker.
+#   .\setup.ps1 -Docker      - Sets up a production-like environment using Docker.
+#   .\setup.ps1 -Docker -Gpu - Sets up a production-like environment using Docker with GPU support for Ollama.
+#   .\setup.ps1 -SkipPrereqs - Skips the prerequisite checks.
 
-[CmdletBinding()]
-param(
-    [Parameter(Mandatory=$false)]
-    [ValidateSet("development", "production")]
-    [string]$Mode = "development",
-    
-    [Parameter(Mandatory=$false)]
-    [switch]$Docker = $false,
-    
-    [Parameter(Mandatory=$false)]
-    [switch]$SkipDependencies = $false
+param (
+    [switch]$Docker,
+    [switch]$Gpu,
+    [switch]$SkipPrereqs,
+    [switch]$Help
 )
 
-# Script configuration
-$ErrorActionPreference = "Stop"
-$InformationPreference = "Continue"
-
-# Colors for output
-$Green = "Green"
-$Yellow = "Yellow"
-$Red = "Red"
-$Blue = "Cyan"
-
-function Write-Step {
+# --- Helper Functions for Colored Output ---
+function Write-Info {
     param([string]$Message)
-    Write-Host "🔧 $Message" -ForegroundColor $Blue
+    Write-Host "[INFO] $Message" -ForegroundColor Cyan
 }
 
 function Write-Success {
     param([string]$Message)
-    Write-Host "✅ $Message" -ForegroundColor $Green
+    Write-Host "[SUCCESS] $Message" -ForegroundColor Green
 }
 
 function Write-Warning {
     param([string]$Message)
-    Write-Host "⚠️  $Message" -ForegroundColor $Yellow
+    Write-Host "[WARNING] $Message" -ForegroundColor Yellow
 }
 
 function Write-Error {
     param([string]$Message)
-    Write-Host "❌ $Message" -ForegroundColor $Red
+    Write-Host "[ERROR] $Message" -ForegroundColor Red
 }
 
-function Test-Prerequisites {
-    Write-Step "Checking prerequisites..."
-    
-    # Check PowerShell version
-    if ($PSVersionTable.PSVersion.Major -lt 5) {
-        Write-Error "PowerShell 5.1 or later required. Current version: $($PSVersionTable.PSVersion)"
-        exit 1
-    }
-    Write-Success "PowerShell version: $($PSVersionTable.PSVersion)"
-    
-    # Check Python
-    try {
-        $pythonVersion = python --version 2>&1
-        if ($pythonVersion -match "Python (\d+)\.(\d+)") {
-            $major = [int]$matches[1]
-            $minor = [int]$matches[2]
-            if ($major -eq 3 -and $minor -ge 11) {
-                Write-Success "Python version: $pythonVersion"
-            } else {
-                Write-Error "Python 3.11+ required. Found: $pythonVersion"
-                exit 1
-            }
-        }
-    } catch {
-        Write-Error "Python not found. Please install Python 3.11+"
-        exit 1
-    }
-    
-    # Check pip
-    try {
-        pip --version | Out-Null
-        Write-Success "pip is available"
-    } catch {
-        Write-Error "pip not found. Please ensure pip is installed"
-        exit 1
-    }
-    
-    # Check Docker if requested
-    if ($Docker) {
-        try {
-            docker --version | Out-Null
-            docker-compose --version | Out-Null
-            Write-Success "Docker and Docker Compose are available"
-        } catch {
-            Write-Error "Docker or Docker Compose not found. Please install Docker Desktop"
-            exit 1
-        }
-    }
-}
-
-function New-ProjectDirectories {
-    Write-Step "Creating project directory structure..."
-    
-    $directories = @(
-        "api",
-        "models",
-        "utils",
-        "tests",
-        "logs",
-        "security\keys",
-        "security\certs",
-        "backups",
-        "config",
-        "scripts",
-        "nginx"
-    )
-    
-    foreach ($dir in $directories) {
-        if (-not (Test-Path $dir)) {
-            New-Item -ItemType Directory -Path $dir -Force | Out-Null
-            Write-Success "Created directory: $dir"
-        } else {
-            Write-Information "Directory exists: $dir"
-        }
-    }
-}
-
-function Install-PythonDependencies {
-    Write-Step "Installing Python dependencies..."
-    
-    # Check if virtual environment exists
-    if (-not (Test-Path ".venv")) {
-        Write-Step "Creating virtual environment..."
-        python -m venv .venv
-        Write-Success "Virtual environment created"
-    }
-    
-    # Activate virtual environment
-    Write-Step "Activating virtual environment..."
-    & ".\.venv\Scripts\Activate.ps1"
-    
-    # Upgrade pip
-    Write-Step "Upgrading pip..."
-    python -m pip install --upgrade pip
-    
-    # Install dependencies
-    if (Test-Path "requirements.txt") {
-        Write-Step "Installing from requirements.txt..."
-        pip install -r requirements.txt
-        Write-Success "Dependencies installed from requirements.txt"
-    } else {
-        Write-Step "Installing core dependencies..."
-        $dependencies = @(
-            "Flask==3.0.0",
-            "Flask-SQLAlchemy==3.1.1",
-            "Flask-Migrate==4.0.5",
-            "Flask-JWT-Extended==4.6.0",
-            "Flask-Limiter==3.5.0",
-            "Flask-CORS==4.0.0",
-            "psycopg2-binary==2.9.9",
-            "redis==5.0.1",
-            "bcrypt==4.1.2",
-            "cryptography==41.0.8",
-            "python-dotenv==1.0.0",
-            "requests==2.31.0",
-            "pytest==7.4.3",
-            "pytest-flask==1.3.0",
-            "gunicorn==21.2.0"
-        )
-        
-        foreach ($dep in $dependencies) {
-            pip install $dep
-        }
-        Write-Success "Core dependencies installed"
-    }
-}
-
-function New-EnvironmentFile {
-    Write-Step "Creating environment configuration..."
-    
-    if (-not (Test-Path ".env")) {
-        # Generate secure random values
-        $secretKey = [System.Guid]::NewGuid().ToString()
-        $jwtSecret = [System.Guid]::NewGuid().ToString()
-        $encryptionKey = [System.Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-        
-        $envContent = @"
-# MeDocPro Environment Configuration
-# SECURITY: Never commit this file to version control
-
-# Application Settings
-FLASK_APP=app.py
-FLASK_ENV=$Mode
-SECRET_KEY=$secretKey
-DEBUG=$($Mode -eq "development")
-
-# Database Configuration
-DATABASE_URL=postgresql://medocpro:secure_password@localhost:5432/medocpro_db
-
-# Redis Configuration
-REDIS_URL=redis://localhost:6379/0
-
-# JWT Configuration
-JWT_SECRET_KEY=$jwtSecret
-JWT_ACCESS_TOKEN_EXPIRES=900
-JWT_REFRESH_TOKEN_EXPIRES=604800
-
-# Encryption
-ENCRYPTION_KEY=$encryptionKey
-
-# Rate Limiting
-RATELIMIT_STORAGE_URL=redis://localhost:6379/1
-
-# Ollama AI Configuration
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=llama2
-OLLAMA_TIMEOUT=30
-
-# Security Headers
-SECURE_SSL_REDIRECT=$($Mode -eq "production")
-SESSION_COOKIE_SECURE=$($Mode -eq "production")
-SESSION_COOKIE_HTTPONLY=True
-SESSION_COOKIE_SAMESITE=Lax
-
-# CORS Settings
-CORS_ORIGINS=http://localhost:3000;http://localhost:5000
-
-# Logging
-LOG_LEVEL=INFO
-LOG_TO_FILE=True
-LOG_ROTATION=True
-
-# Backup Configuration
-BACKUP_RETENTION_DAYS=90
-AUTO_BACKUP_ENABLED=True
-"@
-        
-        $envContent | Out-File -FilePath ".env" -Encoding UTF8
-        Write-Success "Environment file created (.env)"
-        Write-Warning "Please review and update the .env file with your specific configuration"
-    } else {
-        Write-Information "Environment file already exists (.env)"
-    }
-}
-
-function New-SecurityKeys {
-    Write-Step "Generating security keys and certificates..."
-    
-    # Generate JWT keys
-    $jwtDir = "security\keys"
-    if (-not (Test-Path "$jwtDir\jwt_private.key")) {
-        # Generate a simple key file for JWT (in production, use proper key generation)
-        $jwtKey = [System.Security.Cryptography.RandomNumberGenerator]::GetBytes(64)
-        $jwtKeyBase64 = [System.Convert]::ToBase64String($jwtKey)
-        $jwtKeyBase64 | Out-File -FilePath "$jwtDir\jwt_private.key" -Encoding UTF8
-        Write-Success "JWT private key generated"
-    }
-    
-    # Generate SSL certificates for development
-    $certDir = "security\certs"
-    if (-not (Test-Path "$certDir\server.crt")) {
-        Write-Step "Generating self-signed SSL certificate for development..."
-        
-        # Create a simple batch file to generate certificates (requires OpenSSL)
-        $certScript = '@echo off
-echo Generating self-signed certificate for development...
-openssl req -x509 -newkey rsa:4096 -keyout server.key -out server.crt -days 365 -nodes -subj "/C=US/ST=State/L=City/O=MeDocPro/CN=localhost"'
-        
-        $certScript | Out-File -FilePath "$certDir\generate_cert.bat" -Encoding ASCII
-        
-        Write-Warning "SSL certificate generation requires OpenSSL. Run security\certs\generate_cert.bat if OpenSSL is available."
-        Write-Information "For development, you can skip SSL or use Flask's built-in development server."
-    }
-}
-
-function Initialize-Database {
-    if (-not $Docker) {
-        Write-Step "Database initialization (local PostgreSQL required)..."
-        Write-Warning "Please ensure PostgreSQL is running and accessible"
-        Write-Information "You can run 'python manage.py init-database' after setup to initialize the database"
-    }
-}
-
-function New-DockerConfiguration {
-    if ($Docker) {
-        Write-Step "Setting up Docker configuration..."
-        
-        # Create docker-compose.yml if it doesn't exist
-        if (-not (Test-Path "docker-compose.yml")) {
-            $dockerCompose = @"
-version: '3.8'
-
-services:
-  medocpro-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "5000:5000"
-    environment:
-      - FLASK_ENV=$Mode
-      - DATABASE_URL=postgresql://medocpro:secure_password@db:5432/medocpro_db
-      - REDIS_URL=redis://redis:6379/0
-    depends_on:
-      - db
-      - redis
-    volumes:
-      - ./logs:/app/logs
-      - ./backups:/app/backups
-    networks:
-      - medocpro-network
-
-  db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: medocpro_db
-      POSTGRES_USER: medocpro
-      POSTGRES_PASSWORD: secure_password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./backups:/backups
-    ports:
-      - "5432:5432"
-    networks:
-      - medocpro-network
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - medocpro-network
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./security/certs:/etc/nginx/certs:ro
-    depends_on:
-      - medocpro-api
-    networks:
-      - medocpro-network
-
-volumes:
-  postgres_data:
-  redis_data:
-
-networks:
-  medocpro-network:
-    driver: bridge
-"@
-            $dockerCompose | Out-File -FilePath "docker-compose.yml" -Encoding UTF8
-            Write-Success "Docker Compose configuration created"
-        }
-    }
-}
-
-function Test-Setup {
-    Write-Step "Testing setup..."
-    
-    # Test Python imports
-    try {
-        python -c "import flask, sqlalchemy, bcrypt, cryptography; print('All required packages imported successfully')"
-        Write-Success "Python package imports successful"
-    } catch {
-        Write-Error "Python package import failed. Please check installation"
-        return $false
-    }
-    
-    # Test environment file
-    if (Test-Path ".env") {
-        Write-Success "Environment file exists"
-    } else {
-        Write-Error "Environment file missing"
-        return $false
-    }
-    
-    return $true
-}
-
-function Show-CompletionMessage {
-    Write-Host ""
-    Write-Host "🎉 MeDocPro Backend Setup Complete!" -ForegroundColor $Green
-    Write-Host ""
-    Write-Host "📋 Next Steps:" -ForegroundColor $Blue
-    Write-Host ""
-    
-    if ($Docker) {
-        Write-Host "   1. Start services with Docker:" -ForegroundColor $Yellow
-        Write-Host "      docker-compose up --build" -ForegroundColor White
-        Write-Host ""
-        Write-Host "   2. Initialize database:" -ForegroundColor $Yellow
-        Write-Host "      docker-compose exec medocpro-api python manage.py init-database" -ForegroundColor White
-    } else {
-        Write-Host "   1. Activate virtual environment:" -ForegroundColor $Yellow
-        Write-Host "      .\.venv\Scripts\Activate.ps1" -ForegroundColor White
-        Write-Host ""
-        Write-Host "   2. Start PostgreSQL and Redis services" -ForegroundColor $Yellow
-        Write-Host ""
-        Write-Host "   3. Initialize database:" -ForegroundColor $Yellow
-        Write-Host "      python manage.py init-database" -ForegroundColor White
-        Write-Host ""
-        Write-Host "   4. Start development server:" -ForegroundColor $Yellow
-        Write-Host "      python app.py" -ForegroundColor White
-    }
-    
-    Write-Host ""
-    Write-Host "   5. Create admin user:" -ForegroundColor $Yellow
-    Write-Host "      python manage.py create-admin" -ForegroundColor White
-    Write-Host ""
-    Write-Host "   6. Test API health:" -ForegroundColor $Yellow
-    Write-Host "      Invoke-WebRequest -Uri http://localhost:5000/health" -ForegroundColor White
-    Write-Host ""
-    Write-Host "🔒 Security Notes:" -ForegroundColor $Red
-    Write-Host "   - Review and update .env file with secure values" -ForegroundColor White
-    Write-Host "   - Change default passwords before production use" -ForegroundColor White
-    Write-Host "   - Generate proper SSL certificates for production" -ForegroundColor White
-    Write-Host ""
-    Write-Host "📚 Documentation:" -ForegroundColor $Blue
-    Write-Host "   - API Reference: README.md" -ForegroundColor White
-    Write-Host "   - Security Guide: SECURITY.md" -ForegroundColor White
-    Write-Host ""
-}
-
-# Main execution
-try {
-    Write-Host "🏥 MeDocPro Backend Setup" -ForegroundColor $Blue
-    Write-Host "HIPAA-compliant medical documentation system" -ForegroundColor $Blue
-    Write-Host ""
-    
-    if (-not $SkipDependencies) {
-        Test-Prerequisites
-    }
-    
-    New-ProjectDirectories
-    Install-PythonDependencies
-    New-EnvironmentFile
-    New-SecurityKeys
-    
-    if ($Docker) {
-        New-DockerConfiguration
-    } else {
-        Initialize-Database
-    }
-    
-    if (Test-Setup) {
-        Show-CompletionMessage
-    } else {
-        Write-Error "Setup completed with errors. Please review the output above."
-        exit 1
-    }
-    
-} catch {
-    Write-Error "Setup failed: $($_.Exception.Message)"
-    Write-Host "Error Details:" -ForegroundColor $Red
-    Write-Host $_.Exception -ForegroundColor $Red
+function Exit-Script {
+    param([string]$Message)
+    Write-Error $Message
     exit 1
 }
+
+# --- Show Help ---
+if ($Help) {
+    Write-Info "MeDocPro Setup Script Help:"
+    Write-Host "
+Usage:
+    .\setup.ps1
+        Sets up a local development environment. Requires Python 3.10+ and Git.
+
+    .\setup.ps1 -Docker
+        Sets up a production-like environment using Docker. Requires Docker, Docker Compose, Git, and OpenSSL.
+
+    .\setup.ps1 -Docker -Gpu
+        Same as -Docker, but enables GPU support for the Ollama AI service. Requires NVIDIA drivers and NVIDIA Container Toolkit.
+
+Switches:
+    -Docker         Run services in Docker instead of locally.
+    -Gpu            Enable GPU support for Ollama (only valid with -Docker).
+    -SkipPrereqs    Skip checking for prerequisites like Python, Docker, etc.
+    -Help           Display this help message.
+"
+    exit 0
+}
+
+# --- 1. Prerequisite Checks ---
+if (-not $SkipPrereqs) {
+    Write-Info "Checking prerequisites..."
+    $gitInstalled = Get-Command git -ErrorAction SilentlyContinue
+    if (-not $gitInstalled) {
+        Exit-Script "Git is not installed. Please install Git and ensure it's in your PATH."
+    }
+
+    if ($Docker) {
+        $dockerInstalled = Get-Command docker -ErrorAction SilentlyContinue
+        if (-not $dockerInstalled) {
+            Exit-Script "Docker is not installed. Please install Docker Desktop and ensure it's running."
+        }
+        $opensslInstalled = Get-Command openssl -ErrorAction SilentlyContinue
+        if (-not $opensslInstalled) {
+            Exit-Script "OpenSSL is not installed or not in your PATH. It is required for generating SSL certificates for the Docker setup. Please install it and restart your terminal."
+        }
+        Write-Success "Docker, Git, and OpenSSL are found."
+    }
+    else {
+        $pythonInstalled = Get-Command python -ErrorAction SilentlyContinue
+        if (-not $pythonInstalled) {
+            Exit-Script "Python is not installed. Please install Python 3.10+ and ensure it's in your PATH."
+        }
+        Write-Success "Python and Git are found."
+    }
+} else {
+    Write-Warning "Skipping prerequisite checks."
+}
+
+# --- 2. Create Directory Structure ---
+Write-Info "Creating necessary directories..."
+$directories = @("instance", "logs", "backups", "certs")
+foreach ($dir in $directories) {
+    if (-not (Test-Path -Path $dir -PathType Container)) {
+        New-Item -ItemType Directory -Path $dir | Out-Null
+        Write-Success "Created directory: $dir"
+    }
+}
+
+# --- 3. Generate Secure Keys ---
+function Generate-Secret-Key {
+    param($length = 32)
+    $bytes = New-Object byte[] $length
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    $rng.GetBytes($bytes)
+    # Use BitConverter, which is compatible with older PowerShell versions, and remove the hyphens.
+    return [System.BitConverter]::ToString($bytes).Replace('-', '')
+}
+
+
+# --- 4. Create .env File ---
+# Check if we need to create the file before calling the key generation functions
+if (-not (Test-Path ".env")) {
+    Write-Info "Generating .env file with new keys and default settings..."
+    $flaskSecretKey = Generate-Secret-Key
+    $jwtSecretKey = Generate-Secret-Key
+    $dbPassword = Generate-Secret-Key -length 16
+
+    # Define the content of the .env file using a here-string
+    $envContent = @"
+# Environment Configuration: 'development' or 'production'
+FLASK_ENV=development
+
+# --- Core Application Secrets ---
+# WARNING: These are generated automatically. Do not commit this file.
+# Regenerate these keys for a new production deployment.
+SECRET_KEY=$flaskSecretKey
+JWT_SECRET_KEY=$jwtSecretKey
+
+# --- Database Configuration ---
+# Make sure these match the credentials in your docker-compose.yml
+DB_USER=medocpro_user
+DB_PASSWORD=$dbPassword
+DB_HOST=db
+DB_PORT=5432
+DB_NAME=medocpro_db
+
+# --- Redis Configuration ---
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+# --- Rate Limiting ---
+# Format: "requests per time-unit". Examples: "100 per minute", "20/second"
+DEFAULT_RATE_LIMIT=100 per minute
+USER_RATE_LIMIT=50 per minute
+
+# --- CORS Origins ---
+# Comma-separated list of allowed frontend origins
+CORS_ORIGINS="http://localhost:3000,http://localhost:5173"
+
+# --- AI Service (Ollama) ---
+OLLAMA_HOST=http://ollama-cpu:11434
+# To use a different model, change it here. Example: OLLAMA_MODEL=mistral
+OLLAMA_MODEL=llama2
+
+# --- Admin User ---
+# Default admin user created on database initialization
+ADMIN_EMAIL=admin@medocpro.local
+ADMIN_PASSWORD=change_this_password_immediately
+"@
+    $envContent | Out-File -FilePath ".env" -Encoding utf8
+    Write-Success "Environment file created (.env)"
+} else {
+    Write-Warning ".env file already exists. Skipping creation."
+}
+
+# --- 5. Setup for LOCAL (Non-Docker) Environment ---
+if (-not $Docker) {
+    if (-not (Test-Path ".venv")) {
+        Write-Info "Creating Python virtual environment..."
+        python -m venv .venv
+        Write-Success "Virtual environment created in .venv"
+    }
+
+    Write-Info "Activating virtual environment and installing dependencies..."
+    & .\.venv\Scripts\Activate.ps1
+    pip install -r requirements.txt
+    if ($LASTEXITCODE -ne 0) {
+        Exit-Script "Failed to install Python dependencies from requirements.txt"
+    }
+    Write-Success "Python dependencies installed."
+
+    Write-Info "Initializing the database..."
+    python manage.py init-database
+    if ($LASTEXITCODE -ne 0) {
+        Exit-Script "Database initialization failed. Check the error message above."
+    }
+    Write-Success "Database initialization complete."
+
+    Write-Success "Setup complete for local development."
+    Write-Info "To run the development server, activate the venv (.\.venv\Scripts\Activate.ps1) and then run:"
+    Write-Host "flask --debug run"
+    exit 0
+}
+
+# --- 6. Setup for DOCKER Environment ---
+if ($Docker) {
+    # Generate Self-Signed SSL Certificates for Nginx
+    if (-not (Test-Path "certs\key.pem")) {
+        Write-Info "Generating self-signed SSL certificate for local HTTPS..."
+        $certConfig = @"
+[req]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
+[req_distinguished_name]
+C = US
+ST = State
+L = City
+O = MeDocPro
+OU = Development
+CN = localhost
+[v3_req]
+keyUsage = keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = localhost
+IP.1 = 127.0.0.1
+"@
+        $certConfig | Out-File -FilePath "certs\cert.conf" -Encoding ASCII
+        
+        openssl req -x509 -nodes -days 365 -newkey rsa:2048 `
+            -keyout "certs\key.pem" `
+            -out "certs\cert.pem" `
+            -config "certs\cert.conf"
+        
+        if ($LASTEXITCODE -ne 0) {
+            Exit-Script "Failed to generate SSL certificates."
+        }
+        Write-Success "Self-signed SSL certificates created in 'certs' directory."
+    } else {
+        Write-Warning "SSL certificates already exist. Skipping generation."
+    }
+
+    # Start Docker containers
+    Write-Info "Building and starting application services with Docker Compose..."
+    if ($Gpu) {
+        Write-Info "Using '-Gpu' flag: Starting with 'gpu' profile for Ollama."
+        docker-compose --profile gpu up --build -d
+    } else {
+        Write-Info "Starting with default 'cpu' profile for Ollama."
+        docker-compose --profile cpu up --build -d
+    }
+    if ($LASTEXITCODE -ne 0) {
+        Exit-Script "Docker Compose failed to start."
+    }
+    Write-Success "Docker containers are up and running."
+    
+    # Initialize the database INSIDE the running container
+    Write-Info "Waiting for database service to be ready..."
+    Start-Sleep -Seconds 10
+    
+    Write-Info "Initializing the database inside the 'api' container..."
+    docker-compose exec api python manage.py init-database
+    if ($LASTEXITCODE -ne 0) {
+        Exit-Script "Database initialization failed. Check the container logs: docker-compose logs api"
+    }
+
+    Write-Success "MeDocPro setup is complete and running in Docker."
+    Write-Info "Access the API at: https://localhost"
+}
+
+Write-Info "Setup finished."

@@ -81,7 +81,7 @@ FROM base as builder
 COPY . .
 
 # Install application in production mode
-RUN pip install --no-cache-dir -e .
+# RUN pip install --no-cache-dir -e .
 
 # Remove development files and clean up
 RUN find . -type d -name "__pycache__" -delete && \
