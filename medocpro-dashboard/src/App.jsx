@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import api from './services/api'
+import apiService from './services/api'
 
-// Icon components (keeping your existing ones)
+// Simple icon components (replacing Lucide)
 const HomeIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -53,14 +53,6 @@ const CheckCircleIcon = () => (
   </svg>
 )
 
-const XCircleIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <circle cx="12" cy="12" r="10"/>
-    <path d="m15 9-6 6"/>
-    <path d="m9 9 6 6"/>
-  </svg>
-)
-
 const UserIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -68,16 +60,35 @@ const UserIcon = () => (
   </svg>
 )
 
-const LoginPage = ({ onLogin, error, isLoading }) => {
-  const [credentials, setCredentials] = useState({
+const LoginPage = ({ onLogin }) => {
+  const [formData, setFormData] = useState({
     username: 'admin',
     password: 'ChangeMe123!'
-  });
+  })
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onLogin(credentials);
-  };
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError('')
+
+    try {
+      const response = await apiService.login(formData.username, formData.password)
+      console.log('Login successful:', response)
+      onLogin(response.user)
+    } catch (err) {
+      console.error('Login failed:', err)
+      setError(err.message || 'Login failed')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
 
   return (
     <div className="login-container">
@@ -87,22 +98,16 @@ const LoginPage = ({ onLogin, error, isLoading }) => {
           <p className="login-subtitle">Secure Clinical Documentation System</p>
         </div>
         
-        {error && (
-          <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>
-            {error}
-          </div>
-        )}
-        
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label">Username</label>
             <input 
               type="text" 
+              name="username"
               className="form-input" 
               placeholder="Enter your username"
-              value={credentials.username}
-              onChange={(e) => setCredentials({...credentials, username: e.target.value})}
-              disabled={isLoading}
+              value={formData.username}
+              onChange={handleChange}
               required
             />
           </div>
@@ -111,14 +116,20 @@ const LoginPage = ({ onLogin, error, isLoading }) => {
             <label className="form-label">Password</label>
             <input 
               type="password" 
+              name="password"
               className="form-input" 
               placeholder="Enter your password"
-              value={credentials.password}
-              onChange={(e) => setCredentials({...credentials, password: e.target.value})}
-              disabled={isLoading}
+              value={formData.password}
+              onChange={handleChange}
               required
             />
           </div>
+
+          {error && (
+            <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>
+              {error}
+            </div>
+          )}
           
           <button type="submit" className="btn btn-primary w-full" disabled={isLoading}>
             {isLoading ? 'Signing In...' : 'Sign In'}
@@ -145,13 +156,11 @@ const StatusIndicator = ({ status, label }) => (
 const SystemStatus = () => {
   const [backendStatus, setBackendStatus] = useState('checking')
   const [lastCheck, setLastCheck] = useState(new Date())
-  const [healthData, setHealthData] = useState(null)
 
   useEffect(() => {
     const checkBackendStatus = async () => {
       try {
-        const health = await api.checkHealth()
-        setHealthData(health)
+        await apiService.getHealth()
         setBackendStatus('online')
       } catch (error) {
         console.error('Backend health check failed:', error)
@@ -184,8 +193,8 @@ const SystemStatus = () => {
           <div className="flex justify-between items-center">
             <span>Database</span>
             <StatusIndicator 
-              status={healthData?.database === 'connected' ? 'online' : 'offline'} 
-              label={healthData?.database === 'connected' ? 'Connected' : 'Disconnected'} 
+              status={backendStatus === 'online' ? 'online' : 'offline'} 
+              label={backendStatus === 'online' ? 'Connected' : 'Disconnected'} 
             />
           </div>
           <div className="flex justify-between items-center">
@@ -198,9 +207,6 @@ const SystemStatus = () => {
         </div>
         <div className="text-sm text-gray-500" style={{ marginTop: '1rem' }}>
           Last checked: {lastCheck.toLocaleTimeString()}
-          {healthData && (
-            <div>Version: {healthData.version}</div>
-          )}
         </div>
       </div>
     </div>
@@ -224,11 +230,12 @@ const StatsCard = ({ title, value, change, icon: Icon }) => (
   </div>
 )
 
-const Dashboard = ({ user, onLogout }) => {
+const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [templates, setTemplates] = useState([])
+  const [categories, setCategories] = useState({})
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState('')
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: HomeIcon },
@@ -239,58 +246,69 @@ const Dashboard = ({ user, onLogout }) => {
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ]
 
-  // Load templates from backend
-  useEffect(() => {
-    const loadTemplates = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-        const response = await api.getTemplates()
-        setTemplates(response.templates || [])
-      } catch (error) {
-        console.error('Failed to load templates:', error)
-        setError('Failed to load templates from backend')
-        // Set fallback templates for demo
-        setTemplates([
-          {
-            id: '1',
-            name: 'Psychiatric Progress Note',
-            category: 'progress',
-            description: 'Standard psychiatric progress note template',
-            created_at: new Date().toISOString()
-          },
-          {
-            id: '2',
-            name: 'Mental Status Examination',
-            category: 'assessment',
-            description: 'Comprehensive mental status exam',
-            created_at: new Date().toISOString()
-          },
-          {
-            id: '3',
-            name: 'Treatment Plan Template',
-            category: 'treatment',
-            description: 'Structured treatment planning',
-            created_at: new Date().toISOString()
-          }
-        ])
-      } finally {
-        setIsLoading(false)
-      }
+  // Load templates and categories from backend
+  const loadTemplates = async () => {
+    try {
+      setIsLoading(true)
+      setError('')
+      
+      // Load templates and categories
+      const [templatesResponse, categoriesResponse] = await Promise.all([
+        apiService.getTemplates(),
+        apiService.getTemplateCategories()
+      ])
+      
+      setTemplates(templatesResponse.templates || [])
+      setCategories(categoriesResponse.categories || {})
+      
+      console.log('Loaded templates:', templatesResponse.templates)
+      console.log('Loaded categories:', categoriesResponse.categories)
+      
+    } catch (err) {
+      console.error('Failed to load templates:', err)
+      setError(err.message || 'Failed to load templates')
+      
+      // Use mock data if backend is not available
+      setTemplates([
+        {
+          id: 1,
+          name: 'Psychiatric Progress Note',
+          category: 'progress',
+          content_preview: 'PROGRESS NOTE\n\nDate: {{date_of_service}}\nPatient: {{patient_name}}...',
+          created_at: new Date().toISOString(),
+          is_active: true
+        },
+        {
+          id: 2,
+          name: 'Mental Status Examination',
+          category: 'assessment',
+          content_preview: 'MENTAL STATUS EXAMINATION\n\nDate: {{date_of_service}}...',
+          created_at: new Date().toISOString(),
+          is_active: true
+        },
+        {
+          id: 3,
+          name: 'Treatment Plan Template',
+          category: 'treatment',
+          content_preview: 'TREATMENT PLAN\n\nPatient: {{patient_name}}...',
+          created_at: new Date().toISOString(),
+          is_active: true
+        }
+      ])
+      
+      setCategories({
+        progress: { name: 'Progress Notes', color: '#10b981' },
+        assessment: { name: 'Psychiatric Assessment', color: '#0066cc' },
+        treatment: { name: 'Treatment Plans', color: '#8b5cf6' }
+      })
+    } finally {
+      setIsLoading(false)
     }
+  }
 
+  useEffect(() => {
     loadTemplates()
   }, [])
-
-  const handleCreateTemplate = async (category = 'progress') => {
-    // This would open a modal or navigate to template creation
-    console.log('Create template for category:', category)
-  }
-
-  const handleEditTemplate = async (template) => {
-    // This would open the template editor
-    console.log('Edit template:', template)
-  }
 
   const renderContent = () => {
     if (isLoading) {
@@ -306,50 +324,53 @@ const Dashboard = ({ user, onLogout }) => {
           <div className="loading-spinner" style={{ width: '32px', height: '32px' }}></div>
           <div style={{ color: 'var(--gray-600)' }}>Loading clinical templates...</div>
         </div>
-      );
+      )
+    }
+
+    if (error) {
+      return (
+        <div className="alert alert-danger">
+          <strong>Connection Error:</strong> {error}
+          <br />
+          <small>Using mock data for demonstration.</small>
+        </div>
+      )
     }
 
     switch (activeTab) {
       case 'templates':
         return (
           <div>
-            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h1 style={{ fontSize: '24px', fontWeight: '600' }}>Clinical Templates</h1>
-              <button className="btn btn-primary" onClick={() => handleCreateTemplate()}>
-                Create New Template
-              </button>
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-gray-800 mb-2">Clinical Templates</h1>
+              <p className="text-gray-600">Manage your clinical documentation templates</p>
             </div>
-            
-            {error && (
-              <div className="alert alert-warning" style={{ marginBottom: '24px' }}>
-                {error} - Using demo data
-              </div>
-            )}
-            
-            <div className="card">
-              <div className="card-content">
-                {templates.map(template => (
-                  <div key={template.id} className="document-item" onClick={() => handleEditTemplate(template)}>
-                    <div className={`document-icon ${template.category}`}>
-                      {template.category === 'progress' ? '📝' : 
-                       template.category === 'assessment' ? '🧠' : 
-                       template.category === 'treatment' ? '🎯' : '📋'}
-                    </div>
-                    <div className="document-info">
-                      <div className="document-title">{template.name}</div>
-                      <div className="document-meta">
-                        {template.category} • Created {new Date(template.created_at).toLocaleDateString()}
+
+            <div className="grid grid-cols-1 gap-4">
+              {templates.map(template => (
+                <div key={template.id} className="card">
+                  <div className="card-content">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="font-semibold">{template.name}</h3>
+                        <p className="text-sm text-gray-600">
+                          {categories[template.category]?.name || template.category} • 
+                          Created {template.created_at ? new Date(template.created_at).toLocaleDateString() : 'Recently'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">{template.content_preview}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button className="btn btn-sm btn-primary">Use</button>
+                        <button className="btn btn-sm btn-secondary">Edit</button>
                       </div>
                     </div>
-                    <div className="document-status status-complete">
-                      Active
-                    </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
         )
+
       default:
         return (
           <div>
@@ -395,11 +416,11 @@ const Dashboard = ({ user, onLogout }) => {
                 </div>
                 <div className="card-content">
                   <div className="grid grid-cols-2 gap-4">
-                    <button className="btn btn-primary" onClick={() => handleCreateTemplate('progress')}>
+                    <button className="btn btn-primary">
                       <FileTextIcon />
                       New Progress Note
                     </button>
-                    <button className="btn btn-secondary" onClick={() => handleCreateTemplate('assessment')}>
+                    <button className="btn btn-secondary">
                       <ClipboardIcon />
                       Assessment
                     </button>
@@ -439,18 +460,6 @@ const Dashboard = ({ user, onLogout }) => {
               {item.label}
             </a>
           ))}
-          <a
-            href="#"
-            className="sidebar-nav-item"
-            onClick={(e) => {
-              e.preventDefault()
-              onLogout()
-            }}
-            style={{ marginTop: 'auto', color: '#ef4444' }}
-          >
-            <XCircleIcon />
-            Logout
-          </a>
         </nav>
       </div>
 
@@ -464,47 +473,27 @@ const Dashboard = ({ user, onLogout }) => {
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [user, setUser] = useState(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState(null)
 
-  // Check for existing token on app load
+  // Check for existing authentication on app load
   useEffect(() => {
     const token = localStorage.getItem('authToken')
     if (token) {
-      // Validate token and get user profile
-      api.getProfile()
-        .then(userProfile => {
-          setUser(userProfile)
-          setIsLoggedIn(true)
-        })
-        .catch(error => {
-          console.error('Token validation failed:', error)
-          localStorage.removeItem('authToken')
-        })
+      // TODO: Validate token with backend
+      setIsLoggedIn(true)
+      setUser({ username: 'admin', role: 'administrator' })
     }
   }, [])
 
-  const handleLogin = async (credentials) => {
-    try {
-      setIsLoading(true)
-      setError(null)
-      
-      const response = await api.login(credentials.username, credentials.password)
-      setUser(response.user)
-      setIsLoggedIn(true)
-    } catch (error) {
-      console.error('Login failed:', error)
-      setError(error.message || 'Login failed. Please check your credentials.')
-    } finally {
-      setIsLoading(false)
-    }
+  const handleLogin = (userData) => {
+    setUser(userData)
+    setIsLoggedIn(true)
   }
 
   const handleLogout = async () => {
     try {
-      await api.logout()
-    } catch (error) {
-      console.error('Logout error:', error)
+      await apiService.logout()
+    } catch (err) {
+      console.error('Logout error:', err)
     } finally {
       setUser(null)
       setIsLoggedIn(false)
@@ -516,7 +505,7 @@ function App() {
       {isLoggedIn ? (
         <Dashboard user={user} onLogout={handleLogout} />
       ) : (
-        <LoginPage onLogin={handleLogin} error={error} isLoading={isLoading} />
+        <LoginPage onLogin={handleLogin} />
       )}
     </div>
   )

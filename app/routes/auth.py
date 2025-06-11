@@ -1,4 +1,4 @@
-﻿# app/routes/auth.py
+﻿# app/routes/auth.py - Basic authentication routes
 
 from flask import Blueprint, request, jsonify
 from werkzeug.security import check_password_hash
@@ -83,6 +83,7 @@ def login():
         # TODO: Generate JWT tokens
         return jsonify({
             'message': 'Login successful',
+            'access_token': 'mock-token-for-development',
             'user': {
                 'id': str(user.id),
                 'username': user.username,
@@ -99,10 +100,10 @@ def login():
         traceback.print_exc()
         return jsonify({'error': 'An error occurred during login'}), 500
 
-@auth_bp.route('/change-password', methods=['POST'])
-def change_password():
-    """Change user password - placeholder implementation"""
-    return jsonify({'error': 'Not implemented yet'}), 501
+@auth_bp.route('/logout', methods=['POST'])
+def logout():
+    """User logout - placeholder implementation"""
+    return jsonify({'message': 'Logged out successfully'}), 200
 
 @auth_bp.route('/password-requirements', methods=['GET'])
 def password_requirements():
@@ -124,7 +125,16 @@ def password_requirements():
         }
     }), 200
 
-@auth_bp.route('/logout', methods=['POST'])
-def logout():
-    """User logout - placeholder implementation"""
-    return jsonify({'message': 'Logged out successfully'}), 200
+@auth_bp.route('/profile', methods=['GET'])
+def get_profile():
+    """Get current user profile - placeholder implementation"""
+    return jsonify({
+        'user': {
+            'id': '1',
+            'username': 'admin',
+            'email': 'admin@medocpro.com',
+            'role': 'administrator',
+            'first_name': 'Admin',
+            'last_name': 'User'
+        }
+    }), 200
