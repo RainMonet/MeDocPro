@@ -108,6 +108,9 @@ services:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
     ports:
       - "5000:5000"
+    profiles: # <--- ADD THIS SECTION
+      - production # <--- AND THIS LINE
+
     volumes:
       - ./logs:/app/logs
       - ./backups:/app/backups
