@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import apiService from './services/api'
-import TemplateEditor from './TemplateEditor'
+import TemplateEditor from './components/TemplateEditor'
 
 // Simple icon components (replacing Lucide)
 const HomeIcon = () => (
@@ -436,17 +436,6 @@ const Dashboard = () => {
     setCurrentTemplate(null)
   }
 
-  // Show template editor if requested
-  if (showTemplateEditor) {
-    return (
-      <TemplateEditor
-        initialTemplate={currentTemplate}
-        onSave={handleSaveTemplate}
-        onCancel={handleCancelEdit}
-      />
-    )
-  }
-
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -602,6 +591,14 @@ const Dashboard = () => {
       <div className="main-content">
         {renderContent()}
       </div>
+
+      {/* Template Editor Modal */}
+      <TemplateEditor
+        isOpen={showTemplateEditor}
+        initialTemplate={currentTemplate}
+        onSave={handleSaveTemplate}
+        onCancel={handleCancelEdit}
+      />
     </div>
   )
 }
