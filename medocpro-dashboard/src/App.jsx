@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import apiService from './services/api'
+import TemplateEditor from './TemplateEditor'
 
 // Simple icon components (replacing Lucide)
 const HomeIcon = () => (
@@ -57,6 +58,20 @@ const UserIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
     <circle cx="12" cy="7" r="4"/>
+  </svg>
+)
+
+const EditIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+  </svg>
+)
+
+const PlusIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="12" x2="12" y1="5" y2="19"/>
+    <line x1="5" x2="19" y1="12" y2="12"/>
   </svg>
 )
 
@@ -230,12 +245,76 @@ const StatsCard = ({ title, value, change, icon: Icon }) => (
   </div>
 )
 
+// Template Card Component for the templates view
+const TemplateCard = ({ template, onEdit, onUse }) => {
+  const categoryColors = {
+    progress: '#10b981',
+    assessment: '#0066cc',
+    treatment: '#8b5cf6',
+    intake: '#f59e0b',
+    discharge: '#ef4444',
+    custom: '#64748b'
+  };
+
+  const categoryNames = {
+    progress: 'Progress Notes',
+    assessment: 'Psychiatric Assessment',
+    treatment: 'Treatment Plans',
+    intake: 'Intake Forms',
+    discharge: 'Discharge Summaries',
+    custom: 'Custom Documentation'
+  };
+
+  const categoryColor = categoryColors[template.category] || categoryColors.custom;
+  const categoryName = categoryNames[template.category] || 'Custom';
+
+  return (
+    <div className="card">
+      <div className="card-content">
+        <div className="flex justify-between items-center">
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <h3 className="font-semibold">{template.name}</h3>
+              <span 
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: '500',
+                  background: categoryColor + '20',
+                  color: categoryColor
+                }}
+              >
+                {categoryName}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600">
+              Created {template.created_at ? new Date(template.created_at).toLocaleDateString() : 'Recently'}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">{template.content_preview}</p>
+          </div>
+          <div className="flex gap-2">
+            <button className="btn btn-sm btn-primary" onClick={() => onUse(template)}>
+              Use
+            </button>
+            <button className="btn btn-sm btn-secondary" onClick={() => onEdit(template)}>
+              <EditIcon />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [templates, setTemplates] = useState([])
   const [categories, setCategories] = useState({})
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false)
+  const [currentTemplate, setCurrentTemplate] = useState(null)
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: HomeIcon },
@@ -310,6 +389,64 @@ const Dashboard = () => {
     loadTemplates()
   }, [])
 
+  // Template management functions
+  const handleNewTemplate = () => {
+    setCurrentTemplate(null)
+    setShowTemplateEditor(true)
+  }
+
+  const handleEditTemplate = (template) => {
+    setCurrentTemplate(template)
+    setShowTemplateEditor(true)
+  }
+
+  const handleUseTemplate = (template) => {
+    alert(`Using template: ${template.name}\n\nThis would navigate to the template population interface.`)
+  }
+
+  const handleSaveTemplate = async (templateData) => {
+    try {
+      if (currentTemplate && currentTemplate.id) {
+        // Update existing template
+        await apiService.updateTemplate(currentTemplate.id, templateData)
+        setTemplates(prev => prev.map(t => 
+          t.id === currentTemplate.id ? { ...templateData, id: currentTemplate.id } : t
+        ))
+      } else {
+        // Create new template
+        const response = await apiService.createTemplate(templateData)
+        const newTemplate = { 
+          ...templateData, 
+          id: response.template?.id || Date.now(), 
+          created_at: new Date().toISOString() 
+        }
+        setTemplates(prev => [...prev, newTemplate])
+      }
+      
+      setShowTemplateEditor(false)
+      setCurrentTemplate(null)
+    } catch (error) {
+      console.error('Failed to save template:', error)
+      alert('Failed to save template. Please try again.')
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setShowTemplateEditor(false)
+    setCurrentTemplate(null)
+  }
+
+  // Show template editor if requested
+  if (showTemplateEditor) {
+    return (
+      <TemplateEditor
+        initialTemplate={currentTemplate}
+        onSave={handleSaveTemplate}
+        onCancel={handleCancelEdit}
+      />
+    )
+  }
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -342,30 +479,29 @@ const Dashboard = () => {
         return (
           <div>
             <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">Clinical Templates</h1>
-              <p className="text-gray-600">Manage your clinical documentation templates</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-800 mb-2">Clinical Templates</h1>
+                  <p className="text-gray-600">Manage your clinical documentation templates with AI enhancement capabilities</p>
+                </div>
+                <button 
+                  className="btn btn-primary"
+                  onClick={handleNewTemplate}
+                >
+                  <PlusIcon />
+                  New Template
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4">
               {templates.map(template => (
-                <div key={template.id} className="card">
-                  <div className="card-content">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h3 className="font-semibold">{template.name}</h3>
-                        <p className="text-sm text-gray-600">
-                          {categories[template.category]?.name || template.category} • 
-                          Created {template.created_at ? new Date(template.created_at).toLocaleDateString() : 'Recently'}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">{template.content_preview}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button className="btn btn-sm btn-primary">Use</button>
-                        <button className="btn btn-sm btn-secondary">Edit</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <TemplateCard
+                  key={template.id}
+                  template={template}
+                  onEdit={handleEditTemplate}
+                  onUse={handleUseTemplate}
+                />
               ))}
             </div>
           </div>
@@ -416,9 +552,9 @@ const Dashboard = () => {
                 </div>
                 <div className="card-content">
                   <div className="grid grid-cols-2 gap-4">
-                    <button className="btn btn-primary">
+                    <button className="btn btn-primary" onClick={handleNewTemplate}>
                       <FileTextIcon />
-                      New Progress Note
+                      New Template
                     </button>
                     <button className="btn btn-secondary">
                       <ClipboardIcon />
