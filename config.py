@@ -9,15 +9,35 @@ class Config:
     """Set Flask configuration variables from .env file."""
 
     # General Config
-    SECRET_KEY = os.environ.get('SECRET_KEY')
-    FLASK_APP = os.environ.get('FLASK_APP')
-    FLASK_ENV = os.environ.get('FLASK_ENV')
-    DEBUG = os.environ.get('DEBUG')
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-me'
+    FLASK_APP = os.environ.get('FLASK_APP') or 'app.py'
+    FLASK_ENV = os.environ.get('FLASK_ENV') or 'development'
+    DEBUG = os.environ.get('DEBUG', 'True').lower() in ['true', '1', 'yes']
 
-    # Database
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    # Database - Default to SQLite if DATABASE_URL not set
+    DATABASE_URL = os.environ.get('DATABASE_URL')
+    if not DATABASE_URL:
+        DATABASE_URL = 'sqlite:///' + os.path.join(basedir, 'medocpro.db')
+    
+    SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_ECHO = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Redis
-    REDIS_URL = os.environ.get('REDIS_URL', 'redis://')
+    # Redis - Optional
+    REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+    
+    # JWT Configuration
+    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'dev-jwt-secret-key'
+    JWT_ACCESS_TOKEN_EXPIRES = 900  # 15 minutes
+    JWT_REFRESH_TOKEN_EXPIRES = 604800  # 7 days
+    
+    # CORS Configuration
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:5173').split(',')
+    
+    # AI Configuration
+    OLLAMA_BASE_URL = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
+    OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'llama2')
+    
+    # Security
+    WTF_CSRF_ENABLED = True
+    WTF_CSRF_TIME_LIMIT = None

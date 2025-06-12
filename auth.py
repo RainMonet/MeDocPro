@@ -87,9 +87,9 @@ def login():
             )
             return jsonify({'error': 'Username and password required'}), 400
         
-        # Find user by username or email
+        # Find user by username or email (case-insensitive)
         user = User.query.filter(
-            (User.username == username) | (User.email == username),
+            (db.func.lower(User.username) == username.lower()) | (db.func.lower(User.email) == username.lower()),
             User.is_deleted == False
         ).first()
         

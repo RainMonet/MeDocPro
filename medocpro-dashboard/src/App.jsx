@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react'
+import apiService from './services/api'
+import TemplateEditor from './components/TemplateEditor'
 
 // Simple icon components (replacing Lucide)
 const HomeIcon = () => (
@@ -52,14 +54,6 @@ const CheckCircleIcon = () => (
   </svg>
 )
 
-const XCircleIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <circle cx="12" cy="12" r="10"/>
-    <path d="m15 9-6 6"/>
-    <path d="m9 9 6 6"/>
-  </svg>
-)
-
 const UserIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -67,48 +61,105 @@ const UserIcon = () => (
   </svg>
 )
 
-const LoginPage = ({ onLogin }) => (
-  <div className="login-container">
-    <div className="login-card">
-      <div className="login-header">
-        <h1 className="login-title">MeDocPro</h1>
-        <p className="login-subtitle">Secure Clinical Documentation System</p>
-      </div>
-      
-      <form onSubmit={(e) => { e.preventDefault(); onLogin(); }}>
-        <div className="form-group">
-          <label className="form-label">Username</label>
-          <input 
-            type="text" 
-            className="form-input" 
-            placeholder="Enter your username"
-            defaultValue="admin"
-          />
+const EditIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+  </svg>
+)
+
+const PlusIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="12" x2="12" y1="5" y2="19"/>
+    <line x1="5" x2="19" y1="12" y2="12"/>
+  </svg>
+)
+
+const LoginPage = ({ onLogin }) => {
+  const [formData, setFormData] = useState({
+    username: 'admin',
+    password: 'ChangeMe123!'
+  })
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError('')
+
+    try {
+      const response = await apiService.login(formData.username, formData.password)
+      console.log('Login successful:', response)
+      onLogin(response.user)
+    } catch (err) {
+      console.error('Login failed:', err)
+      setError(err.message || 'Login failed')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  return (
+    <div className="login-container">
+      <div className="login-card">
+        <div className="login-header">
+          <h1 className="login-title">MeDocPro</h1>
+          <p className="login-subtitle">Secure Clinical Documentation System</p>
         </div>
         
-        <div className="form-group">
-          <label className="form-label">Password</label>
-          <input 
-            type="password" 
-            className="form-input" 
-            placeholder="Enter your password"
-            defaultValue="ChangeMe123!"
-          />
-        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="form-label">Username</label>
+            <input 
+              type="text" 
+              name="username"
+              className="form-input" 
+              placeholder="Enter your username"
+              value={formData.username}
+              onChange={handleChange}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">Password</label>
+            <input 
+              type="password" 
+              name="password"
+              className="form-input" 
+              placeholder="Enter your password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          {error && (
+            <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>
+              {error}
+            </div>
+          )}
+          
+          <button type="submit" className="btn btn-primary w-full" disabled={isLoading}>
+            {isLoading ? 'Signing In...' : 'Sign In'}
+          </button>
+        </form>
         
-        <button type="submit" className="btn btn-primary w-full">
-          Sign In
-        </button>
-      </form>
-      
-      <div className="alert alert-info" style={{ marginTop: '1rem' }}>
-        <strong>Demo Credentials:</strong><br />
-        Username: admin<br />
-        Password: ChangeMe123!
+        <div className="alert alert-info" style={{ marginTop: '1rem' }}>
+          <strong>Demo Credentials:</strong><br />
+          Username: admin<br />
+          Password: ChangeMe123!
+        </div>
       </div>
     </div>
-  </div>
-)
+  )
+}
 
 const StatusIndicator = ({ status, label }) => (
   <div className={`status-indicator status-${status}`}>
@@ -124,13 +175,10 @@ const SystemStatus = () => {
   useEffect(() => {
     const checkBackendStatus = async () => {
       try {
-        const response = await fetch('http://localhost:5000/health')
-        if (response.ok) {
-          setBackendStatus('online')
-        } else {
-          setBackendStatus('offline')
-        }
+        await apiService.getHealth()
+        setBackendStatus('online')
       } catch (error) {
+        console.error('Backend health check failed:', error)
         setBackendStatus('offline')
       }
       setLastCheck(new Date())
@@ -197,8 +245,76 @@ const StatsCard = ({ title, value, change, icon: Icon }) => (
   </div>
 )
 
+// Template Card Component for the templates view
+const TemplateCard = ({ template, onEdit, onUse }) => {
+  const categoryColors = {
+    progress: '#10b981',
+    assessment: '#0066cc',
+    treatment: '#8b5cf6',
+    intake: '#f59e0b',
+    discharge: '#ef4444',
+    custom: '#64748b'
+  };
+
+  const categoryNames = {
+    progress: 'Progress Notes',
+    assessment: 'Psychiatric Assessment',
+    treatment: 'Treatment Plans',
+    intake: 'Intake Forms',
+    discharge: 'Discharge Summaries',
+    custom: 'Custom Documentation'
+  };
+
+  const categoryColor = categoryColors[template.category] || categoryColors.custom;
+  const categoryName = categoryNames[template.category] || 'Custom';
+
+  return (
+    <div className="card">
+      <div className="card-content">
+        <div className="flex justify-between items-center">
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <h3 className="font-semibold">{template.name}</h3>
+              <span 
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: '500',
+                  background: categoryColor + '20',
+                  color: categoryColor
+                }}
+              >
+                {categoryName}
+              </span>
+            </div>
+            <p className="text-sm text-gray-600">
+              Created {template.created_at ? new Date(template.created_at).toLocaleDateString() : 'Recently'}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">{template.content_preview}</p>
+          </div>
+          <div className="flex gap-2">
+            <button className="btn btn-sm btn-primary" onClick={() => onUse(template)}>
+              Use
+            </button>
+            <button className="btn btn-sm btn-secondary" onClick={() => onEdit(template)}>
+              <EditIcon />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [templates, setTemplates] = useState([])
+  const [categories, setCategories] = useState({})
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false)
+  const [currentTemplate, setCurrentTemplate] = useState(null)
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: HomeIcon },
@@ -209,9 +325,178 @@ const Dashboard = () => {
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ]
 
+  // Load templates and categories from backend
+  const loadTemplates = async () => {
+    try {
+      setIsLoading(true)
+      setError('')
+      
+      // Load templates and categories
+      const [templatesResponse, categoriesResponse] = await Promise.all([
+        apiService.getTemplates(),
+        apiService.getTemplateCategories()
+      ])
+      
+      setTemplates(templatesResponse.templates || [])
+      setCategories(categoriesResponse.categories || {})
+      
+      console.log('Loaded templates:', templatesResponse.templates)
+      console.log('Loaded categories:', categoriesResponse.categories)
+      
+    } catch (err) {
+      console.error('Failed to load templates:', err)
+      setError(err.message || 'Failed to load templates')
+      
+      // Use mock data if backend is not available
+      setTemplates([
+        {
+          id: 1,
+          name: 'Psychiatric Progress Note',
+          category: 'progress',
+          content_preview: 'PROGRESS NOTE\n\nDate: {{date_of_service}}\nPatient: {{patient_name}}...',
+          created_at: new Date().toISOString(),
+          is_active: true
+        },
+        {
+          id: 2,
+          name: 'Mental Status Examination',
+          category: 'assessment',
+          content_preview: 'MENTAL STATUS EXAMINATION\n\nDate: {{date_of_service}}...',
+          created_at: new Date().toISOString(),
+          is_active: true
+        },
+        {
+          id: 3,
+          name: 'Treatment Plan Template',
+          category: 'treatment',
+          content_preview: 'TREATMENT PLAN\n\nPatient: {{patient_name}}...',
+          created_at: new Date().toISOString(),
+          is_active: true
+        }
+      ])
+      
+      setCategories({
+        progress: { name: 'Progress Notes', color: '#10b981' },
+        assessment: { name: 'Psychiatric Assessment', color: '#0066cc' },
+        treatment: { name: 'Treatment Plans', color: '#8b5cf6' }
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadTemplates()
+  }, [])
+
+  // Template management functions
+  const handleNewTemplate = () => {
+    setCurrentTemplate(null)
+    setShowTemplateEditor(true)
+  }
+
+  const handleEditTemplate = (template) => {
+    setCurrentTemplate(template)
+    setShowTemplateEditor(true)
+  }
+
+  const handleUseTemplate = (template) => {
+    alert(`Using template: ${template.name}\n\nThis would navigate to the template population interface.`)
+  }
+
+  const handleSaveTemplate = async (templateData) => {
+    try {
+      if (currentTemplate && currentTemplate.id) {
+        // Update existing template
+        await apiService.updateTemplate(currentTemplate.id, templateData)
+        setTemplates(prev => prev.map(t => 
+          t.id === currentTemplate.id ? { ...templateData, id: currentTemplate.id } : t
+        ))
+      } else {
+        // Create new template
+        const response = await apiService.createTemplate(templateData)
+        const newTemplate = { 
+          ...templateData, 
+          id: response.template?.id || Date.now(), 
+          created_at: new Date().toISOString() 
+        }
+        setTemplates(prev => [...prev, newTemplate])
+      }
+      
+      setShowTemplateEditor(false)
+      setCurrentTemplate(null)
+    } catch (error) {
+      console.error('Failed to save template:', error)
+      alert('Failed to save template. Please try again.')
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setShowTemplateEditor(false)
+    setCurrentTemplate(null)
+  }
+
   const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          height: '400px',
+          flexDirection: 'column',
+          gap: '16px'
+        }}>
+          <div className="loading-spinner" style={{ width: '32px', height: '32px' }}></div>
+          <div style={{ color: 'var(--gray-600)' }}>Loading clinical templates...</div>
+        </div>
+      )
+    }
+
+    if (error) {
+      return (
+        <div className="alert alert-danger">
+          <strong>Connection Error:</strong> {error}
+          <br />
+          <small>Using mock data for demonstration.</small>
+        </div>
+      )
+    }
+
     switch (activeTab) {
-      case 'dashboard':
+      case 'templates':
+        return (
+          <div>
+            <div className="mb-6">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-800 mb-2">Clinical Templates</h1>
+                  <p className="text-gray-600">Manage your clinical documentation templates with AI enhancement capabilities</p>
+                </div>
+                <button 
+                  className="btn btn-primary"
+                  onClick={handleNewTemplate}
+                >
+                  <PlusIcon />
+                  New Template
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              {templates.map(template => (
+                <TemplateCard
+                  key={template.id}
+                  template={template}
+                  onEdit={handleEditTemplate}
+                  onUse={handleUseTemplate}
+                />
+              ))}
+            </div>
+          </div>
+        )
+
+      default:
         return (
           <div>
             <div className="mb-6">
@@ -222,7 +507,7 @@ const Dashboard = () => {
             <div className="stats-grid">
               <StatsCard 
                 title="Active Templates" 
-                value="12" 
+                value={templates.length.toString()} 
                 change="+2 this week"
                 icon={FileTextIcon}
               />
@@ -256,9 +541,9 @@ const Dashboard = () => {
                 </div>
                 <div className="card-content">
                   <div className="grid grid-cols-2 gap-4">
-                    <button className="btn btn-primary">
+                    <button className="btn btn-primary" onClick={handleNewTemplate}>
                       <FileTextIcon />
-                      New Progress Note
+                      New Template
                     </button>
                     <button className="btn btn-secondary">
                       <ClipboardIcon />
@@ -273,85 +558,6 @@ const Dashboard = () => {
                       View Reports
                     </button>
                   </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-
-      case 'templates':
-        return (
-          <div>
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">Template Library</h1>
-              <p className="text-gray-600">Manage your clinical documentation templates</p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
-              <div className="card">
-                <div className="card-content">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-semibold">Psychiatric Progress Note</h3>
-                      <p className="text-sm text-gray-600">Standard SOAP format for progress documentation</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="btn btn-sm btn-primary">Use</button>
-                      <button className="btn btn-sm btn-secondary">Edit</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card">
-                <div className="card-content">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-semibold">Mental Status Examination</h3>
-                      <p className="text-sm text-gray-600">Comprehensive mental status assessment template</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="btn btn-sm btn-primary">Use</button>
-                      <button className="btn btn-sm btn-secondary">Edit</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card">
-                <div className="card-content">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-semibold">Treatment Plan</h3>
-                      <p className="text-sm text-gray-600">Goal-oriented treatment planning template</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="btn btn-sm btn-primary">Use</button>
-                      <button className="btn btn-sm btn-secondary">Edit</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-
-      default:
-        return (
-          <div>
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-800 mb-2">
-                {navItems.find(item => item.id === activeTab)?.label || 'Page'}
-              </h1>
-              <p className="text-gray-600">This section is under development</p>
-            </div>
-            
-            <div className="card">
-              <div className="card-content">
-                <div className="text-center py-8">
-                  <ClipboardIcon />
-                  <h3 className="text-lg font-semibold mt-4 mb-2">Coming Soon</h3>
-                  <p className="text-gray-600">This feature is being developed for the next release.</p>
                 </div>
               </div>
             </div>
@@ -385,21 +591,52 @@ const Dashboard = () => {
       <div className="main-content">
         {renderContent()}
       </div>
+
+      {/* Template Editor Modal */}
+      <TemplateEditor
+        isOpen={showTemplateEditor}
+        initialTemplate={currentTemplate}
+        onSave={handleSaveTemplate}
+        onCancel={handleCancelEdit}
+      />
     </div>
   )
 }
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [user, setUser] = useState(null)
 
-  const handleLogin = () => {
+  // Check for existing authentication on app load
+  useEffect(() => {
+    const token = localStorage.getItem('authToken')
+    if (token) {
+      // TODO: Validate token with backend
+      setIsLoggedIn(true)
+      setUser({ username: 'admin', role: 'administrator' })
+    }
+  }, [])
+
+  const handleLogin = (userData) => {
+    setUser(userData)
     setIsLoggedIn(true)
+  }
+
+  const handleLogout = async () => {
+    try {
+      await apiService.logout()
+    } catch (err) {
+      console.error('Logout error:', err)
+    } finally {
+      setUser(null)
+      setIsLoggedIn(false)
+    }
   }
 
   return (
     <div className="App">
       {isLoggedIn ? (
-        <Dashboard />
+        <Dashboard user={user} onLogout={handleLogout} />
       ) : (
         <LoginPage onLogin={handleLogin} />
       )}
