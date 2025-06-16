@@ -14,14 +14,14 @@ html {
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f8fafc;
-  color: #1e293b;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Clinical Color Palette */
+/* Light Theme Variables (Default) */
 :root {
   /* Primary Clinical Blue */
   --color-primary: #0066cc;
@@ -86,6 +86,61 @@ body {
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
+}
+
+/* Dark Theme Variables */
+[data-theme="dark"] {
+  /* Primary Clinical Blue - adjusted for dark theme */
+  --color-primary: #4a90e2;
+  --color-primary-dark: #357abd;
+  --color-primary-light: #6ba3e8;
+  
+  /* Secondary Colors - adjusted for dark theme */
+  --color-secondary: #7c8ae8;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+  
+  /* Dark Theme Grays */
+  --color-gray-50: #1a1a1a;
+  --color-gray-100: #2d2d30;
+  --color-gray-200: #3e3e42;
+  --color-gray-300: #515158;
+  --color-gray-400: #6e6e73;
+  --color-gray-500: #8e8e93;
+  --color-gray-600: #aeaeb2;
+  --color-gray-700: #c7c7cc;
+  --color-gray-800: #e5e5ea;
+  --color-gray-900: #f2f2f7;
+  
+  /* Dark Theme Text Colors */
+  --text-primary: #f2f2f7;
+  --text-secondary: #aeaeb2;
+  --text-muted: #8e8e93;
+  --text-inverse: #1a1a1a;
+  
+  /* Dark Theme Background Colors */
+  --bg-primary: #2d2d30;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #3e3e42;
+  
+  /* Dark Theme Border Colors */
+  --border-light: #3e3e42;
+  --border-medium: #515158;
+  --border-dark: #6e6e73;
+  
+  /* Dark Theme Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.5);
+}
+
+/* Smooth transitions for theme changes */
+*,
+*::before,
+*::after {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 /* Typography */
@@ -283,13 +338,15 @@ p {
   border: 1px solid var(--border-medium);
   border-radius: var(--radius-md);
   font-size: 0.875rem;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .form-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
 }
 
 .form-label {
@@ -349,27 +406,27 @@ p {
 }
 
 .alert-success {
-  background-color: #f0fdf4;
-  border-color: #bbf7d0;
-  color: #166534;
+  background-color: rgba(16, 185, 129, 0.1);
+  border-color: var(--color-success);
+  color: var(--color-success);
 }
 
 .alert-warning {
-  background-color: #fffbeb;
-  border-color: #fed7aa;
-  color: #92400e;
+  background-color: rgba(245, 158, 11, 0.1);
+  border-color: var(--color-warning);
+  color: var(--color-warning);
 }
 
 .alert-danger {
-  background-color: #fef2f2;
-  border-color: #fecaca;
-  color: #dc2626;
+  background-color: rgba(239, 68, 68, 0.1);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .alert-info {
-  background-color: #eff6ff;
-  border-color: #bfdbfe;
-  color: #1d4ed8;
+  background-color: rgba(74, 144, 226, 0.1);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 /* Badge Component */
@@ -383,23 +440,23 @@ p {
 }
 
 .badge-success {
-  background-color: #dcfce7;
-  color: #166534;
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
 }
 
 .badge-warning {
-  background-color: #fef3c7;
-  color: #92400e;
+  background-color: rgba(245, 158, 11, 0.1);
+  color: var(--color-warning);
 }
 
 .badge-danger {
-  background-color: #fee2e2;
-  color: #dc2626;
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
 }
 
 .badge-info {
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: rgba(74, 144, 226, 0.1);
+  color: var(--color-primary);
 }
 
 /* Status Indicators */
@@ -458,7 +515,42 @@ p {
 
 .nav-link.active {
   color: var(--color-primary);
-  background-color: rgba(0, 102, 204, 0.1);
+  background-color: rgba(74, 144, 226, 0.1);
+}
+
+/* Theme Toggle Button Styles */
+.theme-toggle-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background-color: transparent;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.theme-toggle-button:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.theme-toggle-text {
+  font-weight: 500;
+}
+
+/* Sidebar Header Styles */
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-light);
 }
 
 /* Dashboard Layout */
@@ -503,7 +595,7 @@ p {
 
 .sidebar-nav-item.active {
   color: var(--color-primary);
-  background-color: rgba(0, 102, 204, 0.1);
+  background-color: rgba(74, 144, 226, 0.1);
 }
 
 /* Stats Grid */
@@ -569,6 +661,42 @@ p {
   border-width: 4px;
 }
 
+/* Login Page Styles */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  padding: var(--space-4);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background-color: var(--bg-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-8);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+.login-title {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: var(--space-2);
+}
+
+.login-subtitle {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .dashboard {
@@ -606,42 +734,6 @@ p {
   }
 }
 
-/* Login Page Styles */
-.login-container {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  padding: var(--space-4);
-}
-
-.login-card {
-  width: 100%;
-  max-width: 400px;
-  background-color: var(--bg-primary);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-xl);
-  padding: var(--space-8);
-}
-
-.login-header {
-  text-align: center;
-  margin-bottom: var(--space-8);
-}
-
-.login-title {
-  font-size: 1.875rem;
-  font-weight: 700;
-  color: var(--color-primary);
-  margin-bottom: var(--space-2);
-}
-
-.login-subtitle {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
 /* Accessibility */
 .sr-only {
   position: absolute;
@@ -659,7 +751,8 @@ p {
 .btn:focus,
 .form-input:focus,
 .nav-link:focus,
-.sidebar-nav-item:focus {
+.sidebar-nav-item:focus,
+.theme-toggle-button:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
@@ -683,83 +776,8 @@ p {
   .btn {
     display: none;
   }
-}
-/* Template Editor Specific Styles */
-.template-editor-container {
-  --primary-color: #0066cc;
-  --primary-dark: #0052a3;
-  --secondary-color: #667eea;
-  --success-color: #10b981;
-  --warning-color: #f59e0b;
-  --danger-color: #ef4444;
-  --gray-50: #f8fafc;
-  --gray-100: #f1f5f9;
-  --gray-200: #e2e8f0;
-  --gray-300: #cbd5e0;
-  --gray-500: #64748b;
-  --gray-600: #475569;
-  --gray-700: #334155;
-  --gray-800: #1e293b;
-  --text-primary: #1a365d;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
-}
-
-/* Enhanced Form Elements */
-.form-label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.form-input {
-  width: 100%;
-  padding: 12px 16px;
-  border: 2px solid var(--gray-200);
-  border-radius: 8px;
-  font-size: 14px;
-  transition: all 0.2s;
-  color: var(--text-primary);
-  background: white;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
-}
-
-/* Template Editor Specific Styles */
-.placeholder-highlight {
-  background: rgba(102, 126, 234, 0.2);
-  border-radius: 3px;
-  padding: 2px 4px;
-  margin: 0 2px;
-  font-weight: 600;
-  color: var(--primary-color);
-}
-
-.ai-enhancement-zone {
-  background: rgba(147, 51, 234, 0.1);
-  border: 2px dashed #9333ea;
-  border-radius: 6px;
-  padding: 8px;
-  margin: 4px 0;
-  position: relative;
-}
-
-/* Responsive Design for Template Editor */
-@media (max-width: 768px) {
-  .card-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
   
-  .template-content-textarea {
-    padding: 16px;
+  .theme-toggle-button {
+    display: none;
   }
 }
