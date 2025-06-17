@@ -1,0 +1,85 @@
+cd "C:\Users\admin\Desktop\MeDocPro"
+
+cd "C:\Users\admin\Desktop\MeDocPro\medocpro-dashboard"
+
+.venv\scripts\activate
+
+docker-compose logs api
+
+Option 1: Using Docker (Simplest)
+powershell# Navigate to your project directory
+cd path\to\medocpro-backend
+
+# Start all services with Docker
+docker-compose --profile development --profile cpu up --build
+
+# Wait for services to start, then access:
+# - Backend API: http://localhost:5000
+# - Health Check: http://localhost:5000/health
+Option 2: Manual Setup (More Control)
+powershell# 1. Start backend services
+cd path\to\medocpro-backend
+
+# Start database and Redis
+docker-compose up -d db redis ollama-cpu
+
+# Activate Python virtual environment
+.\venv\Scripts\Activate.ps1
+
+# Install dependencies (if needed)
+pip install -r requirements.txt
+
+# Initialize database
+python manage.py init-database
+
+# Create admin user (first time only)
+python manage.py create-admin
+
+# Start backend API
+python app.py
+powershell# 2. In a new PowerShell window, start frontend
+cd path\to\your\frontend
+
+# Install dependencies (if needed)
+npm install
+
+# Start development server
+npm run dev
+Verification Steps
+Once started, verify everything is working:
+powershell# Check backend health
+Invoke-WebRequest -Uri http://localhost:5000/health -UseBasicParsing
+
+# Check API endpoints
+Invoke-WebRequest -Uri http://localhost:5000/api/auth/password-requirements -UseBasicParsing
+Default Access
+Based on your configuration:
+
+Backend API: http://localhost:5000
+Frontend Dashboard: http://localhost:5174 (if using Vite)
+Default Admin:
+
+Username: admin
+Password: ChangeMe123! (change immediately after first login)
+
+
+
+If You Encounter Issues
+
+Database not connecting: Ensure PostgreSQL is running via Docker
+Frontend not connecting: Check that backend is running on port 5000
+Dependencies missing: Run pip install -r requirements.txt and npm install
+
+Environment Setup
+Make sure your .env file exists with proper configuration. If not, you can generate one:
+powershellpython manage.py generate-config
+Management Commands
+Your project includes helpful management commands:
+powershell# Check system status
+python manage.py check-database
+
+# List users
+python manage.py list-users
+
+# Show configuration
+python manage.py show-config

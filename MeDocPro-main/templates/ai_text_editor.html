@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Assisted Clinical Text Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .ai-editor-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+
+        .editor-header {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 24px;
+            border-left: 4px solid #0066cc;
+        }
+
+        .editor-title {
+            color: #1a365d;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .editor-subtitle {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .main-editor {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .editor-toolbar {
+            padding: 16px 20px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .toolbar-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .preset-btn {
+            padding: 6px 12px;
+            border: 1px solid #cbd5e0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            color: #4a5568;
+        }
+
+        .preset-btn:hover {
+            background: #f7fafc;
+            border-color: #0066cc;
+        }
+
+        .preset-btn.active {
+            background: #0066cc;
+            color: white;
+            border-color: #0066cc;
+        }
+
+        .text-area {
+            min-height: 300px;
+            padding: 20px;
+            border: none;
+            font-size: 16px;
+            line-height: 1.6;
+            resize: vertical;
+            font-family: inherit;
+            outline: none;
+            width: 100%;
+        }
+
+        .ai-panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+            transition: all 0.3s ease;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+        }
+
+        .ai-panel.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .ai-panel-header {
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .ai-panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .selected-text-preview {
+            font-size: 12px;
+            opacity: 0.9;
+            font-style: italic;
+            max-height: 40px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .ai-controls {
+            padding: 20px;
+        }
+
+        .slider-container {
+            margin-bottom: 20px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        .slider-value {
+            font-weight: 600;
+            color: #0066cc;
+        }
+
+        .intensity-slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e2e8f0;
+            outline: none;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        .intensity-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .intensity-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .intensity-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        .style-container {
+            margin-bottom: 20px;
+        }
+
+        .style-label {
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #4a5568;
+            font-weight: 500;
+        }
+
+        .style-dropdown {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #2d3748;
+        }
+
+        .style-dropdown:focus {
+            outline: none;
+            border-color: #0066cc;
+            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+        }
+
+        .style-dropdown:hover {
+            border-color: #cbd5e0;
+        }
+
+        .style-description {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #64748b;
+            font-style: italic;
+            min-height: 32px;
+            line-height: 1.4;
+            padding: 6px 8px;
+            background: #f8fafc;
+            border-radius: 4px;
+            border-left: 3px solid #e2e8f0;
+        }
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .config-input {
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .config-input:focus {
+            outline: none;
+            border-color: #0066cc;
+            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .ai-btn {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .ai-btn.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .ai-btn.primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .ai-btn.secondary {
+            background: #f8fafc;
+            color: #4a5568;
+            border: 1px solid #e2e8f0;
+        }
+
+        .ai-btn.secondary:hover {
+            background: #f1f5f9;
+        }
+
+        .ai-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .loading-indicator {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #64748b;
+        }
+
+        .loading-indicator.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e2e8f0;
+            border-top: 2px solid #0066cc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result-preview {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            display: none;
+        }
+
+        .result-preview.active {
+            display: block;
+        }
+
+        .result-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .result-text {
+            font-size: 14px;
+            line-height: 1.5;
+            color: #2d3748;
+            white-space: pre-wrap;
+        }
+
+        .selection-highlight {
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 3px;
+            padding: 2px 4px;
+            margin: 0 2px;
+        }
+
+        @media (max-width: 768px) {
+            .ai-editor-container {
+                padding: 12px;
+            }
+            
+            .api-config {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .toolbar-group {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ai-editor-container">
+        <div class="editor-header">
+            <h1 class="editor-title">AI-Assisted Clinical Text Editor</h1>
+            <p class="editor-subtitle">Select text and use AI to enhance your clinical documentation while preserving meaning</p>
+        </div>
+
+        <div class="main-editor">
+            <div class="editor-toolbar">
+                <div class="toolbar-group">
+                    <span class="toolbar-label">Quick Templates:</span>
+                    <button class="preset-btn" onclick="loadTemplate('progress')">Progress Note</button>
+                    <button class="preset-btn" onclick="loadTemplate('assessment')">Assessment</button>
+                    <button class="preset-btn" onclick="loadTemplate('plan')">Treatment Plan</button>
+                </div>
+            </div>
+            
+            <textarea 
+                class="text-area" 
+                id="mainTextArea" 
+                placeholder="Begin typing your clinical documentation here. Select any text to enhance it with AI assistance..."
+                onselect="handleTextSelection()"
+                onmouseup="handleTextSelection()"
+                onkeyup="handleTextSelection()"></textarea>
+        </div>
+
+        <div class="ai-panel" id="aiPanel">
+            <div class="ai-panel-header">
+                <div class="ai-panel-title">AI Text Enhancement</div>
+                <div class="selected-text-preview" id="selectedTextPreview">Select text to begin AI enhancement</div>
+            </div>
+            
+            <div class="ai-controls">
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Enhancement Intensity</span>
+                        <span class="slider-value" id="sliderValue">50%</span>
+                    </div>
+                    <input 
+                        type="range" 
+                        class="intensity-slider" 
+                        id="intensitySlider" 
+                        min="0" 
+                        max="100" 
+                        value="50"
+                        oninput="updateSliderValue(this.value)">
+                    <div class="intensity-labels">
+                        <span>Minimal</span>
+                        <span>Moderate</span>
+                        <span>Comprehensive</span>
+                    </div>
+                </div>
+
+                <div class="style-container">
+                    <div class="style-label">
+                        <span>Writing Style</span>
+                    </div>
+                    <select class="style-dropdown" id="writingStyle">
+                        <option value="clinical">Clinical Standard</option>
+                        <option value="concise">Concise & Direct</option>
+                        <option value="detailed">Detailed & Comprehensive</option>
+                        <option value="narrative">Narrative Flow</option>
+                        <option value="objective">Objective & Factual</option>
+                        <option value="empathetic">Empathetic Tone</option>
+                        <option value="formal">Formal Medical</option>
+                        <option value="interdisciplinary">Interdisciplinary</option>
+                        <option value="progress">Progress-Focused</option>
+                        <option value="diagnostic">Diagnostic Emphasis</option>
+                    </select>
+                    <div class="style-description" id="styleDescription">
+                        Professional medical documentation with standard clinical terminology
+                    </div>
+                </div>
+
+                <div class="api-config">
+                    <input 
+                        type="text" 
+                        class="config-input" 
+                        id="ollamaUrl" 
+                        placeholder="Ollama URL (e.g., http://localhost:11434)"
+                        value="http://localhost:11434">
+                    <input 
+                        type="text" 
+                        class="config-input" 
+                        id="modelName" 
+                        placeholder="Model name (e.g., llama2, mistral)"
+                        value="llama2">
+                </div>
+
+                <div class="action-buttons">
+                    <button class="ai-btn primary" onclick="enhanceText()" id="enhanceBtn">
+                        Enhance Selected Text
+                    </button>
+                    <button class="ai-btn secondary" onclick="closeAiPanel()">
+                        Cancel
+                    </button>
+                </div>
+
+                <div class="loading-indicator" id="loadingIndicator">
+                    <div class="spinner"></div>
+                    <div>Processing with AI...</div>
+                </div>
+
+                <div class="result-preview" id="resultPreview">
+                    <div class="result-label">Enhanced Text Preview</div>
+                    <div class="result-text" id="resultText"></div>
+                    <div class="action-buttons" style="margin-top: 16px;">
+                        <button class="ai-btn primary" onclick="applyEnhancement()">Apply Changes</button>
+                        <button class="ai-btn secondary" onclick="rejectEnhancement()">Discard</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedText = '';
+        let selectionStart = 0;
+        let selectionEnd = 0;
+        let enhancedText = '';
+
+        const templates = {
+            progress: `PROGRESS NOTE - [Date]
+
+Chief Complaint: 
+Patient reports [primary concern/symptoms]
+
+Present Illness:
+[Detailed description of current symptoms, duration, severity, and impact on functioning]
+
+Mental Status Examination:
+- Appearance: [general appearance, grooming, dress]
+- Behavior: [cooperation, eye contact, psychomotor activity]
+- Speech: [rate, volume, tone, fluency]
+- Mood: [patient's reported mood]
+- Affect: [observed emotional expression]
+- Thought Process: [linear, circumstantial, tangential]
+- Thought Content: [delusions, obsessions, suicidal/homicidal ideation]
+- Perceptual Disturbances: [hallucinations, illusions]
+- Cognition: [orientation, attention, memory, insight, judgment]
+
+Assessment and Plan:
+[Clinical impression and treatment recommendations]`,
+
+            assessment: `PSYCHIATRIC ASSESSMENT - [Date]
+
+Identifying Information:
+[Age, gender, presenting circumstances]
+
+History of Present Illness:
+[Chronological development of current psychiatric symptoms]
+
+Past Psychiatric History:
+- Previous episodes: [dates, treatments, hospitalizations]
+- Medication trials: [previous medications, responses, side effects]
+- Therapy history: [types of therapy, duration, effectiveness]
+
+Medical History:
+[Relevant medical conditions, current medications, allergies]
+
+Social History:
+[Substance use, relationships, occupational functioning, legal issues]
+
+Family History:
+[Family psychiatric and medical history]
+
+Mental Status Examination:
+[Comprehensive mental status findings]
+
+Assessment:
+[DSM-5 diagnoses with supporting criteria]
+
+Plan:
+[Detailed treatment plan including medications, therapy, follow-up]`,
+
+            plan: `TREATMENT PLAN - [Date]
+
+Patient: [Name, DOB, ID]
+Primary Diagnosis: [DSM-5 diagnosis]
+
+Treatment Goals:
+1. [Specific, measurable goal]
+2. [Specific, measurable goal]
+3. [Specific, measurable goal]
+
+Interventions:
+- Pharmacological: [medications, dosages, monitoring]
+- Psychotherapeutic: [therapy modality, frequency, duration]
+- Psychosocial: [support services, lifestyle modifications]
+
+Target Symptoms:
+[Specific symptoms to monitor and measure improvement]
+
+Timeline:
+[Expected duration of treatment phases]
+
+Follow-up Plan:
+[Frequency of appointments, monitoring parameters]
+
+Risk Assessment:
+[Current risk factors and mitigation strategies]
+
+Patient Education:
+[Information provided to patient about condition and treatment]`
+        };
+
+        function loadTemplate(type) {
+            const textArea = document.getElementById('mainTextArea');
+            textArea.value = templates[type];
+            
+            // Update active button
+            document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function handleTextSelection() {
+            const textArea = document.getElementById('mainTextArea');
+            const selection = textArea.value.substring(textArea.selectionStart, textArea.selectionEnd);
+            
+            if (selection.length > 0) {
+                selectedText = selection;
+                selectionStart = textArea.selectionStart;
+                selectionEnd = textArea.selectionEnd;
+                
+                showAiPanel();
+                updateSelectedTextPreview(selection);
+            } else {
+                hideAiPanel();
+            }
+        }
+
+        function showAiPanel() {
+            const panel = document.getElementById('aiPanel');
+            panel.classList.add('active');
+        }
+
+        function hideAiPanel() {
+            const panel = document.getElementById('aiPanel');
+            panel.classList.remove('active');
+            hideResultPreview();
+        }
+
+        function closeAiPanel() {
+            hideAiPanel();
+            // Clear selection
+            const textArea = document.getElementById('mainTextArea');
+            textArea.focus();
+        }
+
+        function updateSelectedTextPreview(text) {
+            const preview = document.getElementById('selectedTextPreview');
+            const truncated = text.length > 100 ? text.substring(0, 100) + '...' : text;
+            preview.textContent = `"${truncated}"`;
+        }
+
+        function updateSliderValue(value) {
+            document.getElementById('sliderValue').textContent = value + '%';
+        }
+
+        function updateStyleDescription() {
+            const style = document.getElementById('writingStyle').value;
+            const descriptions = {
+                clinical: "Professional medical documentation with standard clinical terminology",
+                concise: "Brief, efficient language focusing on essential clinical information",
+                detailed: "Comprehensive documentation with thorough descriptions and context",
+                narrative: "Flowing, story-like documentation that maintains clinical accuracy",
+                objective: "Fact-based, neutral tone with minimal subjective interpretation",
+                empathetic: "Patient-centered language that reflects understanding and compassion",
+                formal: "Highly structured, academic medical writing with precise terminology",
+                interdisciplinary: "Clear communication suitable for all healthcare team members",
+                progress: "Emphasis on patient improvement, changes, and treatment responses",
+                diagnostic: "Focus on symptoms, criteria, and clinical decision-making processes"
+            };
+            
+            document.getElementById('styleDescription').textContent = descriptions[style];
+        }
+
+        async function enhanceText() {
+            if (!selectedText) {
+                alert('Please select text to enhance');
+                return;
+            }
+
+            const ollamaUrl = document.getElementById('ollamaUrl').value;
+            const modelName = document.getElementById('modelName').value;
+            const intensity = document.getElementById('intensitySlider').value;
+
+            if (!ollamaUrl || !modelName) {
+                alert('Please configure Ollama URL and model name');
+                return;
+            }
+
+            showLoading();
+            hideResultPreview();
+
+            try {
+                const prompt = generatePrompt(selectedText, intensity);
+                const response = await callOllamaAPI(ollamaUrl, modelName, prompt);
+                
+                enhancedText = extractEnhancedText(response);
+                showResultPreview(enhancedText);
+                
+            } catch (error) {
+                console.error('Error enhancing text:', error);
+                alert('Error connecting to Ollama API. Please check your configuration.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function generatePrompt(text, intensity) {
+            const writingStyle = document.getElementById('writingStyle').value;
+            
+            const intensityDescriptions = {
+                0: "minimal changes, only correct obvious errors",
+                25: "light enhancement with improved clarity",
+                50: "moderate enhancement with better medical terminology",
+                75: "significant enhancement with comprehensive clinical language",
+                100: "maximum enhancement with detailed medical documentation standards"
+            };
+
+            const styleInstructions = {
+                clinical: "Use standard clinical terminology and professional medical language. Follow conventional medical documentation format.",
+                concise: "Write in a brief, efficient style. Use short sentences and essential clinical information only. Eliminate unnecessary words.",
+                detailed: "Provide comprehensive, thorough documentation with detailed descriptions, context, and clinical reasoning.",
+                narrative: "Write in a flowing, narrative style that tells the clinical story while maintaining medical accuracy and professionalism.",
+                objective: "Use purely objective, fact-based language. Avoid subjective interpretations. Focus on observable data and measurable outcomes.",
+                empathetic: "Use patient-centered, compassionate language that reflects understanding of the patient's experience while maintaining professionalism.",
+                formal: "Write in highly structured, academic medical style with precise terminology, proper medical conventions, and formal tone.",
+                interdisciplinary: "Use clear, accessible language that can be easily understood by all healthcare team members across different specialties.",
+                progress: "Focus on patient progress, improvements, changes in condition, and treatment responses. Emphasize therapeutic outcomes.",
+                diagnostic: "Emphasize diagnostic criteria, symptom descriptions, clinical decision-making processes, and differential considerations."
+            };
+
+            const level = Math.floor(intensity / 25) * 25;
+            const description = intensityDescriptions[level];
+
+            return `You are a medical documentation assistant specialized in psychiatric clinical notes. 
+
+Please enhance the following clinical text with ${description}. 
+
+Writing Style Requirements:
+${styleInstructions[writingStyle]}
+
+Additional Requirements:
+- Maintain the original meaning and clinical facts
+- Ensure HIPAA compliance (no real patient identifiers)
+- Preserve any specific diagnostic terms or medication names
+- Enhancement level: ${intensity}%
+- Writing style: ${writingStyle}
+
+Original text:
+"${text}"
+
+Please provide only the enhanced text without additional commentary:`;
+        }
+
+        async function callOllamaAPI(url, model, prompt) {
+            const response = await fetch(`${url}/api/generate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model: model,
+                    prompt: prompt,
+                    stream: false,
+                    options: {
+                        temperature: 0.3,
+                        top_p: 0.9,
+                        max_tokens: 500
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.response;
+        }
+
+        function extractEnhancedText(response) {
+            // Clean up the response to extract just the enhanced text
+            let cleaned = response.trim();
+            
+            // Remove common AI response prefixes
+            cleaned = cleaned.replace(/^(Here's the enhanced text:|Enhanced text:|The enhanced version is:)/i, '');
+            cleaned = cleaned.replace(/^["']|["']$/g, ''); // Remove surrounding quotes
+            cleaned = cleaned.trim();
+            
+            return cleaned;
+        }
+
+        function showLoading() {
+            document.getElementById('loadingIndicator').classList.add('active');
+            document.getElementById('enhanceBtn').disabled = true;
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingIndicator').classList.remove('active');
+            document.getElementById('enhanceBtn').disabled = false;
+        }
+
+        function showResultPreview(text) {
+            document.getElementById('resultText').textContent = text;
+            document.getElementById('resultPreview').classList.add('active');
+        }
+
+        function hideResultPreview() {
+            document.getElementById('resultPreview').classList.remove('active');
+        }
+
+        function applyEnhancement() {
+            if (!enhancedText) return;
+
+            const textArea = document.getElementById('mainTextArea');
+            const before = textArea.value.substring(0, selectionStart);
+            const after = textArea.value.substring(selectionEnd);
+            
+            textArea.value = before + enhancedText + after;
+            
+            // Clear selection and close panel
+            selectedText = '';
+            hideAiPanel();
+            textArea.focus();
+        }
+
+        function rejectEnhancement() {
+            enhancedText = '';
+            hideResultPreview();
+        }
+
+        // Initialize component
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add event listener for style dropdown
+            document.getElementById('writingStyle').addEventListener('change', updateStyleDescription);
+            
+            // Initialize style description
+            updateStyleDescription();
+        });
+    </script>
+</body>
+</html>

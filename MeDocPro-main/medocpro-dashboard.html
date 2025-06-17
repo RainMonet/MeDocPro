@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeDocPro - Clinical Documentation Dashboard</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        :root {
+            /* Clinical Color Palette */
+            --primary-blue: #0066cc;
+            --primary-blue-dark: #0052a3;
+            --primary-blue-light: #4a90e2;
+            --secondary-teal: #0d9488;
+            --accent-green: #10b981;
+            --warning-amber: #f59e0b;
+            --error-red: #ef4444;
+            
+            /* Neutral Clinical Grays */
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e0;
+            --gray-400: #94a3b8;
+            --gray-500: #64748b;
+            --gray-600: #475569;
+            --gray-700: #334155;
+            --gray-800: #1e293b;
+            --gray-900: #0f172a;
+            
+            /* Typography */
+            --font-family-primary: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            --font-family-mono: 'JetBrains Mono', 'Fira Code', monospace;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family-primary);
+            background: var(--gray-50);
+            color: var(--gray-900);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .dashboard-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Styles */
+        .header {
+            background: white;
+            border-bottom: 1px solid var(--gray-200);
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-light));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .brand {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .user-role {
+            font-size: 14px;
+            color: var(--gray-500);
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            background: var(--secondary-teal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid var(--gray-200);
+            padding: 24px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            color: var(--gray-600);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-right: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: var(--gray-50);
+            color: var(--gray-900);
+        }
+
+        .nav-item.active {
+            background: var(--primary-blue-light);
+            background-opacity: 0.1;
+            color: var(--primary-blue);
+            border-right-color: var(--primary-blue);
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            opacity: 0.7;
+        }
+
+        .content-area {
+            flex: 1;
+            padding: 24px;
+        }
+
+        /* Quick Actions Grid */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .action-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .action-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .action-card-header {
+            padding: 20px;
+            border-left: 4px solid var(--primary-blue);
+        }
+
+        .action-card.progress {
+            border-left-color: var(--accent-green);
+        }
+
+        .action-card.assessment {
+            border-left-color: var(--secondary-teal);
+        }
+
+        .action-card.treatment {
+            border-left-color: var(--warning-amber);
+        }
+
+        .action-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 8px;
+        }
+
+        .action-description {
+            color: var(--gray-600);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .action-footer {
+            padding: 16px 20px;
+            background: var(--gray-50);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .action-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--gray-500);
+            font-size: 12px;
+        }
+
+        .action-button {
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .action-button:hover {
+            background: var(--primary-blue-dark);
+        }
+
+        /* Recent Documents */
+        .recent-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--gray-200);
+            background: var(--gray-50);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .document-list {
+            padding: 16px 0;
+        }
+
+        .document-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 24px;
+            transition: background 0.2s ease;
+            cursor: pointer;
+        }
+
+        .document-item:hover {
+            background: var(--gray-50);
+        }
+
+        .document-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: white;
+        }
+
+        .document-icon.progress {
+            background: var(--accent-green);
+        }
+
+        .document-icon.assessment {
+            background: var(--secondary-teal);
+        }
+
+        .document-icon.treatment {
+            background: var(--warning-amber);
+        }
+
+        .document-info {
+            flex: 1;
+        }
+
+        .document-title {
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 4px;
+        }
+
+        .document-meta {
+            font-size: 14px;
+            color: var(--gray-500);
+        }
+
+        .document-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-draft {
+            background: var(--gray-100);
+            color: var(--gray-600);
+        }
+
+        .status-complete {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent-green);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow-xl);
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow: hidden;
+            animation: slideUp 0.3s ease;
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--gray-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gray-900);
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            color: var(--gray-400);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: color 0.2s ease;
+        }
+
+        .close-button:hover {
+            color: var(--gray-600);
+        }
+
+        .modal-content {
+            padding: 24px;
+            overflow-y: auto;
+            max-height: calc(90vh - 120px);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--gray-300);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+        }
+
+        .form-textarea {
+            min-height: 200px;
+            resize: vertical;
+            font-family: var(--font-family-mono);
+            line-height: 1.6;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .button {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .button-primary {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .button-primary:hover {
+            background: var(--primary-blue-dark);
+        }
+
+        .button-secondary {
+            background: var(--gray-100);
+            color: var(--gray-700);
+        }
+
+        .button-secondary:hover {
+            background: var(--gray-200);
+        }
+
+        /* Loading and Status */
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--gray-300);
+            border-radius: 50%;
+            border-top-color: var(--primary-blue);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent-green);
+        }
+
+        .status-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error-red);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid var(--gray-200);
+                padding: 16px 0;
+            }
+            
+            .quick-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                padding: 0 16px;
+            }
+            
+            .content-area {
+                padding: 16px;
+            }
+            
+            .modal {
+                width: 95%;
+                margin: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback } = React;
+
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:5000/api';
+
+        // API Helper Functions
+        const apiCall = async (endpoint, options = {}) => {
+            const token = localStorage.getItem('authToken');
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token && { Authorization: `Bearer ${token}` }),
+                    ...options.headers,
+                },
+                ...options,
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'API request failed');
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        };
+
+        // Component: Header
+        const Header = ({ user, onLogout }) => (
+            <header className="header">
+                <div className="header-content">
+                    <div className="logo-section">
+                        <div className="logo">M</div>
+                        <div className="brand">MeDocPro</div>
+                    </div>
+                    <div className="user-menu">
+                        <div className="user-info">
+                            <div className="user-name">Dr. {user?.firstName || 'Admin'} {user?.lastName || 'User'}</div>
+                            <div className="user-role">{user?.role || 'Administrator'}</div>
+                        </div>
+                        <div className="user-avatar">
+                            {(user?.firstName?.[0] || 'A')}
+                        </div>
+                    </div>
+                </div>
+            </header>
+        );
+
+        // Component: Sidebar Navigation
+        const Sidebar = ({ activeSection, onSectionChange }) => {
+            const navItems = [
+                { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                { id: 'templates', label: 'Templates', icon: '📋' },
+                { id: 'documents', label: 'Documents', icon: '📄' },
+                { id: 'patients', label: 'Patient Census', icon: '👥' },
+                { id: 'ai-assistant', label: 'AI Assistant', icon: '🤖' },
+                { id: 'reports', label: 'Reports', icon: '📈' },
+                { id: 'settings', label: 'Settings', icon: '⚙️' },
+            ];
+
+            return (
+                <nav className="sidebar">
+                    {navItems.map(item => (
+                        <div
+                            key={item.id}
+                            className={`nav-item ${activeSection === item.id ? 'active' : ''}`}
+                            onClick={() => onSectionChange(item.id)}
+                        >
+                            <span className="nav-icon">{item.icon}</span>
+                            <span>{item.label}</span>
+                        </div>
+                    ))}
+                </nav>
+            );
+        };
+
+        // Component: Quick Action Card
+        const QuickActionCard = ({ title, description, icon, type, onAction, recentCount }) => (
+            <div className={`action-card ${type}`} onClick={onAction}>
+                <div className="action-card-header">
+                    <div className="action-title">{title}</div>
+                    <div className="action-description">{description}</div>
+                </div>
+                <div className="action-footer">
+                    <div className="action-meta">
+                        <span>{icon}</span>
+                        <span>{recentCount} recent</span>
+                    </div>
+                    <button className="action-button">Create New</button>
+                </div>
+            </div>
+        );
+
+        // Component: Template Creation Modal
+        const TemplateModal = ({ isOpen, onClose, onSave, template = null }) => {
+            const [formData, setFormData] = useState({
+                name: '',
+                category: 'progress',
+                description: '',
+                content: '',
+            });
+            const [isLoading, setIsLoading] = useState(false);
+
+            useEffect(() => {
+                if (template) {
+                    setFormData(template);
+                } else {
+                    setFormData({
+                        name: '',
+                        category: 'progress',
+                        description: '',
+                        content: '',
+                    });
+                }
+            }, [template, isOpen]);
+
+            const handleSave = async () => {
+                setIsLoading(true);
+                try {
+                    await onSave(formData);
+                    onClose();
+                } catch (error) {
+                    console.error('Failed to save template:', error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            if (!isOpen) return null;
+
+            return (
+                <div className="modal-overlay">
+                    <div className="modal">
+                        <div className="modal-header">
+                            <h2 className="modal-title">
+                                {template ? 'Edit Template' : 'Create New Template'}
+                            </h2>
+                            <button className="close-button" onClick={onClose}>×</button>
+                        </div>
+                        <div className="modal-content">
+                            <div className="form-group">
+                                <label className="form-label">Template Name</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                    placeholder="e.g., Psychiatric Progress Note"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Category</label>
+                                <select
+                                    className="form-input"
+                                    value={formData.category}
+                                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                                >
+                                    <option value="progress">Progress Notes</option>
+                                    <option value="assessment">Psychiatric Assessment</option>
+                                    <option value="treatment">Treatment Plans</option>
+                                    <option value="intake">Intake Forms</option>
+                                    <option value="discharge">Discharge Summaries</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Description</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    value={formData.description}
+                                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                                    placeholder="Brief description of this template"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Template Content</label>
+                                <textarea
+                                    className="form-input form-textarea"
+                                    value={formData.content}
+                                    onChange={(e) => setFormData({...formData, content: e.target.value})}
+                                    placeholder="Enter your template content here. Use {{placeholder_name}} for dynamic fields."
+                                />
+                            </div>
+                            <div className="button-group">
+                                <button className="button button-secondary" onClick={onClose}>
+                                    Cancel
+                                </button>
+                                <button 
+                                    className="button button-primary" 
+                                    onClick={handleSave}
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? <span className="loading-spinner"></span> : 'Save Template'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Component: Dashboard Content
+        const DashboardContent = ({ templates, onCreateTemplate }) => {
+            const recentDocuments = [
+                {
+                    id: 1,
+                    title: 'Progress Note - Anderson, S.',
+                    type: 'progress',
+                    date: 'Today, 2:30 PM',
+                    status: 'draft'
+                },
+                {
+                    id: 2,
+                    title: 'Initial Assessment - Johnson, M.',
+                    type: 'assessment',
+                    date: 'Today, 10:15 AM',
+                    status: 'complete'
+                },
+                {
+                    id: 3,
+                    title: 'Treatment Plan - Williams, E.',
+                    type: 'treatment',
+                    date: 'Yesterday, 4:45 PM',
+                    status: 'complete'
+                }
+            ];
+
+            return (
+                <div>
+                    <div className="quick-actions">
+                        <QuickActionCard
+                            title="Progress Note"
+                            description="Document patient progress during treatment sessions"
+                            icon="📝"
+                            type="progress"
+                            recentCount={12}
+                            onAction={() => onCreateTemplate('progress')}
+                        />
+                        <QuickActionCard
+                            title="Psychiatric Assessment"
+                            description="Comprehensive mental health evaluations"
+                            icon="🧠"
+                            type="assessment"
+                            recentCount={8}
+                            onAction={() => onCreateTemplate('assessment')}
+                        />
+                        <QuickActionCard
+                            title="Treatment Plan"
+                            description="Structured intervention strategies and goals"
+                            icon="🎯"
+                            type="treatment"
+                            recentCount={5}
+                            onAction={() => onCreateTemplate('treatment')}
+                        />
+                    </div>
+
+                    <div className="recent-section">
+                        <div className="section-header">
+                            <h2 className="section-title">Recent Documents</h2>
+                        </div>
+                        <div className="document-list">
+                            {recentDocuments.map(doc => (
+                                <div key={doc.id} className="document-item">
+                                    <div className={`document-icon ${doc.type}`}>
+                                        {doc.type === 'progress' ? '📝' : 
+                                         doc.type === 'assessment' ? '🧠' : '🎯'}
+                                    </div>
+                                    <div className="document-info">
+                                        <div className="document-title">{doc.title}</div>
+                                        <div className="document-meta">{doc.date}</div>
+                                    </div>
+                                    <div className={`document-status status-${doc.status}`}>
+                                        {doc.status}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Component: Templates List
+        const TemplatesContent = ({ templates, onEditTemplate, onCreateTemplate }) => (
+            <div>
+                <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h1 style={{ fontSize: '24px', fontWeight: '600' }}>Clinical Templates</h1>
+                    <button className="button button-primary" onClick={() => onCreateTemplate()}>
+                        Create New Template
+                    </button>
+                </div>
+                
+                <div className="recent-section">
+                    <div className="document-list">
+                        {templates.map(template => (
+                            <div key={template.id} className="document-item" onClick={() => onEditTemplate(template)}>
+                                <div className={`document-icon ${template.category}`}>
+                                    {template.category === 'progress' ? '📝' : 
+                                     template.category === 'assessment' ? '🧠' : 
+                                     template.category === 'treatment' ? '🎯' : '📋'}
+                                </div>
+                                <div className="document-info">
+                                    <div className="document-title">{template.name}</div>
+                                    <div className="document-meta">
+                                        {template.category} • Created {new Date(template.created_at).toLocaleDateString()}
+                                    </div>
+                                </div>
+                                <div className="document-status status-complete">
+                                    Active
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+
+        // Main Dashboard Component
+        const Dashboard = () => {
+            const [activeSection, setActiveSection] = useState('dashboard');
+            const [templates, setTemplates] = useState([]);
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [editingTemplate, setEditingTemplate] = useState(null);
+            const [isLoading, setIsLoading] = useState(true);
+            const [user] = useState({ firstName: 'Medical', lastName: 'Professional', role: 'Psychiatrist' });
+
+            // Load templates from backend
+            const loadTemplates = useCallback(async () => {
+                try {
+                    setIsLoading(true);
+                    const response = await apiCall('/templates');
+                    setTemplates(response.templates || []);
+                } catch (error) {
+                    console.error('Failed to load templates:', error);
+                    // Use mock data if backend is not available
+                    setTemplates([
+                        {
+                            id: '1',
+                            name: 'Psychiatric Progress Note',
+                            category: 'progress',
+                            description: 'Standard psychiatric progress note template',
+                            created_at: new Date().toISOString(),
+                            content: 'PROGRESS NOTE\n\nDate: {{date_of_service}}\nPatient: {{patient_name}}\n\nCHIEF COMPLAINT:\n{{chief_complaint}}\n\nASSESSMENT:\n{{assessment}}\n\nPLAN:\n{{plan}}'
+                        },
+                        {
+                            id: '2',
+                            name: 'Mental Status Examination',
+                            category: 'assessment',
+                            description: 'Comprehensive mental status exam',
+                            created_at: new Date().toISOString(),
+                            content: 'MENTAL STATUS EXAMINATION\n\nDate: {{date_of_service}}\nPatient: {{patient_name}}\n\nAPPEARANCE:\n{{appearance}}\n\nMOOD:\n{{mood}}\n\nAFFECT:\n{{affect}}\n\nTHOUGHT PROCESS:\n{{thought_process}}'
+                        },
+                        {
+                            id: '3',
+                            name: 'Treatment Plan Template',
+                            category: 'treatment',
+                            description: 'Structured treatment planning',
+                            created_at: new Date().toISOString(),
+                            content: 'TREATMENT PLAN\n\nPatient: {{patient_name}}\nDate: {{plan_date}}\n\nGOALS:\n{{treatment_goals}}\n\nINTERVENTIONS:\n{{interventions}}\n\nTIMELINE:\n{{timeline}}'
+                        }
+                    ]);
+                } finally {
+                    setIsLoading(false);
+                }
+            }, []);
+
+            useEffect(() => {
+                loadTemplates();
+            }, [loadTemplates]);
+
+            const handleCreateTemplate = (category = 'progress') => {
+                setEditingTemplate(null);
+                setIsModalOpen(true);
+            };
+
+            const handleEditTemplate = (template) => {
+                setEditingTemplate(template);
+                setIsModalOpen(true);
+            };
+
+            const handleSaveTemplate = async (templateData) => {
+                try {
+                    if (editingTemplate) {
+                        // Update existing template
+                        const response = await apiCall(`/templates/${editingTemplate.id}`, {
+                            method: 'PUT',
+                            body: JSON.stringify(templateData),
+                        });
+                        
+                        setTemplates(prev => prev.map(t => 
+                            t.id === editingTemplate.id ? { ...t, ...templateData } : t
+                        ));
+                    } else {
+                        // Create new template
+                        const response = await apiCall('/templates', {
+                            method: 'POST',
+                            body: JSON.stringify(templateData),
+                        });
+                        
+                        setTemplates(prev => [...prev, response.template]);
+                    }
+                    
+                    await loadTemplates(); // Refresh the list
+                } catch (error) {
+                    console.error('Failed to save template:', error);
+                    // For demo purposes, update local state even if API fails
+                    if (editingTemplate) {
+                        setTemplates(prev => prev.map(t => 
+                            t.id === editingTemplate.id ? { ...t, ...templateData } : t
+                        ));
+                    } else {
+                        const newTemplate = {
+                            id: Date.now().toString(),
+                            ...templateData,
+                            created_at: new Date().toISOString(),
+                        };
+                        setTemplates(prev => [...prev, newTemplate]);
+                    }
+                }
+            };
+
+            const renderContent = () => {
+                if (isLoading) {
+                    return (
+                        <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            height: '400px',
+                            flexDirection: 'column',
+                            gap: '16px'
+                        }}>
+                            <div className="loading-spinner" style={{ width: '32px', height: '32px' }}></div>
+                            <div style={{ color: 'var(--gray-600)' }}>Loading clinical templates...</div>
+                        </div>
+                    );
+                }
+
+                switch (activeSection) {
+                    case 'templates':
+                        return (
+                            <TemplatesContent
+                                templates={templates}
+                                onEditTemplate={handleEditTemplate}
+                                onCreateTemplate={handleCreateTemplate}
+                            />
+                        );
+                    case 'documents':
+                        return <DocumentsContent />;
+                    case 'patients':
+                        return <PatientsContent />;
+                    case 'ai-assistant':
+                        return <AIAssistantContent />;
+                    case 'reports':
+                        return <ReportsContent />;
+                    case 'settings':
+                        return <SettingsContent />;
+                    default:
+                        return (
+                            <DashboardContent
+                                templates={templates}
+                                onCreateTemplate={handleCreateTemplate}
+                            />
+                        );
+                }
+            };
+
+            return (
+                <div className="dashboard-container">
+                    <Header user={user} />
+                    <div className="main-content">
+                        <Sidebar 
+                            activeSection={activeSection} 
+                            onSectionChange={setActiveSection} 
+                        />
+                        <div className="content-area">
+                            {renderContent()}
+                        </div>
+                    </div>
+                    
+                    <TemplateModal
+                        isOpen={isModalOpen}
+                        onClose={() => setIsModalOpen(false)}
+                        onSave={handleSaveTemplate}
+                        template={editingTemplate}
+                    />
+                </div>
+            );
+        };
+
+        // Additional Content Components
+        const DocumentsContent = () => (
+            <div>
+                <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '24px' }}>
+                    Clinical Documents
+                </h1>
+                <div className="status-indicator status-success">
+                    📄 Document management coming soon - integrate with your existing EHR system
+                </div>
+            </div>
+        );
+
+        const PatientsContent = () => (
+            <div>
+                <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '24px' }}>
+                    Patient Census
+                </h1>
+                <div className="recent-section">
+                    <div className="section-header">
+                        <h2 className="section-title">Active Patients</h2>
+                    </div>
+                    <div className="document-list">
+                        {[
+                            { id: 1, name: 'Anderson, Sarah M.', status: 'Active', lastSeen: 'Today, 2:30 PM' },
+                            { id: 2, name: 'Johnson, Michael R.', status: 'Scheduled', lastSeen: 'Tomorrow, 10:00 AM' },
+                            { id: 3, name: 'Williams, Emma L.', status: 'Follow-up', lastSeen: 'Yesterday, 3:15 PM' }
+                        ].map(patient => (
+                            <div key={patient.id} className="document-item">
+                                <div className="document-icon progress">👤</div>
+                                <div className="document-info">
+                                    <div className="document-title">{patient.name}</div>
+                                    <div className="document-meta">{patient.lastSeen}</div>
+                                </div>
+                                <div className={`document-status ${
+                                    patient.status === 'Active' ? 'status-complete' : 'status-draft'
+                                }`}>
+                                    {patient.status}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+
+        const AIAssistantContent = () => {
+            const [inputText, setInputText] = useState('');
+            const [enhancedText, setEnhancedText] = useState('');
+            const [isEnhancing, setIsEnhancing] = useState(false);
+
+            const handleEnhance = async () => {
+                if (!inputText.trim()) return;
+                
+                setIsEnhancing(true);
+                try {
+                    // Simulate AI enhancement (replace with actual API call)
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
+                    const enhanced = `Enhanced clinical documentation:\n\nThe patient presented with ${inputText.toLowerCase().includes('anxiety') ? 'moderate anxiety symptoms' : 'symptoms consistent with their current diagnosis'}. Clinical assessment indicates ${inputText.toLowerCase().includes('improvement') ? 'positive therapeutic progress' : 'ongoing treatment needs'}. Treatment plan remains appropriate with continued monitoring recommended.`;
+                    
+                    setEnhancedText(enhanced);
+                } catch (error) {
+                    console.error('Enhancement failed:', error);
+                } finally {
+                    setIsEnhancing(false);
+                }
+            };
+
+            return (
+                <div>
+                    <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '24px' }}>
+                        AI Writing Assistant
+                    </h1>
+                    <div className="recent-section" style={{ marginBottom: '24px' }}>
+                        <div className="section-header">
+                            <h2 className="section-title">Clinical Text Enhancement</h2>
+                        </div>
+                        <div style={{ padding: '24px' }}>
+                            <div className="form-group">
+                                <label className="form-label">Original Clinical Notes</label>
+                                <textarea
+                                    className="form-input form-textarea"
+                                    value={inputText}
+                                    onChange={(e) => setInputText(e.target.value)}
+                                    placeholder="Enter your clinical notes here for AI enhancement..."
+                                    style={{ minHeight: '120px' }}
+                                />
+                            </div>
+                            <button 
+                                className="button button-primary"
+                                onClick={handleEnhance}
+                                disabled={!inputText.trim() || isEnhancing}
+                            >
+                                {isEnhancing ? <span className="loading-spinner"></span> : '🤖 Enhance Text'}
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {enhancedText && (
+                        <div className="recent-section">
+                            <div className="section-header">
+                                <h2 className="section-title">Enhanced Clinical Text</h2>
+                            </div>
+                            <div style={{ padding: '24px' }}>
+                                <div className="form-group">
+                                    <textarea
+                                        className="form-input form-textarea"
+                                        value={enhancedText}
+                                        onChange={(e) => setEnhancedText(e.target.value)}
+                                        style={{ minHeight: '150px' }}
+                                    />
+                                </div>
+                                <div className="button-group" style={{ marginTop: '16px', paddingTop: '0', borderTop: 'none' }}>
+                                    <button className="button button-secondary">Copy to Clipboard</button>
+                                    <button className="button button-primary">Use in Template</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const ReportsContent = () => (
+            <div>
+                <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '24px' }}>
+                    Clinical Reports
+                </h1>
+                <div className="quick-actions">
+                    <div className="action-card">
+                        <div className="action-card-header">
+                            <div className="action-title">Documentation Summary</div>
+                            <div className="action-description">
+                                Monthly summary of clinical documentation activity
+                            </div>
+                        </div>
+                        <div className="action-footer">
+                            <div className="action-meta">
+                                <span>📊</span>
+                                <span>Last 30 days</span>
+                            </div>
+                            <button className="action-button">Generate Report</button>
+                        </div>
+                    </div>
+                    <div className="action-card">
+                        <div className="action-card-header">
+                            <div className="action-title">Quality Metrics</div>
+                            <div className="action-description">
+                                Documentation quality and compliance metrics
+                            </div>
+                        </div>
+                        <div className="action-footer">
+                            <div className="action-meta">
+                                <span>📈</span>
+                                <span>Real-time</span>
+                            </div>
+                            <button className="action-button">View Metrics</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const SettingsContent = () => (
+            <div>
+                <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '24px' }}>
+                    System Settings
+                </h1>
+                <div className="recent-section">
+                    <div className="section-header">
+                        <h2 className="section-title">Application Preferences</h2>
+                    </div>
+                    <div style={{ padding: '24px' }}>
+                        <div className="form-group">
+                            <label className="form-label">Default Template Category</label>
+                            <select className="form-input">
+                                <option value="progress">Progress Notes</option>
+                                <option value="assessment">Psychiatric Assessment</option>
+                                <option value="treatment">Treatment Plans</option>
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">AI Enhancement Level</label>
+                            <select className="form-input">
+                                <option value="conservative">Conservative</option>
+                                <option value="moderate">Moderate</option>
+                                <option value="comprehensive">Comprehensive</option>
+                            </select>
+                        </div>
+                        <div className="button-group" style={{ marginTop: '24px' }}>
+                            <button className="button button-primary">Save Settings</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        // Render the Dashboard
+        ReactDOM.render(<Dashboard />, document.getElementById('root'));
+    </script>
+</body>
+</html>
+                            

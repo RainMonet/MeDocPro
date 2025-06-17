@@ -1,0 +1,193 @@
+﻿/* MeDocPro Theme System Styles */
+:root {
+  --text-scale: 1;
+  --theme-transition-duration: 0.3s;
+}
+
+.theme-transition * {
+  transition: background-color var(--theme-transition-duration) ease,
+              color var(--theme-transition-duration) ease,
+              border-color var(--theme-transition-duration) ease !important;
+}
+
+/* Clinical UI Components */
+.btn {
+  background: var(--theme-primary);
+  color: var(--theme-text-inverse);
+  border: 1px solid var(--theme-primary);
+  padding: calc(8px * var(--text-scale)) calc(16px * var(--text-scale));
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: calc(14px * var(--text-scale));
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(8px * var(--text-scale));
+}
+
+.btn:hover {
+  background: var(--theme-primary-dark);
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  background: var(--theme-bg-primary);
+  color: var(--theme-text-primary);
+  border-color: var(--theme-border-medium);
+}
+
+.btn-secondary:hover {
+  background: var(--theme-bg-secondary);
+  border-color: var(--theme-primary);
+}
+
+.card {
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border-light);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.card-header {
+  padding: calc(20px * var(--text-scale));
+  border-bottom: 1px solid var(--theme-border-light);
+}
+
+.card-content {
+  padding: calc(20px * var(--text-scale));
+}
+
+.card-title {
+  font-size: calc(18px * var(--text-scale));
+  font-weight: 600;
+  color: var(--theme-text-primary);
+  margin-bottom: calc(4px * var(--text-scale));
+}
+
+.card-subtitle {
+  font-size: calc(14px * var(--text-scale));
+  color: var(--theme-text-secondary);
+}
+
+/* Form Elements */
+.form-group {
+  margin-bottom: calc(16px * var(--text-scale));
+}
+
+.form-label {
+  display: block;
+  font-size: calc(14px * var(--text-scale));
+  font-weight: 500;
+  color: var(--theme-text-primary);
+  margin-bottom: calc(6px * var(--text-scale));
+}
+
+.form-input, select.form-input {
+  width: 100%;
+  padding: calc(10px * var(--text-scale)) calc(12px * var(--text-scale));
+  border: 1px solid var(--theme-border-light);
+  border-radius: 6px;
+  background: var(--theme-bg-primary);
+  color: var(--theme-text-primary);
+  font-size: calc(14px * var(--text-scale));
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+/* Alerts */
+.alert {
+  padding: calc(12px * var(--text-scale)) calc(16px * var(--text-scale));
+  border-radius: 8px;
+  border: 1px solid;
+  font-size: calc(14px * var(--text-scale));
+  line-height: 1.5;
+}
+
+.alert-info {
+  background: rgba(0, 102, 204, 0.1);
+  border-color: var(--theme-primary);
+  color: var(--theme-primary);
+}
+
+.alert-danger {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--theme-error);
+  color: var(--theme-error);
+}
+
+/* Grid System */
+.grid {
+  display: grid;
+  gap: calc(16px * var(--text-scale));
+}
+
+.grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* Utility Classes */
+.w-full { width: 100%; }
+.text-sm { font-size: calc(12px * var(--text-scale)); }
+.font-semibold { font-weight: 600; }
+.mb-6 { margin-bottom: calc(24px * var(--text-scale)); }
+.mb-4 { margin-bottom: calc(16px * var(--text-scale)); }
+.mb-2 { margin-bottom: calc(8px * var(--text-scale)); }
+.flex { display: flex; }
+.justify-between { justify-content: space-between; }
+.items-center { align-items: center; }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .grid-cols-2 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .theme-transition *, .btn, .card {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Focus management */
+.btn:focus, .form-input:focus {
+  outline: 2px solid var(--theme-primary);
+  outline-offset: 2px;
+}
+
+/* Large text mode */
+.large-text-mode {
+  --text-scale: 1.25;
+}
+
+/* Dark mode enhancements */
+[data-theme="dark"] .card {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* High contrast mode */
+[data-theme="contrast"] .card {
+  border-width: 2px;
+}
+
+[data-theme="contrast"] .btn {
+  border-width: 2px;
+}

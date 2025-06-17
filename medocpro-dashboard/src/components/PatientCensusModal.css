@@ -1,0 +1,502 @@
+/* medocpro-dashboard/src/components/PatientCensusModal.css */
+
+/* Patient Census Modal Styles */
+.patient-census-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.patient-census-modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.patient-census-modal {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  width: 90%;
+  max-width: 1000px;
+  max-height: 90vh;
+  overflow: hidden;
+  transform: scale(0.95);
+  transition: transform 0.3s ease;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.patient-census-modal-overlay.active .patient-census-modal {
+  transform: scale(1);
+}
+
+.modal-header {
+  background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
+  color: white;
+  padding: 24px 32px;
+  border-bottom: 1px solid #e2e8f0;
+  position: relative;
+}
+
+.modal-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-subtitle {
+  opacity: 0.9;
+  font-size: 14px;
+  margin: 0;
+}
+
+.modal-close {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  font-size: 18px;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.modal-body {
+  padding: 0;
+  max-height: calc(90vh - 140px);
+  overflow-y: auto;
+}
+
+.census-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  padding: 24px 32px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.census-stat-card {
+  text-align: center;
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.census-stat-number {
+  font-size: 24px;
+  font-weight: 600;
+  color: #0066cc;
+  margin-bottom: 4px;
+}
+
+.census-stat-label {
+  font-size: 12px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.census-controls {
+  padding: 24px 32px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.add-patient-form {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  min-width: 300px;
+}
+
+.patient-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+  font-family: inherit;
+}
+
+.patient-input:focus {
+  outline: none;
+  border-color: #0066cc;
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+.patient-input.error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.add-btn {
+  background: #0066cc;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.add-btn:hover {
+  background: #0052a3;
+}
+
+.sort-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sort-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+  margin-right: 8px;
+}
+
+.sort-btn {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e0;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.sort-btn:hover {
+  background: #f7fafc;
+  border-color: #0066cc;
+}
+
+.sort-btn.active {
+  background: #0066cc;
+  color: white;
+  border-color: #0066cc;
+}
+
+.patient-list {
+  min-height: 300px;
+}
+
+.patient-item {
+  display: flex;
+  align-items: center;
+  padding: 16px 32px;
+  border-bottom: 1px solid #f1f5f9;
+  cursor: move;
+  transition: all 0.2s ease;
+  background: white;
+  position: relative;
+}
+
+.patient-item:hover {
+  background: #f8fafc;
+}
+
+.patient-item.dragging {
+  opacity: 0.6;
+  transform: rotate(1deg);
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.patient-item.drag-over {
+  border-top: 3px solid #0066cc;
+  background: #f0f8ff;
+}
+
+.drag-handle {
+  color: #94a3b8;
+  font-size: 16px;
+  margin-right: 16px;
+  cursor: grab;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.drag-handle:hover {
+  color: #0066cc;
+  background: #f0f8ff;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.patient-info {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 2fr 120px 100px 120px;
+  gap: 16px;
+  align-items: center;
+}
+
+.patient-name {
+  font-weight: 600;
+  color: #1a365d;
+  font-size: 16px;
+}
+
+.patient-id {
+  color: #64748b;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+  background: #f8fafc;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.patient-status {
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.status-active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-complete {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-follow-up {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+.patient-time {
+  color: #64748b;
+  font-size: 14px;
+  text-align: right;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  margin-left: 12px;
+  font-size: 16px;
+}
+
+.delete-btn:hover {
+  background: #fef2f2;
+  transform: scale(1.1);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 64px 32px;
+  color: #64748b;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.empty-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #1a365d;
+}
+
+.empty-description {
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.modal-footer {
+  padding: 24px 32px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.footer-info {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.footer-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-secondary {
+  background: white;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.btn-primary {
+  background: #0066cc;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: #0052a3;
+}
+
+.validation-message {
+  font-size: 12px;
+  color: #ef4444;
+  margin-top: 4px;
+  display: none;
+}
+
+.validation-message.show {
+  display: block;
+}
+
+/* Notification Styles */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 20000;
+  animation: slideIn 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.notification.success {
+  background: #10b981;
+  color: white;
+}
+
+.notification.error {
+  background: #ef4444;
+  color: white;
+}
+
+@keyframes slideIn {
+  from { 
+    transform: translateX(100%); 
+    opacity: 0; 
+  }
+  to { 
+    transform: translateX(0); 
+    opacity: 1; 
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .patient-census-modal {
+    width: 95%;
+    margin: 20px;
+  }
+
+  .modal-header {
+    padding: 20px 24px;
+  }
+
+  .census-controls {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 20px 24px;
+  }
+
+  .add-patient-form {
+    min-width: auto;
+  }
+
+  .patient-info {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .patient-item {
+    padding: 16px 24px;
+  }
+
+  .census-stats {
+    grid-template-columns: repeat(2, 1fr);
+    padding: 20px 24px;
+  }
+
+  .modal-footer {
+    padding: 20px 24px;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+}

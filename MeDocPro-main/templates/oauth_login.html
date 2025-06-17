@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeDocPro - Secure Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+            overflow: hidden;
+            max-width: 480px;
+            width: 100%;
+            position: relative;
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
+            color: white;
+            padding: 40px 32px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+        }
+
+        .app-logo {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .app-subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+            font-weight: 400;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-content {
+            padding: 40px 32px;
+        }
+
+        .login-title {
+            color: #1a365d;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .login-description {
+            color: #64748b;
+            font-size: 14px;
+            text-align: center;
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+
+        .oauth-providers {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .oauth-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 16px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            background: white;
+            color: #374151;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .oauth-button:hover {
+            border-color: #0066cc;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.15);
+        }
+
+        .oauth-button:active {
+            transform: translateY(0);
+        }
+
+        .oauth-button.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .oauth-icon {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .google-button {
+            border-color: #ea4335;
+        }
+
+        .google-button:hover {
+            border-color: #d73527;
+            background: #fef2f2;
+        }
+
+        .microsoft-button {
+            border-color: #0078d4;
+        }
+
+        .microsoft-button:hover {
+            border-color: #106ebe;
+            background: #f0f9ff;
+        }
+
+        .azure-button {
+            border-color: #0078d4;
+        }
+
+        .azure-button:hover {
+            border-color: #106ebe;
+            background: #f0f9ff;
+        }
+
+        .okta-button {
+            border-color: #007dc1;
+        }
+
+        .okta-button:hover {
+            border-color: #006ba6;
+            background: #f0f9ff;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-content {
+            text-align: center;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid #0066cc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #64748b;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .security-notice {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 24px;
+        }
+
+        .security-title {
+            color: #1a365d;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .security-list {
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .security-list li {
+            margin-bottom: 4px;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            color: #dc2626;
+            font-size: 14px;
+            display: none;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 24px 0;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e2e8f0;
+        }
+
+        .divider span {
+            padding: 0 16px;
+        }
+
+        .alternative-login {
+            text-align: center;
+            margin-top: 24px;
+        }
+
+        .alternative-link {
+            color: #0066cc;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .alternative-link:hover {
+            text-decoration: underline;
+        }
+
+        .footer-text {
+            text-align: center;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #e2e8f0;
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        @media (max-width: 768px) {
+            .login-container {
+                margin: 0;
+                border-radius: 0;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .login-content {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                padding: 24px;
+            }
+
+            .login-header {
+                padding: 24px;
+            }
+
+            .app-logo {
+                font-size: 28px;
+            }
+        }
+
+        .success-message {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            color: #166534;
+            font-size: 14px;
+            display: none;
+            text-align: center;
+        }
+
+        .success-message.active {
+            display: block;
+        }
+
+        .redirect-notice {
+            background: #fffbeb;
+            border: 1px solid #fed7aa;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-top: 16px;
+            color: #92400e;
+            font-size: 13px;
+            text-align: center;
+            display: none;
+        }
+
+        .redirect-notice.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="app-logo">MeDocPro</div>
+            <div class="app-subtitle">HIPAA-Compliant Medical Documentation</div>
+        </div>
+
+        <div class="login-content">
+            <h1 class="login-title">Secure Provider Login</h1>
+            <p class="login-description">
+                Access your clinical documentation tools using your healthcare organization's secure authentication system.
+            </p>
+
+            <div class="error-message" id="errorMessage">
+                <strong>Authentication Error:</strong> <span id="errorText"></span>
+            </div>
+
+            <div class="success-message" id="successMessage">
+                <strong>✓ Authentication Successful</strong><br>
+                Redirecting to your dashboard...
+            </div>
+
+            <div class="oauth-providers">
+                <button class="oauth-button google-button" onclick="authenticateWithProvider('google')" id="googleBtn">
+                    <svg class="oauth-icon" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Continue with Google Workspace
+                </button>
+
+                <button class="oauth-button microsoft-button" onclick="authenticateWithProvider('microsoft')" id="microsoftBtn">
+                    <svg class="oauth-icon" viewBox="0 0 24 24">
+                        <path fill="#F25022" d="M1 1h10v10H1z"/>
+                        <path fill="#00A4EF" d="M13 1h10v10H13z"/>
+                        <path fill="#7FBA00" d="M1 13h10v10H1z"/>
+                        <path fill="#FFB900" d="M13 13h10v10H13z"/>
+                    </svg>
+                    Continue with Microsoft 365
+                </button>
+
+                <button class="oauth-button azure-button" onclick="authenticateWithProvider('azure')" id="azureBtn">
+                    <svg class="oauth-icon" viewBox="0 0 24 24">
+                        <path fill="#0078D4" d="M12 2L2 7v10c0 5.55 3.84 9.74 9 11 5.16-1.26 9-5.45 9-11V7l-10-5z"/>
+                        <path fill="white" d="M12 7v10l-5-2.5V9l5-2z"/>
+                    </svg>
+                    Continue with Azure AD
+                </button>
+
+                <button class="oauth-button okta-button" onclick="authenticateWithProvider('okta')" id="oktaBtn">
+                    <svg class="oauth-icon" viewBox="0 0 24 24">
+                        <circle fill="#007DC1" cx="12" cy="12" r="10"/>
+                        <path fill="white" d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 8c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"/>
+                    </svg>
+                    Continue with Okta
+                </button>
+            </div>
+
+            <div class="redirect-notice" id="redirectNotice">
+                You will be redirected to your organization's secure login page. This ensures your credentials remain private and secure.
+            </div>
+
+            <div class="security-notice">
+                <div class="security-title">
+                    🔒 HIPAA-Compliant Authentication
+                </div>
+                <ul class="security-list">
+                    <li>• End-to-end encrypted communication</li>
+                    <li>• No patient data stored during authentication</li>
+                    <li>• Comprehensive audit logging</li>
+                    <li>• Healthcare-grade security standards</li>
+                </ul>
+            </div>
+
+            <div class="alternative-login">
+                <a href="#" class="alternative-link" onclick="showAlternativeLogin()">
+                    Need help logging in?
+                </a>
+            </div>
+
+            <div class="footer-text">
+                © 2025 MeDocPro. Built for psychiatric healthcare professionals.<br>
+                Your privacy and patient confidentiality are our priority.
+            </div>
+        </div>
+
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <div class="loading-text" id="loadingText">Authenticating...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // OAuth 2.0 Configuration
+        const oauthConfig = {
+            google: {
+                clientId: 'your-google-client-id.apps.googleusercontent.com',
+                redirectUri: window.location.origin + '/auth/google/callback',
+                scope: 'openid email profile',
+                authUrl: 'https://accounts.google.com/oauth2/authorize'
+            },
+            microsoft: {
+                clientId: 'your-microsoft-client-id',
+                redirectUri: window.location.origin + '/auth/microsoft/callback',
+                scope: 'openid email profile User.Read',
+                authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize'
+            },
+            azure: {
+                clientId: 'your-azure-client-id',
+                redirectUri: window.location.origin + '/auth/azure/callback',
+                scope: 'openid email profile',
+                authUrl: 'https://login.microsoftonline.com/your-tenant-id/oauth2/v2.0/authorize'
+            },
+            okta: {
+                clientId: 'your-okta-client-id',
+                redirectUri: window.location.origin + '/auth/okta/callback',
+                scope: 'openid email profile',
+                authUrl: 'https://your-domain.okta.com/oauth2/default/v1/authorize'
+            }
+        };
+
+        // Current authentication state
+        let currentAuthState = {
+            provider: null,
+            isAuthenticating: false,
+            sessionId: null
+        };
+
+        function authenticateWithProvider(provider) {
+            if (currentAuthState.isAuthenticating) {
+                return;
+            }
+
+            const config = oauthConfig[provider];
+            if (!config) {
+                showError('Provider configuration not found');
+                return;
+            }
+
+            // Validate configuration
+            if (!config.clientId || config.clientId.startsWith('your-')) {
+                showError('OAuth provider not configured. Please contact your system administrator.');
+                return;
+            }
+
+            currentAuthState.provider = provider;
+            currentAuthState.isAuthenticating = true;
+
+            // Show loading state
+            showLoading(`Redirecting to ${getProviderDisplayName(provider)}...`);
+            showRedirectNotice();
+
+            // Generate OAuth state parameter for security
+            const state = generateSecureState();
+            
+            // Store state securely (in memory only for HIPAA compliance)
+            storeAuthState(state, provider);
+
+            // Build OAuth URL
+            const authUrl = buildOAuthUrl(config, state);
+
+            // Log authentication attempt (for audit purposes)
+            logAuthenticationAttempt(provider);
+
+            // Redirect to OAuth provider
+            setTimeout(() => {
+                window.location.href = authUrl;
+            }, 1000);
+        }
+
+        function buildOAuthUrl(config, state) {
+            const params = new URLSearchParams({
+                client_id: config.clientId,
+                redirect_uri: config.redirectUri,
+                response_type: 'code',
+                scope: config.scope,
+                state: state,
+                // Additional security parameters
+                response_mode: 'query',
+                prompt: 'select_account'
+            });
+
+            return `${config.authUrl}?${params.toString()}`;
+        }
+
+        function generateSecureState() {
+            // Generate cryptographically secure random state
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+
+        function storeAuthState(state, provider) {
+            // Store in memory only (HIPAA compliant - no localStorage)
+            currentAuthState.state = state;
+            currentAuthState.provider = provider;
+            currentAuthState.timestamp = Date.now();
+        }
+
+        function validateAuthCallback() {
+            // This function would be called after OAuth redirect
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            const error = urlParams.get('error');
+
+            if (error) {
+                handleAuthError(error, urlParams.get('error_description'));
+                return;
+            }
+
+            if (!code || !state) {
+                showError('Invalid authentication response');
+                return;
+            }
+
+            if (state !== currentAuthState.state) {
+                showError('Authentication state mismatch. Please try again.');
+                return;
+            }
+
+            // Exchange code for tokens
+            exchangeCodeForTokens(code, state);
+        }
+
+        async function exchangeCodeForTokens(code, state) {
+            try {
+                showLoading('Completing authentication...');
+
+                const response = await fetch('/api/auth/oauth/exchange', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': generateCSRFToken()
+                    },
+                    body: JSON.stringify({
+                        provider: currentAuthState.provider,
+                        code: code,
+                        state: state
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Authentication failed: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    handleAuthSuccess(result);
+                } else {
+                    throw new Error(result.error || 'Authentication failed');
+                }
+
+            } catch (error) {
+                console.error('OAuth exchange error:', error);
+                showError('Authentication failed. Please try again.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function handleAuthSuccess(result) {
+            showSuccess();
+            
+            // Store session information (in memory only)
+            currentAuthState.sessionId = result.sessionId;
+            currentAuthState.user = result.user;
+            
+            // Log successful authentication
+            logAuthenticationSuccess(currentAuthState.provider);
+
+            // Redirect to dashboard after brief delay
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 2000);
+        }
+
+        function handleAuthError(error, description) {
+            hideLoading();
+            
+            let errorMessage = 'Authentication failed.';
+            
+            switch(error) {
+                case 'access_denied':
+                    errorMessage = 'Access was denied. Please contact your administrator.';
+                    break;
+                case 'invalid_request':
+                    errorMessage = 'Invalid authentication request. Please try again.';
+                    break;
+                case 'unauthorized_client':
+                    errorMessage = 'Unauthorized client. Please contact support.';
+                    break;
+                default:
+                    errorMessage = description || 'An unknown error occurred during authentication.';
+            }
+
+            showError(errorMessage);
+            
+            // Log authentication failure
+            logAuthenticationFailure(currentAuthState.provider, error);
+        }
+
+        function showLoading(message = 'Authenticating...') {
+            document.getElementById('loadingText').textContent = message;
+            document.getElementById('loadingOverlay').classList.add('active');
+            
+            // Disable all buttons
+            const buttons = document.querySelectorAll('.oauth-button');
+            buttons.forEach(btn => btn.classList.add('disabled'));
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('active');
+            
+            // Re-enable buttons
+            const buttons = document.querySelectorAll('.oauth-button');
+            buttons.forEach(btn => btn.classList.remove('disabled'));
+            
+            currentAuthState.isAuthenticating = false;
+        }
+
+        function showError(message) {
+            hideLoading();
+            document.getElementById('errorText').textContent = message;
+            document.getElementById('errorMessage').classList.add('active');
+            hideSuccess();
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').classList.remove('active');
+        }
+
+        function showSuccess() {
+            hideError();
+            document.getElementById('successMessage').classList.add('active');
+        }
+
+        function hideSuccess() {
+            document.getElementById('successMessage').classList.remove('active');
+        }
+
+        function showRedirectNotice() {
+            document.getElementById('redirectNotice').classList.add('active');
+        }
+
+        function hideRedirectNotice() {
+            document.getElementById('redirectNotice').classList.remove('active');
+        }
+
+        function getProviderDisplayName(provider) {
+            const names = {
+                google: 'Google Workspace',
+                microsoft: 'Microsoft 365',
+                azure: 'Azure Active Directory',
+                okta: 'Okta'
+            };
+            return names[provider] || provider;
+        }
+
+        function generateCSRFToken() {
+            // Generate CSRF token for additional security
+            return btoa(Math.random().toString()).substr(10, 10);
+        }
+
+        function logAuthenticationAttempt(provider) {
+            // Log authentication attempt for audit trail
+            console.log(`Authentication attempt: ${provider} at ${new Date().toISOString()}`);
+            
+            // In production, this would send to audit logging service
+            if (window.auditLogger) {
+                window.auditLogger.log('auth_attempt', {
+                    provider: provider,
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                    ipAddress: 'client-side-unknown' // Would be logged server-side
+                });
+            }
+        }
+
+        function logAuthenticationSuccess(provider) {
+            console.log(`Authentication success: ${provider} at ${new Date().toISOString()}`);
+            
+            if (window.auditLogger) {
+                window.auditLogger.log('auth_success', {
+                    provider: provider,
+                    timestamp: new Date().toISOString(),
+                    sessionId: currentAuthState.sessionId
+                });
+            }
+        }
+
+        function logAuthenticationFailure(provider, error) {
+            console.log(`Authentication failure: ${provider}, error: ${error} at ${new Date().toISOString()}`);
+            
+            if (window.auditLogger) {
+                window.auditLogger.log('auth_failure', {
+                    provider: provider,
+                    error: error,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        }
+
+        function showAlternativeLogin() {
+            alert('For login assistance, please contact your IT administrator or healthcare organization\'s help desk.\n\nFor security reasons, alternative login methods require administrative approval.');
+        }
+
+        // Check if this is an OAuth callback
+        function checkForOAuthCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('code') || urlParams.has('error')) {
+                validateAuthCallback();
+            }
+        }
+
+        // Security headers and CSP compliance
+        function initializeSecurity() {
+            // Add security headers via meta tags for client-side enforcement
+            const securityMeta = document.createElement('meta');
+            securityMeta.httpEquiv = 'Content-Security-Policy';
+            securityMeta.content = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.google.com https://*.microsoft.com https://*.okta.com;";
+            document.head.appendChild(securityMeta);
+        }
+
+        // Initialize component
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSecurity();
+            checkForOAuthCallback();
+            
+            // Clear any authentication state on page load
+            currentAuthState = {
+                provider: null,
+                isAuthenticating: false,
+                sessionId: null
+            };
+            
+            console.log('MeDocPro OAuth Login Component initialized');
+        });
+
+        // Handle browser back/forward navigation
+        window.addEventListener('popstate', function() {
+            hideLoading();
+            hideRedirectNotice();
+        });
+
+        // Export functions for testing
+        if (typeof module !== 'undefined' && module.exports) {
+            module.exports = {
+                authenticateWithProvider,
+                generateSecureState,
+                buildOAuthUrl,
+                validateAuthCallback
+            };
+        }
+    </script>
+</body>
+</html>
