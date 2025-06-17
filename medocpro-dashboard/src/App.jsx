@@ -1,12 +1,14 @@
-// medocpro-dashboard/src/App.jsx
+// medocpro-dashboard/src/App.jsx - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import PatientCensusModal from './components/PatientCensusModal';
 import './App.css';
 
 const App = () => {
-  const [activeSection, setActiveSection] = useState('dashboard');
+  // Only keep Patient Census Modal for now - others will be developed later
   const [isPatientCensusModalOpen, setIsPatientCensusModalOpen] = useState(false);
+  
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [theme, setTheme] = useState(() => {
     // Check localStorage for saved theme preference
     const savedTheme = localStorage.getItem('medocpro-theme');
@@ -26,6 +28,31 @@ const App = () => {
   const toggleSidebar = () => {
     setSidebarExpanded(prev => !prev);
   };
+
+  // Handle responsive behavior
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      
+      // On mobile, sidebar starts collapsed
+      // On desktop, sidebar starts expanded
+      if (mobile) {
+        setSidebarExpanded(false);
+      } else {
+        setSidebarExpanded(true);
+      }
+    };
+
+    // Set initial state
+    handleResize();
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const user = {
     firstName: 'Dr. Jane',
@@ -77,33 +104,34 @@ const App = () => {
     </header>
   );
 
-  // Sidebar Navigation Component
-  const Sidebar = ({ activeSection, onSectionChange, onPatientCensusClick, expanded }) => {
+  // Sidebar Navigation Component - Modal-based navigation
+  const Sidebar = ({ onModalOpen, expanded, isMobile }) => {
     const navItems = [
-      { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-      { id: 'templates', label: 'Templates', icon: '📋' },
-      { id: 'documents', label: 'Documents', icon: '📄' },
-      { id: 'patients', label: 'Patient Census', icon: '👥', action: onPatientCensusClick },
-      { id: 'ai-assistant', label: 'AI Assistant', icon: '🤖' },
-      { id: 'reports', label: 'Reports', icon: '📈' },
-      { id: 'settings', label: 'Settings', icon: '⚙️' },
+      { id: 'templates', label: 'Templates', action: () => onModalOpen('templates') },
+      { id: 'documents', label: 'Documents', action: () => onModalOpen('documents') },
+      { id: 'patients', label: 'Patient Census', action: () => onModalOpen('patients') },
+      { id: 'ai-assistant', label: 'AI Assistant', action: () => onModalOpen('ai-assistant') },
+      { id: 'reports', label: 'Reports', action: () => onModalOpen('reports') },
+      { id: 'settings', label: 'Settings', action: () => onModalOpen('settings') },
     ];
 
+    const handleItemClick = (item) => {
+      item.action();
+      
+      // On mobile, close sidebar after selection
+      if (isMobile && expanded) {
+        setSidebarExpanded(false);
+      }
+    };
+
     return (
-      <nav className={`sidebar ${expanded ? '' : 'collapsed'}`}>
+      <nav className={`sidebar ${expanded ? 'expanded' : 'collapsed'}`}>
         {navItems.map(item => (
           <div
             key={item.id}
-            className={`nav-item ${activeSection === item.id ? 'active' : ''}`}
-            onClick={() => {
-              if (item.action) {
-                item.action();
-              } else {
-                onSectionChange(item.id);
-              }
-            }}
+            className="nav-item"
+            onClick={() => handleItemClick(item)}
           >
-            <span className="nav-icon">{item.icon}</span>
             <span>{item.label}</span>
           </div>
         ))}
@@ -114,10 +142,10 @@ const App = () => {
   // Sidebar Toggle Button
   const SidebarToggle = ({ expanded, onToggle }) => (
     <button 
-      className={`sidebar-toggle ${expanded ? '' : 'hidden'}`}
+      className="sidebar-toggle"
       onClick={onToggle}
-      aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
-      title={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+      aria-label={expanded ? 'Close sidebar' : 'Open sidebar'}
+      title={expanded ? 'Close sidebar' : 'Open sidebar'}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <line x1="3" y1="6" x2="21" y2="6"/>
@@ -126,6 +154,18 @@ const App = () => {
       </svg>
     </button>
   );
+
+  // Mobile Overlay Component
+  const SidebarOverlay = ({ expanded, isMobile, onClose }) => {
+    if (!isMobile || !expanded) return null;
+    
+    return (
+      <div 
+        className="sidebar-overlay"
+        onClick={onClose}
+      />
+    );
+  };
 
   // Dashboard Content Component
   const DashboardContent = () => (
@@ -242,173 +282,131 @@ const App = () => {
     </div>
   );
 
-  // Content Components (placeholder)
-  const TemplatesContent = () => (
-    <div>
-      <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '24px', color: 'var(--text-primary)' }}>
-        Clinical Templates
-      </h1>
-      <div style={{ 
-        padding: '40px', 
-        textAlign: 'center', 
-        background: 'var(--bg-primary)', 
-        borderRadius: '12px',
-        border: '1px solid var(--border-light)',
-        boxShadow: 'var(--shadow-sm)'
-      }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px', opacity: '0.6' }}>📋</div>
-        <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-primary)' }}>Coming Soon</h3>
-        <p style={{ color: 'var(--text-secondary)' }}>Template management system is being developed for the next release.</p>
-      </div>
-    </div>
-  );
+  // Placeholder Modal Component for future development
+  const ComingSoonModal = ({ isOpen, onClose, title }) => {
+    if (!isOpen) return null;
 
-  const DocumentsContent = () => (
-    <div>
-      <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '24px', color: 'var(--text-primary)' }}>
-        Clinical Documents
-      </h1>
-      <div style={{ 
-        padding: '40px', 
-        textAlign: 'center', 
-        background: 'var(--bg-primary)', 
-        borderRadius: '12px',
-        border: '1px solid var(--border-light)',
-        boxShadow: 'var(--shadow-sm)'
-      }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px', opacity: '0.6' }}>📄</div>
-        <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-primary)' }}>Coming Soon</h3>
-        <p style={{ color: 'var(--text-secondary)' }}>Document management system is being developed for the next release.</p>
+    return (
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h2 className="modal-title">{title}</h2>
+            <button className="modal-close" onClick={onClose}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div className="modal-content">
+            <div className="coming-soon-content">
+              <div className="coming-soon-icon">🚧</div>
+              <h3>Coming Soon</h3>
+              <p>This feature is being developed and will be available in a future release.</p>
+              <p>The {title.toLowerCase()} module will include comprehensive functionality for managing your psychiatric documentation workflow.</p>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  const AIAssistantContent = () => (
-    <div>
-      <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '24px', color: 'var(--text-primary)' }}>
-        AI Assistant
-      </h1>
-      <div style={{ 
-        padding: '40px', 
-        textAlign: 'center', 
-        background: 'var(--bg-primary)', 
-        borderRadius: '12px',
-        border: '1px solid var(--border-light)',
-        boxShadow: 'var(--shadow-sm)'
-      }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px', opacity: '0.6' }}>🤖</div>
-        <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-primary)' }}>Coming Soon</h3>
-        <p style={{ color: 'var(--text-secondary)' }}>AI enhancement tools are being developed for the next release.</p>
-      </div>
-    </div>
-  );
-
-  const ReportsContent = () => (
-    <div>
-      <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '24px', color: 'var(--text-primary)' }}>
-        Analytics & Reports
-      </h1>
-      <div style={{ 
-        padding: '40px', 
-        textAlign: 'center', 
-        background: 'var(--bg-primary)', 
-        borderRadius: '12px',
-        border: '1px solid var(--border-light)',
-        boxShadow: 'var(--shadow-sm)'
-      }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px', opacity: '0.6' }}>📈</div>
-        <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-primary)' }}>Coming Soon</h3>
-        <p style={{ color: 'var(--text-secondary)' }}>Analytics dashboard is being developed for the next release.</p>
-      </div>
-    </div>
-  );
-
-  const SettingsContent = () => (
-    <div>
-      <h1 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '24px', color: 'var(--text-primary)' }}>
-        System Settings
-      </h1>
-      <div style={{ 
-        padding: '40px', 
-        textAlign: 'center', 
-        background: 'var(--bg-primary)', 
-        borderRadius: '12px',
-        border: '1px solid var(--border-light)',
-        boxShadow: 'var(--shadow-sm)'
-      }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px', opacity: '0.6' }}>⚙️</div>
-        <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px', color: 'var(--text-primary)' }}>Coming Soon</h3>
-        <p style={{ color: 'var(--text-secondary)' }}>Settings panel is being developed for the next release.</p>
-      </div>
-    </div>
-  );
-
-  const renderContent = () => {
-    switch (activeSection) {
-      case 'dashboard':
-        return <DashboardContent />;
-      case 'templates':
-        return <TemplatesContent />;
-      case 'documents':
-        return <DocumentsContent />;
-      case 'ai-assistant':
-        return <AIAssistantContent />;
-      case 'reports':
-        return <ReportsContent />;
-      case 'settings':
-        return <SettingsContent />;
-      default:
-        return <DashboardContent />;
+  // Modal handler function - only Patient Census works for now
+  const handleModalOpen = (modalType) => {
+    if (modalType === 'patients') {
+      setIsPatientCensusModalOpen(true);
+    } else {
+      // For now, show coming soon modal for other features
+      switch (modalType) {
+        case 'templates':
+          setIsTemplatesModalOpen(true);
+          break;
+        case 'documents':
+          setIsDocumentsModalOpen(true);
+          break;
+        case 'ai-assistant':
+          setIsAIAssistantModalOpen(true);
+          break;
+        case 'reports':
+          setIsReportsModalOpen(true);
+          break;
+        case 'settings':
+          setIsSettingsModalOpen(true);
+          break;
+      }
     }
   };
 
-  const handlePatientCensusClick = () => {
-    setIsPatientCensusModalOpen(true);
-  };
-
-  // Handle responsive sidebar behavior
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth <= 768) {
-        setSidebarExpanded(false);
-      } else {
-        setSidebarExpanded(true);
-      }
-    };
-
-    // Set initial state
-    handleResize();
-    
-    // Add event listener
-    window.addEventListener('resize', handleResize);
-    
-    // Cleanup
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  // Temporary state for coming soon modals
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
+  const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
+  const [isAIAssistantModalOpen, setIsAIAssistantModalOpen] = useState(false);
+  const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   return (
     <div className="app-container">
       <Header user={user} theme={theme} onToggleTheme={toggleTheme} />
       
       <div className="main-content">
-        <SidebarToggle expanded={sidebarExpanded} onToggle={toggleSidebar} />
-        
-        <Sidebar 
-          activeSection={activeSection} 
-          onSectionChange={setActiveSection}
-          onPatientCensusClick={handlePatientCensusClick}
-          expanded={sidebarExpanded}
+        <SidebarToggle 
+          expanded={sidebarExpanded} 
+          onToggle={toggleSidebar}
         />
         
+        <Sidebar 
+          onModalOpen={handleModalOpen}
+          expanded={sidebarExpanded}
+          isMobile={isMobile}
+        />
+        
+        <SidebarOverlay 
+          expanded={sidebarExpanded}
+          isMobile={isMobile}
+          onClose={() => setSidebarExpanded(false)}
+        />
+        
+        {/* Dashboard is always visible */}
         <div className={`content-area ${sidebarExpanded ? '' : 'expanded'}`}>
-          {renderContent()}
+          <DashboardContent />
         </div>
       </div>
 
-      {/* Patient Census Modal */}
+      {/* Patient Census Modal - Fully Functional */}
       <PatientCensusModal 
         isOpen={isPatientCensusModalOpen}
         onClose={() => setIsPatientCensusModalOpen(false)}
+      />
+      
+      {/* Coming Soon Modals - Placeholder for future development */}
+      <ComingSoonModal 
+        isOpen={isTemplatesModalOpen}
+        onClose={() => setIsTemplatesModalOpen(false)}
+        title="Clinical Templates"
+      />
+      
+      <ComingSoonModal 
+        isOpen={isDocumentsModalOpen}
+        onClose={() => setIsDocumentsModalOpen(false)}
+        title="Clinical Documents"
+      />
+      
+      <ComingSoonModal 
+        isOpen={isAIAssistantModalOpen}
+        onClose={() => setIsAIAssistantModalOpen(false)}
+        title="AI Assistant"
+      />
+      
+      <ComingSoonModal 
+        isOpen={isReportsModalOpen}
+        onClose={() => setIsReportsModalOpen(false)}
+        title="Analytics & Reports"
+      />
+      
+      <ComingSoonModal 
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        title="System Settings"
       />
     </div>
   );
