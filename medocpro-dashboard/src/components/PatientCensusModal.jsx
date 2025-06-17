@@ -1,4 +1,4 @@
-// medocpro-dashboard/src/components/PatientCensusModal.jsx
+// medocpro-dashboard/src/components/PatientCensusModal.jsx - FIXED LAYOUT VERSION
 import React, { useState, useEffect } from 'react';
 import './PatientCensusModal.css';
 
@@ -97,70 +97,69 @@ class PatientCensusManager {
       this.patients.splice(draggedIndex, 1);
       this.patients.splice(targetIndex, 0, draggedPatient);
       this.triggerUpdate();
-      return true;
+      return { success: true, message: 'Patient order updated' };
     }
-    return false;
+    return { success: false, message: 'Invalid reorder operation' };
   }
 
   sortPatients(criteria) {
     this.currentSort = criteria;
-
-    switch (criteria) {
-      case 'name':
-        this.patients.sort((a, b) => a.name.localeCompare(b.name));
-        break;
-      case 'id':
-        this.patients.sort((a, b) => a.id.localeCompare(b.id));
-        break;
-      case 'status':
-        this.patients.sort((a, b) => a.status.localeCompare(b.status));
-        break;
-      case 'time':
-        this.patients.sort((a, b) => a.timestamp - b.timestamp);
-        break;
-    }
-
+    
+    this.patients.sort((a, b) => {
+      switch (criteria) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'id':
+          return a.id.localeCompare(b.id);
+        case 'status':
+          return a.status.localeCompare(b.status);
+        case 'time':
+          return a.timestamp - b.timestamp;
+        default:
+          return 0;
+      }
+    });
+    
     this.triggerUpdate();
+    return { success: true, message: `Sorted by ${criteria}` };
   }
 
   getStats() {
-    const total = this.patients.length;
-    const statusCounts = this.patients.reduce((acc, patient) => {
-      acc[patient.status] = (acc[patient.status] || 0) + 1;
-      return acc;
-    }, {});
-
-    return {
-      total,
-      active: statusCounts.active || 0,
-      pending: statusCounts.pending || 0,
-      complete: statusCounts.complete || 0,
-      followUp: statusCounts['follow-up'] || 0
+    const stats = {
+      total: this.patients.length,
+      active: 0,
+      pending: 0,
+      complete: 0
     };
+
+    this.patients.forEach(patient => {
+      if (stats.hasOwnProperty(patient.status)) {
+        stats[patient.status]++;
+      }
+    });
+
+    return stats;
   }
 
   exportCensus() {
-    const data = this.patients.map(p => ({
-      ID: p.id,
-      Name: p.name,
-      Status: p.status,
-      Time: p.time
-    }));
-
-    const csv = this.convertToCSV(data);
-    this.downloadCSV(csv, 'patient-census.csv');
-    return { success: true, message: 'Census exported successfully' };
+    try {
+      const csvHeader = 'Patient ID,Patient Name,Status,Time\n';
+      const csvData = this.patients.map(patient => 
+        `"${patient.id}","${patient.name}","${patient.status}","${patient.time}"`
+      ).join('\n');
+      
+      const csvContent = csvHeader + csvData;
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const filename = `patient-census-${new Date().toISOString().split('T')[0]}.csv`;
+      
+      this.downloadFile(blob, filename);
+      return { success: true, message: 'Census exported successfully' };
+    } catch (error) {
+      return { success: false, message: 'Export failed' };
+    }
   }
 
-  convertToCSV(data) {
-    if (data.length === 0) return '';
-    const headers = Object.keys(data[0]).join(',');
-    const rows = data.map(row => Object.values(row).join(','));
-    return [headers, ...rows].join('\n');
-  }
-
-  downloadCSV(csv, filename) {
-    const blob = new Blob([csv], { type: 'text/csv' });
+  downloadFile(blob, filename) {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.setAttribute('hidden', '');
@@ -202,9 +201,7 @@ const PatientCensusModal = ({ isOpen, onClose }) => {
   // Form states
   const [newPatientName, setNewPatientName] = useState('');
   const [newPatientId, setNewPatientId] = useState('');
-  const [newPatientStatus, setNewPatientStatus] = useState('active');
-  const [nameError, setNameError] = useState('');
-  const [idError, setIdError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('Active');
 
   useEffect(() => {
     // Set up the update callback
@@ -231,24 +228,14 @@ const PatientCensusModal = ({ isOpen, onClose }) => {
   };
 
   const handleAddPatient = () => {
-    setNameError('');
-    setIdError('');
-
-    const result = patientCensus.addPatient(newPatientName, newPatientId, newPatientStatus);
+    const result = patientCensus.addPatient(newPatientName, newPatientId, 'active');
     
     if (result.success) {
       setNewPatientName('');
       setNewPatientId('');
-      setNewPatientStatus('active');
       showNotification(result.message, 'success');
     } else {
-      if (result.message.includes('name')) {
-        setNameError(result.message);
-      } else if (result.message.includes('ID')) {
-        setIdError(result.message);
-      } else {
-        showNotification(result.message, 'error');
-      }
+      showNotification(result.message, 'error');
     }
   };
 
@@ -364,7 +351,7 @@ const PatientCensusModal = ({ isOpen, onClose }) => {
         <div className="patient-census-modal">
           <div className="modal-header">
             <h2 className="modal-title">
-              👥 Patient Census Management
+              Patient Census Management
             </h2>
             <p className="modal-subtitle">Manage your patient list with drag-and-drop organization</p>
             <button className="modal-close" onClick={onClose}>×</button>
@@ -391,60 +378,49 @@ const PatientCensusModal = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            {/* Controls */}
-            <div className="census-controls">
-              <div className="add-patient-form">
-                <div style={{ flex: 1 }}>
-                  <input 
-                    type="text" 
-                    className={`patient-input ${nameError ? 'error' : ''}`}
-                    placeholder="Patient Name (Last, First)" 
-                    maxLength="50"
-                    value={newPatientName}
-                    onChange={(e) => {
-                      setNewPatientName(e.target.value);
-                      setNameError('');
-                    }}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddPatient()}
-                  />
-                  {nameError && <div className="validation-message show">{nameError}</div>}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <input 
-                    type="text" 
-                    className={`patient-input ${idError ? 'error' : ''}`}
-                    placeholder="Patient ID" 
-                    maxLength="20"
-                    value={newPatientId}
-                    onChange={(e) => {
-                      setNewPatientId(e.target.value);
-                      setIdError('');
-                    }}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddPatient()}
-                  />
-                  {idError && <div className="validation-message show">{idError}</div>}
-                </div>
+            {/* Patient Controls */}
+            <div className="patient-controls">
+              <div className="search-filters">
+                <input 
+                  type="text" 
+                  className="search-input"
+                  placeholder="Patient Name (Last, First)" 
+                  value={newPatientName}
+                  onChange={(e) => setNewPatientName(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddPatient()}
+                />
+                <input 
+                  type="text" 
+                  className="search-input"
+                  placeholder="Patient ID" 
+                  value={newPatientId}
+                  onChange={(e) => setNewPatientId(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddPatient()}
+                />
                 <select 
-                  className="patient-input"
-                  value={newPatientStatus}
-                  onChange={(e) => setNewPatientStatus(e.target.value)}
+                  className="status-filter"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
                 >
-                  <option value="active">Active</option>
-                  <option value="pending">Pending</option>
-                  <option value="complete">Complete</option>
-                  <option value="follow-up">Follow-up</option>
+                  <option value="Active">Active</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Complete">Complete</option>
                 </select>
-                <button className="add-btn" onClick={handleAddPatient}>Add Patient</button>
               </div>
+              
+              <button className="add-patient-btn" onClick={handleAddPatient}>
+                Add Patient
+              </button>
+              
               <div className="sort-controls">
                 <span className="sort-label">Sort by:</span>
-                {['name', 'id', 'status', 'time'].map(criteria => (
+                {['Name', 'Id', 'Status', 'Time'].map(criteria => (
                   <button 
                     key={criteria}
-                    className={`sort-btn ${currentSort === criteria ? 'active' : ''}`}
-                    onClick={() => handleSort(criteria)}
+                    className={`sort-btn ${currentSort === criteria.toLowerCase() ? 'active' : ''}`}
+                    onClick={() => handleSort(criteria.toLowerCase())}
                   >
-                    {criteria.charAt(0).toUpperCase() + criteria.slice(1)}
+                    {criteria}
                   </button>
                 ))}
               </div>
@@ -453,10 +429,23 @@ const PatientCensusModal = ({ isOpen, onClose }) => {
             {/* Patient List */}
             <div className="patient-list">
               {patients.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">👥</div>
-                  <div className="empty-title">No patients in census</div>
-                  <div className="empty-description">Add your first patient using the form above</div>
+                <div style={{ 
+                  textAlign: 'center', 
+                  padding: '60px 20px', 
+                  color: 'var(--text-muted)' 
+                }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.6 }}>👥</div>
+                  <div style={{ 
+                    fontSize: '18px', 
+                    fontWeight: '600', 
+                    marginBottom: '8px', 
+                    color: 'var(--text-primary)' 
+                  }}>
+                    No patients in census
+                  </div>
+                  <div style={{ fontSize: '14px' }}>
+                    Add your first patient using the form above
+                  </div>
                 </div>
               ) : (
                 patients.map((patient, index) => (
@@ -472,16 +461,20 @@ const PatientCensusModal = ({ isOpen, onClose }) => {
                     onDragEnd={handleDragEnd}
                   >
                     <div className="drag-handle">⋮⋮</div>
+                    
                     <div className="patient-info">
                       <div className="patient-name">{patient.name}</div>
                       <div className="patient-id">{patient.id}</div>
-                      <div className={`patient-status status-${patient.status}`}>
-                        {patient.status.replace('-', ' ')}
-                      </div>
-                      <div className="patient-time">{patient.time}</div>
                     </div>
+                    
+                    <div className={`patient-status ${patient.status}`}>
+                      {patient.status.charAt(0).toUpperCase() + patient.status.slice(1)}
+                    </div>
+                    
+                    <div className="patient-time">{patient.time}</div>
+                    
                     <button 
-                      className="delete-btn" 
+                      className="remove-patient" 
                       onClick={() => handleDeletePatient(index)}
                       title="Remove patient"
                     >
@@ -498,10 +491,10 @@ const PatientCensusModal = ({ isOpen, onClose }) => {
               HIPAA-compliant patient management • Last updated: {lastUpdated}
             </div>
             <div className="footer-actions">
-              <button className="btn-secondary" onClick={handleExport}>
+              <button className="export-btn" onClick={handleExport}>
                 Export
               </button>
-              <button className="btn-primary" onClick={onClose}>Done</button>
+              <button className="done-btn" onClick={onClose}>Done</button>
             </div>
           </div>
         </div>
