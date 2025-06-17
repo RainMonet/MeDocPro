@@ -1,6 +1,29 @@
-import React, { useState, useEffect } from 'react'
-import { ThemeProvider } from './ThemeContext'
-import ThemeToggle from './ThemeToggle'
+import React, { useState, useEffect, useContext, createContext } from 'react'
+
+// Theme Context
+const ThemeContext = createContext()
+
+const ThemeProvider = ({ children }) => {
+  const [theme, setTheme] = useState(() => {
+    // Check for saved theme preference or default to 'light'
+    return localStorage.getItem('medocpro-theme') || 'light'
+  })
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('medocpro-theme', theme)
+  }, [theme])
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light')
+  }
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  )
+}
 
 // Simple icon components (replacing Lucide)
 const HomeIcon = () => (
@@ -201,6 +224,7 @@ const StatsCard = ({ title, value, change, icon: Icon }) => (
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard')
+  const { theme, toggleTheme } = useContext(ThemeContext)
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: HomeIcon },
@@ -365,10 +389,35 @@ const Dashboard = () => {
   return (
     <div className="dashboard">
       <div className="sidebar">
-        <div className="sidebar-header">
-          <div className="nav-brand">MeDocPro</div>
-          <ThemeToggle />
+        <div className="nav-brand">MeDocPro</div>
+        
+        {/* Beautiful Theme Toggle */}
+        <div className="theme-toggle-container">
+          <button 
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            <div className="toggle-track">
+              <div className="toggle-thumb">
+                <div className="toggle-icon">
+                  {theme === 'light' ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="5"/>
+                      <path d="m12 1 0 6m0 6 0 6M4.22 4.22l4.24 4.24m8.49 8.49 4.24 4.24M1 12l6 0m6 0 6 0M4.22 19.78l4.24-4.24m8.49-8.49 4.24-4.24"/>
+                    </svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                  )}
+                </div>
+              </div>
+            </div>
+          </button>
         </div>
+
         <nav className="sidebar-nav">
           {navItems.map((item) => (
             <a
