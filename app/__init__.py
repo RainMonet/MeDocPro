@@ -1,4 +1,4 @@
-# app/__init__.py - Updated with proper blueprint registration
+# app/__init__.py - Corrected version with proper indentation
 
 from flask import Flask
 from flask_cors import CORS
