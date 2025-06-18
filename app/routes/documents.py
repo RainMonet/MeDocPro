@@ -1,10 +1,12 @@
+# app/routes/documents.py - Updated with full AI integration
 from flask import Blueprint, request, jsonify, current_app
 from app.models.template import Template
 from app.models.patient_data import PatientData
-from app.services.ai_processor import ai_processor
+from app.services.ai_processor import process_text_with_ollama, check_ollama_status
 from app import db
 import logging
 from datetime import datetime
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -88,183 +90,249 @@ def get_template(template_id):
             'error': 'Failed to fetch template'
         }), 500
 
-@documents_bp.route('/api/generate-document', methods=['POST'])
-def generate_document():
-    """Generate document with AI enhancement"""
+# ============================================================================
+# AI AUTOMATION ENDPOINTS
+# ============================================================================
+
+@documents_bp.route('/api/documents/ai-status', methods=['GET'])
+def check_ai_status():
+    """Check if AI service (Ollama) is available"""
+    try:
+        status = check_ollama_status()
+        return jsonify(status), 200
+    except Exception as e:
+        logger.error(f"Error checking AI status: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+@documents_bp.route('/api/documents/generate', methods=['POST'])
+def generate_ai_documents():
+    """Generate AI-enhanced documents for patients using templates"""
     try:
         data = request.get_json()
         
-        # Validate required fields
-        required_fields = ['template_id', 'patient_id']
-        for field in required_fields:
-            if field not in data:
-                return jsonify({
-                    'success': False,
-                    'error': f'Missing required field: {field}'
-                }), 400
+        # Validate request data
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
+        
+        patient_ids = data.get('patient_ids', [])
+        template_id = data.get('template_id')
+        ai_settings = data.get('ai_settings', {})
+        
+        if not patient_ids or not template_id:
+            return jsonify({
+                'success': False,
+                'error': 'Patient IDs and template ID are required'
+            }), 400
         
         # Get template
-        template = Template.query.get(data['template_id'])
+        template = Template.query.get(template_id)
         if not template:
             return jsonify({
                 'success': False,
                 'error': 'Template not found'
             }), 404
         
-        # Get patient data
-        patient = PatientData.query.filter_by(patient_id=data['patient_id']).first()
-        if not patient:
+        # Get patients
+        patients = PatientData.query.filter(PatientData.patient_id.in_(patient_ids)).all()
+        if len(patients) != len(patient_ids):
             return jsonify({
                 'success': False,
-                'error': 'Patient not found'
+                'error': 'One or more patients not found'
             }), 404
         
-        # Check if AI enhancement is requested
-        use_ai = data.get('use_ai', False)
+        # Generate documents for each patient
+        results = []
         
-        if use_ai:
-            # Test AI connection
-            if not ai_processor.test_connection():
-                return jsonify({
-                    'success': False,
-                    'error': 'AI service is not available. Please ensure Ollama is running.'
-                }), 503
-            
-            # Process template with AI
-            logger.info(f"Processing template {template.name} with AI for patient {patient.patient_id}")
-            processed_content = ai_processor.process_template_zones(
-                template.content,
-                patient.to_dict(),
-                template.template_type
-            )
-        else:
-            # Remove AI zones without processing
-            processed_content = template.content.replace("{{BEGIN_AI}}", "").replace("{{END_AI}}", "")
-        
-        # Replace patient placeholders
-        processed_content = replace_patient_placeholders(processed_content, patient)
-        
-        # Generate document metadata
-        document_data = {
-            'title': f"{template.name} - {patient.full_name}",
-            'content': processed_content,
-            'template_name': template.name,
-            'template_type': template.template_type,
-            'patient_id': patient.patient_id,
-            'patient_name': patient.full_name,
-            'generated_at': datetime.utcnow().isoformat(),
-            'ai_enhanced': use_ai
-        }
-        
-        logger.info(f"Successfully generated document for patient {patient.patient_id}")
+        for patient in patients:
+            try:
+                # Populate template with patient data
+                populated_content = populate_template_with_patient_data(template, patient)
+                
+                # Apply AI enhancement if requested
+                enhanced_content = populated_content
+                if ai_settings.get('enable_ai', False):
+                    enhancement_percentage = ai_settings.get('enhancement_percentage', 80)
+                    tone = ai_settings.get('tone', 'formal')
+                    
+                    enhanced_content = process_text_with_ollama(
+                        text=populated_content,
+                        percentage=enhancement_percentage,
+                        tone=tone
+                    )
+                
+                # Create result for this patient
+                patient_result = {
+                    'patient_id': patient.patient_id,
+                    'patient_name': f"{patient.first_name} {patient.last_name}",
+                    'template_name': template.name,
+                    'original_content': populated_content,
+                    'enhanced_content': enhanced_content if ai_settings.get('enable_ai', False) else None,
+                    'ai_enhanced': ai_settings.get('enable_ai', False),
+                    'ai_settings': ai_settings if ai_settings.get('enable_ai', False) else None,
+                    'generated_at': datetime.now().isoformat()
+                }
+                
+                results.append(patient_result)
+                
+            except Exception as e:
+                logger.error(f"Error generating document for patient {patient.patient_id}: {str(e)}")
+                results.append({
+                    'patient_id': patient.patient_id,
+                    'patient_name': f"{patient.first_name} {patient.last_name}",
+                    'error': f"Failed to generate document: {str(e)}"
+                })
         
         return jsonify({
             'success': True,
-            'document': document_data
+            'results': results,
+            'template_used': template.name,
+            'patients_processed': len(patients),
+            'ai_enhanced': ai_settings.get('enable_ai', False)
         })
         
     except Exception as e:
-        logger.error(f"Error generating document: {str(e)}")
+        logger.error(f"Error in generate_ai_documents: {str(e)}")
         return jsonify({
             'success': False,
-            'error': 'Failed to generate document'
+            'error': f'Document generation failed: {str(e)}'
         }), 500
 
-@documents_bp.route('/api/enhance-text', methods=['POST'])
+@documents_bp.route('/api/documents/enhance-text', methods=['POST'])
 def enhance_text():
-    """Enhance existing text with AI"""
+    """Enhance specific text with AI"""
     try:
         data = request.get_json()
         
-        if 'text' not in data:
+        if not data or 'text' not in data:
             return jsonify({
                 'success': False,
                 'error': 'Text is required'
             }), 400
         
-        # Test AI connection
-        if not ai_processor.test_connection():
+        text = data.get('text', '').strip()
+        if not text:
             return jsonify({
                 'success': False,
-                'error': 'AI service is not available'
-            }), 503
+                'error': 'Text cannot be empty'
+            }), 400
         
-        text = data['text']
-        enhancement_type = data.get('enhancement_type', 'clinical')
+        # AI enhancement settings
+        enhancement_percentage = data.get('enhancement_percentage', 80)
+        tone = data.get('tone', 'formal')
         
-        # Enhance text
-        enhanced_text = ai_processor.enhance_clinical_text(text, enhancement_type)
+        # Validate settings
+        if not (20 <= enhancement_percentage <= 90):
+            enhancement_percentage = 80
+        
+        # Process text with AI
+        enhanced_text = process_text_with_ollama(
+            text=text,
+            percentage=enhancement_percentage,
+            tone=tone
+        )
         
         return jsonify({
             'success': True,
             'original_text': text,
             'enhanced_text': enhanced_text,
-            'enhancement_type': enhancement_type
+            'settings': {
+                'enhancement_percentage': enhancement_percentage,
+                'tone': tone
+            },
+            'enhanced_at': datetime.now().isoformat()
         })
         
     except Exception as e:
-        logger.error(f"Error enhancing text: {str(e)}")
+        logger.error(f"Error in enhance_text: {str(e)}")
         return jsonify({
             'success': False,
-            'error': 'Failed to enhance text'
+            'error': f'Text enhancement failed: {str(e)}'
         }), 500
 
-@documents_bp.route('/api/ai-status', methods=['GET'])
-def ai_status():
-    """Check AI service status"""
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def populate_template_with_patient_data(template, patient):
+    """Populate template content with patient data"""
     try:
-        is_connected = ai_processor.test_connection()
-        return jsonify({
-            'success': True,
-            'ai_available': is_connected,
-            'service': 'Ollama',
-            'model': ai_processor.model
-        })
+        content = template.content
+        
+        # Create substitution mapping from patient data
+        substitutions = {
+            # Basic demographics
+            '{{patient_name}}': f"{patient.first_name} {patient.last_name}",
+            '{{patient_id}}': patient.patient_id,
+            '{{first_name}}': patient.first_name,
+            '{{last_name}}': patient.last_name,
+            '{{date_of_birth}}': str(patient.date_of_birth),
+            '{{gender}}': patient.gender,
+            '{{age}}': str(patient.calculate_age()) if hasattr(patient, 'calculate_age') else 'Unknown',
+            
+            # Clinical information
+            '{{primary_diagnosis}}': patient.primary_diagnosis,
+            '{{secondary_diagnoses}}': ', '.join(json.loads(patient.secondary_diagnoses)) if patient.secondary_diagnoses else 'None',
+            '{{current_medications}}': ', '.join(json.loads(patient.current_medications)) if patient.current_medications else 'None',
+            '{{allergies}}': patient.allergies,
+            '{{medical_history}}': patient.medical_history,
+            
+            # Mental status exam
+            '{{appearance}}': patient.appearance,
+            '{{behavior}}': patient.behavior,
+            '{{speech}}': patient.speech,
+            '{{mood}}': patient.mood,
+            '{{affect}}': patient.affect,
+            '{{thought_process}}': patient.thought_process,
+            '{{thought_content}}': patient.thought_content,
+            '{{perceptions}}': patient.perceptions,
+            '{{cognition}}': patient.cognition,
+            '{{insight}}': patient.insight,
+            '{{judgment}}': patient.judgment,
+            
+            # Risk assessment
+            '{{suicide_risk}}': patient.suicide_risk,
+            '{{homicide_risk}}': patient.homicide_risk,
+            '{{risk_factors}}': patient.risk_factors,
+            '{{protective_factors}}': patient.protective_factors,
+            
+            # Treatment
+            '{{treatment_goals}}': ', '.join(json.loads(patient.treatment_goals)) if patient.treatment_goals else 'To be determined',
+            '{{intervention_plan}}': patient.intervention_plan,
+            
+            # Date placeholders
+            '{{current_date}}': datetime.now().strftime('%B %d, %Y'),
+            '{{current_time}}': datetime.now().strftime('%I:%M %p'),
+        }
+        
+        # Apply substitutions
+        populated_content = content
+        for placeholder, value in substitutions.items():
+            if value is None:
+                value = 'Not specified'
+            populated_content = populated_content.replace(placeholder, str(value))
+        
+        return populated_content
+        
     except Exception as e:
-        logger.error(f"Error checking AI status: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': 'Failed to check AI status'
-        }), 500
+        logger.error(f"Error populating template: {str(e)}")
+        return f"Error populating template: {str(e)}"
 
-def replace_patient_placeholders(content: str, patient: PatientData) -> str:
-    """Replace patient placeholder variables in content"""
-    replacements = {
-        '{{PATIENT_NAME}}': patient.full_name,
-        '{{PATIENT_FIRST_NAME}}': patient.first_name,
-        '{{PATIENT_LAST_NAME}}': patient.last_name,
-        '{{PATIENT_ID}}': patient.patient_id,
-        '{{PATIENT_AGE}}': str(patient.age),
-        '{{PATIENT_GENDER}}': patient.gender or 'Not specified',
-        '{{PATIENT_DOB}}': patient.date_of_birth.strftime('%m/%d/%Y') if patient.date_of_birth else 'Not specified',
-        '{{PRIMARY_DIAGNOSIS}}': patient.primary_diagnosis or 'Not specified',
-        '{{CURRENT_DATE}}': datetime.now().strftime('%m/%d/%Y'),
-        '{{CURRENT_DATETIME}}': datetime.now().strftime('%m/%d/%Y %I:%M %p'),
-        '{{MOOD}}': patient.mood or 'Not assessed',
-        '{{AFFECT}}': patient.affect or 'Not assessed',
-        '{{SUICIDE_RISK}}': patient.suicide_risk or 'Not assessed',
-        '{{HOMICIDE_RISK}}': patient.homicide_risk or 'Not assessed',
-        '{{INSIGHT}}': patient.insight or 'Not assessed',
-        '{{JUDGMENT}}': patient.judgment or 'Not assessed'
+# Test endpoint for debugging
+@documents_bp.route('/test')
+def test():
+    return {
+        "message": "Documents blueprint loaded with full AI integration",
+        "endpoints": [
+            "/api/patients",
+            "/api/templates", 
+            "/api/documents/ai-status",
+            "/api/documents/generate",
+            "/api/documents/enhance-text"
+        ]
     }
-    
-    processed_content = content
-    for placeholder, value in replacements.items():
-        processed_content = processed_content.replace(placeholder, str(value))
-    
-    return processed_content
-
-# Error handlers
-@documents_bp.errorhandler(404)
-def not_found(error):
-    return jsonify({
-        'success': False,
-        'error': 'Resource not found'
-    }), 404
-
-@documents_bp.errorhandler(500)
-def internal_error(error):
-    return jsonify({
-        'success': False,
-        'error': 'Internal server error'
-    }), 500

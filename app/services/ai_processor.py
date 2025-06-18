@@ -1,218 +1,183 @@
+# app/services/ai_processor.py - Complete AI service for MeDocPro
+
+import os
 import requests
-import json
-import re
-from typing import Dict, Any, List
 import logging
+from typing import Optional
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class AIProcessor:
-    def __init__(self, base_url="http://localhost:11434", model="mistral:latest"):
-        self.base_url = base_url
-        self.model = model
-        self.api_url = f"{base_url}/api/generate"
+# Maps user-friendly tone names to Mistral instructions
+TONE_INSTRUCTIONS = {
+    'formal': 'professional and formal medical tone',
+    'concise': 'concise and direct clinical tone',
+    'descriptive': 'descriptive and detailed clinical tone',
+    'narrative': 'narrative and flowing clinical tone',
+    'clinical': 'standard clinical documentation tone',
+    'compassionate': 'compassionate and empathetic tone while maintaining professionalism',
+    'technical': 'technical and precise medical terminology',
+    'marktwain': 'literary style reminiscent of Mark Twain while maintaining medical accuracy and professionalism'
+}
+
+def get_ollama_prompt(text: str, percentage: int, tone: str) -> str:
+    """
+    Constructs the full prompt for the Ollama/Mistral API.
     
-    def test_connection(self) -> bool:
-        """Test if Ollama is running and accessible"""
-        try:
-            response = requests.get(f"{self.base_url}/api/tags", timeout=5)
-            return response.status_code == 200
-        except:
-            return False
+    Args:
+        text: The clinical text to be processed
+        percentage: How different the output should be (20-90%)
+        tone: The writing tone to use
     
-    def generate_text(self, prompt: str, max_tokens: int = 500) -> str:
-        """Generate text using Ollama"""
-        try:
-            payload = {
-                "model": self.model,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "num_predict": max_tokens,
-                    "temperature": 0.3,
-                    "top_p": 0.9
-                }
-            }
-            
-            response = requests.post(
-                self.api_url,
-                json=payload,
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                return result.get('response', '').strip()
-            else:
-                logger.error(f"Ollama API error: {response.status_code}")
-                return "Error: AI service unavailable"
-                
-        except Exception as e:
-            logger.error(f"AI generation error: {str(e)}")
-            return "Error: AI processing failed"
+    Returns:
+        Formatted prompt string for Ollama API
+    """
+    tone_instruction = TONE_INSTRUCTIONS.get(tone, 'professional medical tone')
     
-    def create_clinical_prompt(self, template_type: str, patient_data: Dict[str, Any], ai_zone_content: str) -> str:
-        """Create a clinical prompt based on template type and patient data"""
+    return f"""<s>[INST] You are a medical documentation assistant. Rephrase the following psychiatric clinical note text to be {percentage}% different while preserving all medical information, clinical details, and safety information.
+
+Important Guidelines:
+1. DO NOT include any introduction or explanatory text in your response
+2. DO NOT mention the rephrasing instructions or the style you're using
+3. DO NOT use "CurrentDate" - use "today" instead
+4. Start your response immediately with the rephrased clinical note
+5. Maintain the same length and use a {tone_instruction}
+6. Preserve all diagnostic information, treatment plans, and safety assessments
+7. Keep all medical terminology accurate and appropriate
+8. Maintain HIPAA compliance - do not add any identifying information
+9. Return only the rephrased clinical text, nothing else
+
+Here is the clinical text to rephrase:
+
+{text} [/INST]"""
+
+def process_text_with_ollama(text: str, percentage: int = 80, tone: str = 'formal') -> str:
+    """
+    Sends text to the local Ollama API for AI enhancement using Mistral.
+    
+    Args:
+        text: The clinical text to process
+        percentage: Alteration percentage (20-90)
+        tone: Writing tone for the output
+    
+    Returns:
+        Enhanced text from Ollama/Mistral or error message
+    """
+    # Get Ollama API URL from environment or use default
+    ollama_url = os.getenv('OLLAMA_API_URL', 'http://localhost:11434')
+    api_url = f'{ollama_url}/api/generate'
+    
+    # Get model name from environment or use default
+    model_name = os.getenv('OLLAMA_MODEL', 'mistral:latest')
+    
+    # Validate inputs
+    if not text or not text.strip():
+        return "[Error: No text provided for processing]"
+    
+    if not (20 <= percentage <= 90):
+        percentage = 80  # Default to safe value
+    
+    if tone not in TONE_INSTRUCTIONS:
+        tone = 'formal'  # Default to formal tone
+    
+    prompt = get_ollama_prompt(text, percentage, tone)
+    
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "model": model_name,
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "max_tokens": 4096,
+            "stop": ["</s>", "[INST]", "[/INST]"]
+        }
+    }
+    
+    try:
+        logger.info(f"Sending request to Ollama API at {api_url} with model: {model_name}, tone: {tone}, percentage: {percentage}")
         
-        # Extract key patient information
-        patient_name = patient_data.get('full_name', 'Patient')
-        age = patient_data.get('age', 'Unknown')
-        gender = patient_data.get('gender', 'Unknown')
-        primary_dx = patient_data.get('primary_diagnosis', 'Not specified')
+        response = requests.post(api_url, json=payload, headers=headers, timeout=120)
+        response.raise_for_status()  # Raises an exception for 4XX/5XX errors
         
-        base_context = f"""
-Patient: {patient_name} (Age: {age}, Gender: {gender})
-Primary Diagnosis: {primary_dx}
-"""
+        result = response.json()
         
-        # Template-specific prompts
-        prompts = {
-            'progress_note': f"""
-{base_context}
-You are a psychiatrist writing a progress note. Based on the patient information above, 
-please complete the following section with professional clinical language:
-
-{ai_zone_content}
-
-Requirements:
-- Use professional psychiatric terminology
-- Be concise and objective
-- Include relevant clinical observations
-- Maintain HIPAA compliance
-- Focus on therapeutic progress and clinical status
-""",
+        # Parse Ollama response format
+        if 'response' in result:
+            processed_text = result['response'].strip()
             
-            'intake_assessment': f"""
-{base_context}
-You are a psychiatrist conducting an intake assessment. Based on the patient information above,
-please complete the following section with comprehensive clinical documentation:
-
-{ai_zone_content}
-
-Requirements:
-- Use thorough psychiatric assessment language
-- Include relevant history and presentation details
-- Be objective and clinical in tone
-- Consider differential diagnosis factors
-- Maintain professional medical documentation standards
-""",
+            # Clean up the response
+            processed_text = processed_text.replace("CurrentDate", "today")
             
-            'treatment_plan': f"""
-{base_context}
-You are a psychiatrist developing a treatment plan. Based on the patient information above,
-please complete the following section with evidence-based treatment recommendations:
-
-{ai_zone_content}
-
-Requirements:
-- Use evidence-based treatment approaches
-- Be specific and measurable in goals
-- Include appropriate interventions
-- Consider patient safety and wellbeing
-- Use professional clinical language
-""",
+            # Remove any potential instruction artifacts
+            if processed_text.startswith('[INST]') or processed_text.startswith('<s>'):
+                # Try to extract just the clinical text
+                lines = processed_text.split('\n')
+                processed_text = '\n'.join([line for line in lines if not line.strip().startswith(('[INST]', '</s>', '<s>'))])
             
-            'mental_status_exam': f"""
-{base_context}
-You are a psychiatrist documenting a mental status examination. Based on the patient information above,
-please complete the following section with detailed clinical observations:
+            return processed_text.strip() if processed_text.strip() else "[Error: Empty response from AI service]"
+        else:
+            logger.error(f"Unexpected Ollama API response format: {result}")
+            return "[Error: Unexpected AI service response format]"
+            
+    except requests.exceptions.Timeout:
+        logger.error("Ollama API request timed out")
+        return f"[Error: AI service request timed out] Original Text: {text}"
+        
+    except requests.exceptions.ConnectionError:
+        logger.error("Failed to connect to Ollama API")
+        return f"[Error: Cannot connect to AI service. Please ensure Ollama is running] Original Text: {text}"
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error calling Ollama API: {e}")
+        return f"[Error communicating with AI service: {str(e)}] Original Text: {text}"
+    
+    except Exception as e:
+        logger.error(f"Unexpected error in AI processing: {e}")
+        return f"[Unexpected error in AI processing] Original Text: {text}"
 
-{ai_zone_content}
-
-Requirements:
-- Use standard MSE terminology
-- Be objective and descriptive
-- Include relevant behavioral observations
-- Maintain clinical precision
-- Focus on current mental state presentation
-"""
+def check_ollama_status() -> dict:
+    """
+    Check if Ollama is running and what models are available.
+    
+    Returns:
+        Dictionary with status information
+    """
+    ollama_url = os.getenv('OLLAMA_API_URL', 'http://localhost:11434')
+    
+    try:
+        # Check if Ollama is running
+        response = requests.get(f'{ollama_url}/api/tags', timeout=5)
+        response.raise_for_status()
+        
+        models = response.json().get('models', [])
+        model_names = [model.get('name', '') for model in models]
+        
+        return {
+            'status': 'available',
+            'url': ollama_url,
+            'models': model_names,
+            'has_mistral': any('mistral' in name.lower() for name in model_names),
+            'recommended_model': os.getenv('OLLAMA_MODEL', 'mistral:latest')
         }
         
-        return prompts.get(template_type, prompts['progress_note'])
-    
-    def process_template_zones(self, template_content: str, patient_data: Dict[str, Any], template_type: str) -> str:
-        """Process AI zones in template content"""
-        
-        if not self.test_connection():
-            logger.error("Ollama connection failed")
-            return template_content.replace("{{BEGIN_AI}}", "").replace("{{END_AI}}", "[AI service unavailable]")
-        
-        # Find all AI zones
-        ai_zone_pattern = r'{{BEGIN_AI}}(.*?){{END_AI}}'
-        zones = re.findall(ai_zone_pattern, template_content, re.DOTALL)
-        
-        processed_content = template_content
-        
-        for zone_content in zones:
-            try:
-                # Create clinical prompt
-                prompt = self.create_clinical_prompt(template_type, patient_data, zone_content.strip())
-                
-                # Generate AI content
-                ai_generated = self.generate_text(prompt, max_tokens=300)
-                
-                # Replace the zone with generated content
-                zone_pattern = f"{{{{BEGIN_AI}}}}{re.escape(zone_content)}{{{{END_AI}}}}"
-                processed_content = re.sub(zone_pattern, ai_generated, processed_content, flags=re.DOTALL)
-                
-                logger.info(f"Successfully processed AI zone for {template_type}")
-                
-            except Exception as e:
-                logger.error(f"Error processing AI zone: {str(e)}")
-                # Replace with error message
-                zone_pattern = f"{{{{BEGIN_AI}}}}{re.escape(zone_content)}{{{{END_AI}}}}"
-                processed_content = re.sub(zone_pattern, "[AI processing error]", processed_content, flags=re.DOTALL)
-        
-        return processed_content
-    
-    def enhance_clinical_text(self, text: str, enhancement_type: str = "clinical") -> str:
-        """Enhance existing clinical text with AI suggestions"""
-        
-        enhancement_prompts = {
-            "clinical": f"""
-Please enhance the following clinical text to be more professional and precise:
-
-{text}
-
-Requirements:
-- Maintain all original medical information
-- Improve clinical language and terminology
-- Ensure professional psychiatric documentation standards
-- Keep the same meaning but enhance clarity
-- Use appropriate medical abbreviations where suitable
-""",
-            
-            "concise": f"""
-Please make the following clinical text more concise while maintaining all essential information:
-
-{text}
-
-Requirements:
-- Preserve all critical clinical information
-- Remove redundancy
-- Use efficient medical terminology
-- Maintain professional tone
-- Keep all diagnostic and treatment information
-""",
-            
-            "detailed": f"""
-Please expand the following clinical text with more detailed professional language:
-
-{text}
-
-Requirements:
-- Add appropriate clinical detail
-- Use comprehensive psychiatric terminology
-- Maintain objectivity
-- Enhance with relevant clinical context
-- Follow professional documentation standards
-"""
+    except requests.exceptions.ConnectionError:
+        return {
+            'status': 'unavailable',
+            'url': ollama_url,
+            'error': 'Cannot connect to Ollama service',
+            'help': 'Please ensure Ollama is installed and running'
         }
-        
-        prompt = enhancement_prompts.get(enhancement_type, enhancement_prompts["clinical"])
-        return self.generate_text(prompt, max_tokens=400)
+    except Exception as e:
+        return {
+            'status': 'error',
+            'url': ollama_url,
+            'error': str(e)
+        }
 
-# Global instance
-ai_processor = AIProcessor()
+# For backward compatibility, create an alias
+process_text_with_ai = process_text_with_ollama
