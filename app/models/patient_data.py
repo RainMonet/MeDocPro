@@ -1,96 +1,129 @@
-# app/models/patient_data.py
-
-from ..extensions import db
-from datetime import datetime
+from app import db
+from datetime import datetime, date
+import json
 
 class PatientData(db.Model):
-    """Represents patient information for template population - MOCK DATA ONLY"""
     __tablename__ = 'patient_data'
     
     id = db.Column(db.Integer, primary_key=True)
-    
-    # Basic Demographics
+    patient_id = db.Column(db.String(20), unique=True, nullable=False)
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
-    patient_id = db.Column(db.String(20), unique=True, nullable=False)
-    date_of_birth = db.Column(db.Date)
+    date_of_birth = db.Column(db.Date, nullable=False)
+    gender = db.Column(db.String(20))
     
     # Clinical Information
-    chief_complaint = db.Column(db.Text)
-    observation = db.Column(db.Text)
-    compliance = db.Column(db.Text)
-    current_medications = db.Column(db.Text)
+    primary_diagnosis = db.Column(db.Text)
+    secondary_diagnoses = db.Column(db.Text)  # JSON string
+    current_medications = db.Column(db.Text)  # JSON string
     allergies = db.Column(db.Text)
+    medical_history = db.Column(db.Text)
     
-    # Mental Status Exam Fields
+    # Mental Status
     appearance = db.Column(db.Text)
+    behavior = db.Column(db.Text)
+    speech = db.Column(db.Text)
     mood = db.Column(db.String(100))
     affect = db.Column(db.String(100))
-    speech = db.Column(db.Text)
     thought_process = db.Column(db.Text)
     thought_content = db.Column(db.Text)
+    perceptions = db.Column(db.Text)
     cognition = db.Column(db.Text)
-    insight = db.Column(db.Text)
-    judgment = db.Column(db.Text)
+    insight = db.Column(db.String(50))
+    judgment = db.Column(db.String(50))
     
-    # Assessment and Plan
-    assessment = db.Column(db.Text)
-    treatment_plan = db.Column(db.Text)
+    # Risk Assessment
+    suicide_risk = db.Column(db.String(20))
+    homicide_risk = db.Column(db.String(20))
+    risk_factors = db.Column(db.Text)
+    protective_factors = db.Column(db.Text)
     
-    # Provider Information
-    provider_name = db.Column(db.String(100))
-    provider_signature = db.Column(db.String(100))
+    # Treatment Information
+    treatment_goals = db.Column(db.Text)  # JSON string
+    intervention_plan = db.Column(db.Text)
+    session_notes = db.Column(db.Text)  # JSON string for multiple sessions
     
-    # Session Details
-    date_of_service = db.Column(db.Date, default=datetime.utcnow().date)
-    session_type = db.Column(db.String(50))
-    session_duration = db.Column(db.Integer)  # minutes
-    
-    # Progress Notes
-    subjective_notes = db.Column(db.Text)
-    objective_notes = db.Column(db.Text)
-    plan_notes = db.Column(db.Text)
-    
-    # Timestamps
+    # Administrative
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # User association (for multi-user environments)
-    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
-    
     def __repr__(self):
-        return f'<PatientData {self.patient_id}: {self.last_name}, {self.first_name}>'
+        return f'<PatientData {self.patient_id}: {self.first_name} {self.last_name}>'
+    
+    @property
+    def age(self):
+        today = date.today()
+        return today.year - self.date_of_birth.year - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
+    
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
+    
+    def get_medications_list(self):
+        if self.current_medications:
+            try:
+                return json.loads(self.current_medications)
+            except:
+                return []
+        return []
+    
+    def get_secondary_diagnoses_list(self):
+        if self.secondary_diagnoses:
+            try:
+                return json.loads(self.secondary_diagnoses)
+            except:
+                return []
+        return []
+    
+    def get_treatment_goals_list(self):
+        if self.treatment_goals:
+            try:
+                return json.loads(self.treatment_goals)
+            except:
+                return []
+        return []
+    
+    def get_session_notes_list(self):
+        if self.session_notes:
+            try:
+                return json.loads(self.session_notes)
+            except:
+                return []
+        return []
     
     def to_dict(self):
-        """Convert patient data to dictionary for template population"""
         return {
+            'id': self.id,
             'patient_id': self.patient_id,
             'first_name': self.first_name,
             'last_name': self.last_name,
-            'patient_name': f"{self.last_name}, {self.first_name}",
-            'date_of_birth': self.date_of_birth.strftime('%m/%d/%Y') if self.date_of_birth else '',
-            'chief_complaint': self.chief_complaint or '',
-            'observation': self.observation or '',
-            'compliance': self.compliance or '',
-            'current_medications': self.current_medications or '',
-            'allergies': self.allergies or '',
-            'appearance': self.appearance or '',
-            'mood': self.mood or '',
-            'affect': self.affect or '',
-            'speech': self.speech or '',
-            'thought_process': self.thought_process or '',
-            'thought_content': self.thought_content or '',
-            'cognition': self.cognition or '',
-            'insight': self.insight or '',
-            'judgment': self.judgment or '',
-            'assessment': self.assessment or '',
-            'treatment_plan': self.treatment_plan or '',
-            'provider_name': self.provider_name or '',
-            'provider_signature': self.provider_signature or '',
-            'date_of_service': self.date_of_service.strftime('%m/%d/%Y') if self.date_of_service else '',
-            'session_type': self.session_type or '',
-            'session_duration': str(self.session_duration) if self.session_duration else '',
-            'subjective_notes': self.subjective_notes or '',
-            'objective_notes': self.objective_notes or '',
-            'plan_notes': self.plan_notes or ''
+            'full_name': self.full_name,
+            'date_of_birth': self.date_of_birth.isoformat() if self.date_of_birth else None,
+            'age': self.age,
+            'gender': self.gender,
+            'primary_diagnosis': self.primary_diagnosis,
+            'secondary_diagnoses': self.get_secondary_diagnoses_list(),
+            'current_medications': self.get_medications_list(),
+            'allergies': self.allergies,
+            'medical_history': self.medical_history,
+            'appearance': self.appearance,
+            'behavior': self.behavior,
+            'speech': self.speech,
+            'mood': self.mood,
+            'affect': self.affect,
+            'thought_process': self.thought_process,
+            'thought_content': self.thought_content,
+            'perceptions': self.perceptions,
+            'cognition': self.cognition,
+            'insight': self.insight,
+            'judgment': self.judgment,
+            'suicide_risk': self.suicide_risk,
+            'homicide_risk': self.homicide_risk,
+            'risk_factors': self.risk_factors,
+            'protective_factors': self.protective_factors,
+            'treatment_goals': self.get_treatment_goals_list(),
+            'intervention_plan': self.intervention_plan,
+            'session_notes': self.get_session_notes_list(),
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
