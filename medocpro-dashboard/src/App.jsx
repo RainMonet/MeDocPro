@@ -1,4 +1,4 @@
-// medocpro-dashboard/src/App.jsx - FIXED VERSION
+// Fixed MeDocPro Dashboard - App.jsx
 import React, { useState, useEffect } from 'react';
 import PatientCensusModal from './components/PatientCensusModal';
 import AIAutomationModal from './components/AIAutomationModal';
@@ -9,6 +9,7 @@ const App = () => {
   const [isPatientCensusModalOpen, setIsPatientCensusModalOpen] = useState(false);
   const [isAIAutomationModalOpen, setIsAIAutomationModalOpen] = useState(false);
   
+  // Layout states
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [theme, setTheme] = useState(() => {
@@ -78,7 +79,7 @@ const App = () => {
             <div className="toggle-track">
               <div className="toggle-thumb">
                 <div className="toggle-icon">
-                  {theme === 'light' ? '🌙' : '☀️'}
+                  {theme === 'light' ? '☀️' : '🌙'}
                 </div>
               </div>
             </div>
@@ -95,223 +96,206 @@ const App = () => {
     </header>
   );
 
-  // Sidebar Component with AI Automation
+  // Sidebar Component
   const Sidebar = ({ expanded, onToggle }) => (
-    <aside className={`sidebar ${expanded ? 'expanded' : 'collapsed'}`}>
-      <button className="sidebar-toggle" onClick={onToggle}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="3" y1="6" x2="21" y2="6"/>
-          <line x1="3" y1="12" x2="21" y2="12"/>
-          <line x1="3" y1="18" x2="21" y2="18"/>
-        </svg>
+    <>
+      <button
+        className="sidebar-toggle"
+        onClick={onToggle}
+        aria-label="Toggle sidebar"
+        title="Toggle sidebar"
+      >
+        ☰
       </button>
       
-      <nav className="sidebar-nav">
-        <div className="nav-section">
-          <h3 className="nav-section-title">Documentation</h3>
-          <ul className="nav-list">
-            <li>
-              <button 
-                className="nav-item ai-automation-btn"
-                onClick={() => setIsAIAutomationModalOpen(true)}
-                title="AI-powered document generation"
-              >
-                <span className="nav-icon">🤖</span>
-                <span className="nav-text">AI Automation</span>
-                <span className="nav-badge">NEW</span>
-              </button>
-            </li>
-            <li>
-              <button className="nav-item" title="Clinical templates">
-                <span className="nav-icon">📄</span>
-                <span className="nav-text">Templates</span>
-              </button>
-            </li>
-            <li>
-              <button className="nav-item" title="Progress notes">
-                <span className="nav-icon">📝</span>
-                <span className="nav-text">Progress Notes</span>
-              </button>
-            </li>
-            <li>
-              <button className="nav-item" title="Treatment plans">
-                <span className="nav-icon">🎯</span>
-                <span className="nav-text">Treatment Plans</span>
-              </button>
-            </li>
-          </ul>
-        </div>
-
-        <div className="nav-section">
-          <h3 className="nav-section-title">Patient Management</h3>
-          <ul className="nav-list">
-            <li>
-              <button 
-                className="nav-item"
-                onClick={() => setIsPatientCensusModalOpen(true)}
-                title="View patient census"
-              >
-                <span className="nav-icon">👥</span>
-                <span className="nav-text">Patient Census</span>
-              </button>
-            </li>
-            <li>
-              <button className="nav-item" title="Assessments">
-                <span className="nav-icon">🧠</span>
-                <span className="nav-text">Assessments</span>
-              </button>
-            </li>
-            <li>
-              <button className="nav-item" title="Care coordination">
-                <span className="nav-icon">🤝</span>
-                <span className="nav-text">Care Coordination</span>
-              </button>
-            </li>
-          </ul>
-        </div>
-
-        <div className="nav-section">
-          <h3 className="nav-section-title">Analytics</h3>
-          <ul className="nav-list">
-            <li>
-              <button className="nav-item" title="Clinical reports">
-                <span className="nav-icon">📊</span>
-                <span className="nav-text">Reports</span>
-              </button>
-            </li>
-            <li>
-              <button className="nav-item" title="Quality metrics">
-                <span className="nav-icon">📈</span>
-                <span className="nav-text">Quality Metrics</span>
-              </button>
-            </li>
-          </ul>
-        </div>
-      </nav>
-    </aside>
+      {/* Mobile overlay */}
+      {isMobile && expanded && (
+        <div 
+          className="sidebar-overlay" 
+          onClick={() => setSidebarExpanded(false)}
+        />
+      )}
+      
+      <aside className={`sidebar ${expanded ? '' : 'collapsed'}`}>
+        <nav className="nav">
+          <div className="nav-item active">
+            📊 Dashboard
+          </div>
+          <div className="nav-item">
+            📝 Templates
+          </div>
+          <div className="nav-item" onClick={() => setIsPatientCensusModalOpen(true)}>
+            👥 Patient Management
+          </div>
+          <div className="nav-item">
+            🎯 Care Coordination
+          </div>
+          <div className="nav-item">
+            📈 Reports
+          </div>
+          <div className="nav-item">
+            📋 Quality Measures
+          </div>
+        </nav>
+      </aside>
+    </>
   );
 
-  // Main Content Area
+  // Main Content Component
   const MainContent = () => (
-    <main className={`content-area ${sidebarExpanded ? '' : 'expanded'}`}>
-      <div className="main-header">
-        <h1 className="main-title">Welcome back, {user.firstName}</h1>
-        <p className="page-subtitle">Streamlined psychiatric documentation with AI assistance</p>
+    <main className={`content-area ${sidebarExpanded && !isMobile ? '' : 'expanded'}`}>
+      {/* Welcome Section */}
+      <div className="welcome-section">
+        <h1 className="welcome-title">Welcome back, Dr. Jane</h1>
+        <p className="welcome-subtitle">Streamlined psychiatric documentation with AI assistance</p>
       </div>
 
-      <div className="dashboard-grid">
-        {/* Quick Actions */}
-        <div className="quick-actions-section">
-          <h2 className="section-title">Quick Actions</h2>
-          <div className="action-grid">
-            <div 
-              className="action-card ai-featured"
-              onClick={() => setIsAIAutomationModalOpen(true)}
-            >
-              <div className="action-icon">🤖</div>
-              <h3>AI Document Generation</h3>
-              <p>Generate clinical notes with AI assistance</p>
-              <span className="action-badge">New Feature</span>
-            </div>
-
-            <div 
-              className="action-card"
-              onClick={() => setIsPatientCensusModalOpen(true)}
-            >
-              <div className="action-icon">👥</div>
-              <h3>Patient Census</h3>
-              <p>View and manage current patient list</p>
-            </div>
-
-            <div className="action-card">
-              <div className="action-icon">📝</div>
-              <h3>New Progress Note</h3>
-              <p>Create psychiatric progress documentation</p>
-            </div>
-
-            <div className="action-card">
-              <div className="action-icon">🎯</div>
-              <h3>Treatment Planning</h3>
-              <p>Develop comprehensive care strategies</p>
-            </div>
-
-            <div className="action-card">
-              <div className="action-icon">🧠</div>
-              <h3>Mental Status Exam</h3>
-              <p>Conduct structured mental status assessments</p>
-            </div>
-
-            <div className="action-card">
-              <div className="action-icon">📊</div>
-              <h3>Clinical Reports</h3>
-              <p>Generate outcome and quality reports</p>
-            </div>
+      {/* Stats Grid */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-content">
+            <div className="stat-number">24</div>
+            <div className="stat-label">Active Patients</div>
+          </div>
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)' }}>
+            👥
           </div>
         </div>
-
-        {/* Statistics Grid */}
-        <div className="stats-grid">
-          <div className="stat-card">
-            <div className="stat-icon" style={{ background: '#0066cc' }}>📋</div>
-            <div className="stat-number">12</div>
-            <div className="stat-label">Scheduled Patients</div>
-            <div className="stat-change positive">+2 today</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon" style={{ background: '#10b981' }}>📄</div>
+        
+        <div className="stat-card">
+          <div className="stat-content">
             <div className="stat-number">8</div>
-            <div className="stat-label">Completed Notes</div>
-            <div className="stat-change positive">+3 today</div>
+            <div className="stat-label">Pending Notes</div>
           </div>
-          <div className="stat-card">
-            <div className="stat-icon" style={{ background: '#f59e0b' }}>🤖</div>
-            <div className="stat-number">5</div>
-            <div className="stat-label">AI Enhancements</div>
-            <div className="stat-change positive">+5 today</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-icon" style={{ background: '#8b5cf6' }}>📈</div>
-            <div className="stat-number">95%</div>
-            <div className="stat-label">Documentation Rate</div>
-            <div className="stat-change positive">+2% this week</div>
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}>
+            📝
           </div>
         </div>
-
-        {/* Recent Activity */}
-        <div className="recent-activity-section">
-          <h2 className="section-title">Recent Activity</h2>
-          <div className="activity-list">
-            <div className="activity-item">
-              <div className="activity-icon">📝</div>
-              <div className="activity-content">
-                <p><strong>Progress Note</strong> completed for Sarah Johnson</p>
-                <span className="activity-time">10 minutes ago</span>
-              </div>
-            </div>
-            <div className="activity-item">
-              <div className="activity-icon">🤖</div>
-              <div className="activity-content">
-                <p><strong>AI Enhancement</strong> applied to treatment plan</p>
-                <span className="activity-time">25 minutes ago</span>
-              </div>
-            </div>
-            <div className="activity-item">
-              <div className="activity-icon">🎯</div>
-              <div className="activity-content">
-                <p><strong>Treatment Plan</strong> updated for Michael Brown</p>
-                <span className="activity-time">1 hour ago</span>
-              </div>
-            </div>
-            <div className="activity-item">
-              <div className="activity-icon">👥</div>
-              <div className="activity-content">
-                <p><strong>Patient Census</strong> reviewed and updated</p>
-                <span className="activity-time">2 hours ago</span>
-              </div>
-            </div>
+        
+        <div className="stat-card">
+          <div className="stat-content">
+            <div className="stat-number">12</div>
+            <div className="stat-label">AI Enhanced</div>
+          </div>
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}>
+            🤖
+          </div>
+        </div>
+        
+        <div className="stat-card">
+          <div className="stat-content">
+            <div className="stat-number">96%</div>
+            <div className="stat-label">Quality Score</div>
+          </div>
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' }}>
+            ⭐
           </div>
         </div>
       </div>
+
+      {/* Quick Actions */}
+      <section className="section">
+        <div className="section-header">
+          <h2 className="section-title">Quick Actions</h2>
+          <div className="section-border"></div>
+        </div>
+        
+        <div className="action-grid">
+          <div 
+            className="action-card primary"
+            onClick={() => setIsAIAutomationModalOpen(true)}
+          >
+            <div className="action-icon">🤖</div>
+            <div className="action-content">
+              <h3 className="action-title">AI Document Generation</h3>
+              <p className="action-description">Generate clinical notes with AI assistance</p>
+              <span className="action-badge">NEW FEATURE</span>
+            </div>
+          </div>
+          
+          <div 
+            className="action-card"
+            onClick={() => setIsPatientCensusModalOpen(true)}
+          >
+            <div className="action-icon">👥</div>
+            <div className="action-content">
+              <h3 className="action-title">Patient Census</h3>
+              <p className="action-description">View and manage current patient list</p>
+            </div>
+          </div>
+          
+          <div className="action-card">
+            <div className="action-icon">📝</div>
+            <div className="action-content">
+              <h3 className="action-title">New Progress Note</h3>
+              <p className="action-description">Create psychiatric progress documentation</p>
+            </div>
+          </div>
+          
+          <div className="action-card">
+            <div className="action-icon">🎯</div>
+            <div className="action-content">
+              <h3 className="action-title">Treatment Planning</h3>
+              <p className="action-description">Develop comprehensive care strategies</p>
+            </div>
+          </div>
+          
+          <div className="action-card">
+            <div className="action-icon">🧠</div>
+            <div className="action-content">
+              <h3 className="action-title">Mental Status Exam</h3>
+              <p className="action-description">Conduct structured mental status assessments</p>
+            </div>
+          </div>
+          
+          <div className="action-card">
+            <div className="action-icon">📊</div>
+            <div className="action-content">
+              <h3 className="action-title">Clinical Reports</h3>
+              <p className="action-description">Generate outcome and quality reports</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Recent Activity */}
+      <section className="section">
+        <div className="section-header">
+          <h2 className="section-title">Recent Activity</h2>
+          <div className="section-border"></div>
+        </div>
+        
+        <div className="activity-list">
+          <div className="activity-item">
+            <div className="activity-icon">📝</div>
+            <div className="activity-content">
+              <p><strong>Progress Note</strong> completed for Sarah Johnson</p>
+              <span className="activity-time">10 minutes ago</span>
+            </div>
+          </div>
+          <div className="activity-item">
+            <div className="activity-icon">🤖</div>
+            <div className="activity-content">
+              <p><strong>AI Enhancement</strong> applied to treatment plan</p>
+              <span className="activity-time">25 minutes ago</span>
+            </div>
+          </div>
+          <div className="activity-item">
+            <div className="activity-icon">🎯</div>
+            <div className="activity-content">
+              <p><strong>Treatment Plan</strong> updated for Michael Brown</p>
+              <span className="activity-time">1 hour ago</span>
+            </div>
+          </div>
+          <div className="activity-item">
+            <div className="activity-icon">👥</div>
+            <div className="activity-content">
+              <p><strong>Patient Census</strong> reviewed and updated</p>
+              <span className="activity-time">2 hours ago</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   );
 
