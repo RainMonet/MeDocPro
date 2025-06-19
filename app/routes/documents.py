@@ -107,6 +107,11 @@ def check_ai_status():
             'error': str(e)
         }), 500
 
+@documents_bp.route('/api/ai/status', methods=['GET'])
+def ai_status_alias():
+    """Alias for AI status to match frontend expectations"""
+    return check_ai_status()
+
 @documents_bp.route('/api/documents/generate', methods=['POST'])
 def generate_ai_documents():
     """Generate AI-enhanced documents for patients using templates"""
@@ -336,3 +341,4 @@ def test():
             "/api/documents/enhance-text"
         ]
     }
+
