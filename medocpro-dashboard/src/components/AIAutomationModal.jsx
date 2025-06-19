@@ -1,8 +1,4 @@
-// AI Automation Modal Component for MeDocPro
-// This component connects to the Flask backend AI endpoints
-
 import React, { useState, useEffect } from 'react';
-import './AIAutomationModal.css';
 
 const AIAutomationModal = ({ isOpen, onClose, onGenerate }) => {
   const [patients, setPatients] = useState([]);
@@ -16,15 +12,14 @@ const AIAutomationModal = ({ isOpen, onClose, onGenerate }) => {
   });
   const [aiStatus, setAiStatus] = useState({ 
     status: 'checking', 
-    service: 'ollama',
-    model: 'llama2',
-    available: false 
+    available: false,
+    loading: true
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [results, setResults] = useState(null);
 
-  // Fetch initial data when modal opens
+  // Fetch data when modal opens
   useEffect(() => {
     if (isOpen) {
       resetModal();
@@ -52,7 +47,7 @@ const AIAutomationModal = ({ isOpen, onClose, onGenerate }) => {
         setError('Failed to load patients: ' + (data.error || 'Unknown error'));
       }
     } catch (err) {
-      setError('Failed to connect to server. Is the Flask backend running on localhost:5000?');
+      setError('Failed to connect to backend. Is Flask running on localhost:5000?');
       console.error('Fetch patients error:', err);
     }
   };
@@ -67,34 +62,47 @@ const AIAutomationModal = ({ isOpen, onClose, onGenerate }) => {
         setError('Failed to load templates: ' + (data.error || 'Unknown error'));
       }
     } catch (err) {
-      setError('Failed to connect to server. Is the Flask backend running on localhost:5000?');
+      setError('Failed to connect to backend. Is Flask running on localhost:5000?');
       console.error('Fetch templates error:', err);
     }
   };
 
   const checkAIStatus = async () => {
     try {
-      const response = await fetch('/api/documents/ai-status');
+      setAiStatus(prev => ({ ...prev, loading: true }));
+      const response = await fetch('/api/ai/status');
       const data = await response.json();
-      setAiStatus(data);
+      
+      setAiStatus({
+        status: data.status,
+        available: data.available,
+        loading: false,
+        service: data.service,
+        url: data.url,
+        configured_model: data.configured_model,
+        models: data.models || [],
+        model_exists: data.model_exists,
+        recommendations: data.recommendations || [],
+        test_generation: data.test_generation
+      });
+      
     } catch (err) {
-      setAiStatus({ 
-        status: 'error', 
+      setAiStatus({
+        status: 'error',
         available: false,
-        error: 'Cannot connect to AI service' 
+        loading: false,
+        error: 'Failed to check AI service status'
       });
       console.error('AI status check error:', err);
     }
   };
 
-  const handlePatientSelect = (patientId) => {
-    setSelectedPatients(prev => {
-      if (prev.includes(patientId)) {
-        return prev.filter(id => id !== patientId);
-      } else {
-        return [...prev, patientId];
-      }
-    });
+  const handlePatientToggle = (patientId) => {
+    setSelectedPatients(prev => 
+      prev.includes(patientId) 
+        ? prev.filter(id => id !== patientId)
+        : [...prev, patientId]
+    );
   };
 
   const handleGenerate = async () => {
@@ -105,7 +113,6 @@ const AIAutomationModal = ({ isOpen, onClose, onGenerate }) => {
 
     setLoading(true);
     setError('');
-    setResults(null);
 
     try {
       const response = await fetch('/api/documents/generate', {
@@ -115,13 +122,13 @@ const AIAutomationModal = ({ isOpen, onClose, onGenerate }) => {
         },
         body: JSON.stringify({
           patient_ids: selectedPatients,
-          template_id: parseInt(selectedTemplate),
+          template_id: selectedTemplate,
           ai_settings: aiSettings
-        })
+        }),
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         setResults(data);
         if (onGenerate) {
@@ -131,229 +138,214 @@ const AIAutomationModal = ({ isOpen, onClose, onGenerate }) => {
         setError('Generation failed: ' + (data.error || 'Unknown error'));
       }
     } catch (err) {
-      setError('Failed to generate documents. Please check your connection.');
-      console.error('Generate documents error:', err);
+      setError('Failed to generate documents: ' + err.message);
+      console.error('Generation error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const getSelectedTemplate = () => {
-    return templates.find(t => t.id === parseInt(selectedTemplate));
-  };
+  const getStatusIndicator = () => {
+    if (aiStatus.loading) {
+      return (
+        <div className="status-indicator checking">
+          <div className="status-dot animate-pulse"></div>
+          <span>Checking AI service...</span>
+        </div>
+      );
+    }
 
-  const handleClose = () => {
-    if (loading) return; // Prevent closing during generation
-    onClose();
+    if (aiStatus.available && aiStatus.model_exists) {
+      return (
+        <div className="status-indicator connected">
+          <div className="status-dot bg-green-500"></div>
+          <span>AI Ready ({aiStatus.configured_model})</span>
+        </div>
+      );
+    }
+
+    if (aiStatus.available && !aiStatus.model_exists) {
+      return (
+        <div className="status-indicator warning">
+          <div className="status-dot bg-yellow-500"></div>
+          <span>Model not found ({aiStatus.configured_model})</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="status-indicator disconnected">
+        <div className="status-dot bg-red-500"></div>
+        <span>AI service unavailable</span>
+      </div>
+    );
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="ai-modal-overlay" onClick={(e) => e.target.classList.contains('ai-modal-overlay') && handleClose()}>
-      <div className="ai-modal">
-        <div className="ai-modal-header">
-          <h2>AI-Powered Document Generation</h2>
-          <button 
-            className="ai-modal-close" 
-            onClick={handleClose}
-            disabled={loading}
-          >
-            ×
-          </button>
+    <div className="modal-overlay">
+      <div className="modal-content">
+        {/* Header */}
+        <div className="modal-header">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2>AI-Assisted Documentation</h2>
+            <button 
+              onClick={onClose}
+              className="close-button"
+            >
+              ×
+            </button>
+          </div>
+          
+          {/* AI Status */}
+          <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {getStatusIndicator()}
+            <button 
+              onClick={checkAIStatus}
+              className="refresh-status-button"
+            >
+              Refresh Status
+            </button>
+          </div>
+          
+          {/* AI Recommendations */}
+          {aiStatus.recommendations && aiStatus.recommendations.length > 0 && (
+            <div className="recommendations-panel">
+              <h4>Recommendations:</h4>
+              <ul className="recommendations-list">
+                {aiStatus.recommendations.map((rec, index) => (
+                  <li key={index}>{rec}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
-        <div className="ai-modal-content">
+        <div className="modal-body">
           {error && (
-            <div className="ai-error-message">
-              <strong>Error:</strong> {error}
+            <div className="error-message">
+              {error}
             </div>
           )}
 
-          {/* AI Status Section */}
-          <div className="ai-status-section">
-            <div className="ai-status-indicator">
-              <div className={`ai-status-dot ${aiStatus.status}`}></div>
-              <strong>AI Service Status:</strong> 
-              <span className={`ai-status-text ${aiStatus.status}`}>
-                {aiStatus.status === 'available' && 'Connected - Ready for AI enhancement'}
-                {aiStatus.status === 'unavailable' && 'Ollama service not available'}
-                {aiStatus.status === 'checking' && 'Checking AI service...'}
-                {aiStatus.status === 'error' && `Error: ${aiStatus.error || 'Service unavailable'}`}
-              </span>
-            </div>
-            {aiStatus.available && (
-              <div className="ai-service-info">
-                <small>Service: {aiStatus.service} | Model: {aiStatus.model}</small>
-              </div>
-            )}
-          </div>
-
           {/* Patient Selection */}
-          <div className="ai-section">
-            <h3>Select Patients ({selectedPatients.length} selected)</h3>
-            <div className="ai-patient-grid">
+          <div className="section">
+            <h3 className="section-title">Select Patients</h3>
+            <div className="patient-grid">
               {patients.map(patient => (
-                <div 
-                  key={patient.patient_id} 
-                  className={`ai-patient-card ${selectedPatients.includes(patient.patient_id) ? 'selected' : ''}`}
-                  onClick={() => handlePatientSelect(patient.patient_id)}
-                >
-                  <div className="ai-patient-info">
-                    <strong>{patient.full_name}</strong>
-                    <div className="ai-patient-details">
-                      <span>ID: {patient.patient_id}</span>
-                      <span>Age: {patient.age}</span>
-                      <span>{patient.gender}</span>
-                    </div>
-                    <div className="ai-patient-diagnosis">
-                      {patient.primary_diagnosis || 'No diagnosis recorded'}
-                    </div>
+                <label key={patient.patient_id} className="patient-card">
+                  <input
+                    type="checkbox"
+                    checked={selectedPatients.includes(patient.patient_id)}
+                    onChange={() => handlePatientToggle(patient.patient_id)}
+                  />
+                  <div className={`patient-card-content ${
+                    selectedPatients.includes(patient.patient_id) ? 'selected' : ''
+                  }`}>
+                    <div className="patient-name">{patient.name}</div>
+                    <div className="patient-diagnosis">{patient.diagnosis}</div>
+                    <div className="patient-age">Age: {patient.age}</div>
                   </div>
-                  <div className="ai-selection-indicator">
-                    {selectedPatients.includes(patient.patient_id) ? '✓' : ''}
-                  </div>
-                </div>
+                </label>
               ))}
             </div>
-            {patients.length === 0 && (
-              <div className="ai-empty-state">
-                No patients available. Make sure your Flask backend is running with sample data.
-              </div>
-            )}
           </div>
 
           {/* Template Selection */}
-          <div className="ai-section">
-            <h3>Select Template</h3>
-            <select 
-              value={selectedTemplate} 
+          <div className="section">
+            <h3 className="section-title">Choose Template</h3>
+            <select
+              value={selectedTemplate}
               onChange={(e) => setSelectedTemplate(e.target.value)}
-              className="ai-select"
-              disabled={loading}
+              className="template-select"
             >
-              <option value="">Choose a template...</option>
+              <option value="">Select a documentation template...</option>
               {templates.map(template => (
                 <option key={template.id} value={template.id}>
-                  {template.name}
+                  {template.name} - {template.description}
                 </option>
               ))}
             </select>
-            {getSelectedTemplate() && (
-              <div className="ai-template-preview">
-                <strong>Template Preview:</strong>
-                <div className="ai-template-content">
-                  {getSelectedTemplate().content.substring(0, 200)}...
-                </div>
-              </div>
-            )}
           </div>
 
           {/* AI Settings */}
-          <div className="ai-section">
-            <h3>AI Enhancement Settings</h3>
-            <div className="ai-settings-grid">
-              <label className="ai-checkbox-label">
-                <input 
-                  type="checkbox" 
+          <div className="section">
+            <h3 className="section-title">AI Enhancement Settings</h3>
+            <div className="ai-settings">
+              <label className="setting-item">
+                <input
+                  type="checkbox"
                   checked={aiSettings.enable_ai}
-                  onChange={(e) => setAiSettings(prev => ({...prev, enable_ai: e.target.checked}))}
-                  disabled={!aiStatus.available || loading}
+                  onChange={(e) => setAiSettings(prev => ({ ...prev, enable_ai: e.target.checked }))}
+                  disabled={!aiStatus.available}
                 />
-                Enable AI Enhancement
-                {!aiStatus.available && <span className="ai-disabled-note">(Ollama not available)</span>}
+                <span style={{ color: aiStatus.available ? '#374151' : '#9ca3af' }}>
+                  Enable AI Enhancement {!aiStatus.available && '(AI service unavailable)'}
+                </span>
               </label>
 
               {aiSettings.enable_ai && aiStatus.available && (
                 <>
-                  <div className="ai-setting-item">
-                    <label>Enhancement Level: {aiSettings.enhancement_percentage}%</label>
-                    <input 
-                      type="range" 
-                      min="20" 
-                      max="90" 
+                  <div className="setting-item">
+                    <label className="setting-label">
+                      Enhancement Level: {aiSettings.enhancement_percentage}%
+                    </label>
+                    <input
+                      type="range"
+                      min="20"
+                      max="90"
                       value={aiSettings.enhancement_percentage}
-                      onChange={(e) => setAiSettings(prev => ({...prev, enhancement_percentage: parseInt(e.target.value)}))}
-                      className="ai-slider"
-                      disabled={loading}
+                      onChange={(e) => setAiSettings(prev => ({ ...prev, enhancement_percentage: parseInt(e.target.value) }))}
+                      style={{ width: '100%' }}
                     />
-                    <div className="ai-setting-help">
-                      Lower values preserve original text more, higher values add more AI content
+                    <div className="range-labels">
+                      <span>Conservative</span>
+                      <span>Moderate</span>
+                      <span>Comprehensive</span>
                     </div>
                   </div>
 
-                  <div className="ai-setting-item">
-                    <label>Clinical Tone:</label>
-                    <select 
+                  <div className="setting-item">
+                    <label className="setting-label">Writing Tone</label>
+                    <select
                       value={aiSettings.tone}
-                      onChange={(e) => setAiSettings(prev => ({...prev, tone: e.target.value}))}
-                      className="ai-select"
-                      disabled={loading}
+                      onChange={(e) => setAiSettings(prev => ({ ...prev, tone: e.target.value }))}
+                      className="setting-select"
                     >
-                      <option value="formal">Formal Medical</option>
-                      <option value="clinical">Clinical Professional</option>
-                      <option value="comprehensive">Comprehensive Detail</option>
+                      <option value="formal">Formal Clinical</option>
+                      <option value="detailed">Detailed Clinical</option>
+                      <option value="concise">Concise Professional</option>
+                      <option value="empathetic">Empathetic Professional</option>
                     </select>
                   </div>
                 </>
               )}
             </div>
           </div>
-
-          {/* Results Section */}
-          {results && (
-            <div className="ai-section ai-results-section">
-              <h3>Generation Results</h3>
-              <div className="ai-results-summary">
-                <p><strong>Template:</strong> {results.template_used}</p>
-                <p><strong>Patients Processed:</strong> {results.patients_processed}</p>
-                <p><strong>AI Enhanced:</strong> {results.ai_enhanced ? 'Yes' : 'No'}</p>
-              </div>
-              <div className="ai-results-list">
-                {results.results.map((result, index) => (
-                  <div key={index} className="ai-result-item">
-                    <h4>{result.patient_name} ({result.patient_id})</h4>
-                    {result.error ? (
-                      <div className="ai-error-result">Error: {result.error}</div>
-                    ) : (
-                      <div className="ai-success-result">
-                        <p>✓ Document generated successfully</p>
-                        {result.ai_enhanced && <p>✓ AI enhancement applied</p>}
-                        <button 
-                          className="ai-btn ai-btn-small"
-                          onClick={() => {
-                            // Here you could open a preview modal or download the document
-                            console.log('Document content:', result);
-                          }}
-                        >
-                          View Document
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
-        <div className="ai-modal-footer">
-          <button 
-            className="ai-btn ai-btn-secondary" 
-            onClick={handleClose}
-            disabled={loading}
-          >
-            {results ? 'Done' : 'Cancel'}
-          </button>
-          {!results && (
-            <button 
-              className="ai-btn ai-btn-primary" 
+        {/* Footer */}
+        <div className="modal-footer">
+          <div className="footer-info">
+            {selectedPatients.length} patient(s) selected
+            {selectedTemplate && ', template selected'}
+          </div>
+          <div className="footer-buttons">
+            <button
+              onClick={onClose}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+            <button
               onClick={handleGenerate}
               disabled={loading || selectedPatients.length === 0 || !selectedTemplate}
+              className="btn-primary"
             >
-              {loading ? 'Generating Documents...' : `Generate for ${selectedPatients.length} Patient${selectedPatients.length !== 1 ? 's' : ''}`}
+              {loading ? 'Generating...' : 'Generate Documentation'}
             </button>
-          )}
+          </div>
         </div>
       </div>
     </div>
