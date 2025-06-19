@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import PatientCensusModal from './components/PatientCensusModal';
 import AIAutomationModal from './components/AIAutomationModal';
-import './components/AIAutomationModal.css';
 import './App.css';
 
 const App = () => {
@@ -319,7 +318,7 @@ const App = () => {
   	onClose={() => setIsAIAutomationModalOpen(false)}
   	onGenerate={(results) => {
     	  console.log('Generated documents:', results);
-    	  setIsAIAutomationModalOpen(false);
+    	  // REMOVED: setIsAIAutomationModalOpen(false);
   	}}
       />
     </div>

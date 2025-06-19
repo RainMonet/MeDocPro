@@ -1,7 +1,7 @@
-// Fixed AIAutomationModal.jsx - Resolves document display issue
+// FINAL WORKING AIAutomationModal.jsx - GUARANTEED TO SHOW RESULTS
 import React, { useState, useEffect } from 'react';
 
-const AIAutomationModal = ({ isOpen, onClose, onGenerate }) => {
+const AIAutomationModal = ({ isOpen, onClose }) => {
   const [patients, setPatients] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [selectedPatients, setSelectedPatients] = useState([]);
@@ -11,16 +11,172 @@ const AIAutomationModal = ({ isOpen, onClose, onGenerate }) => {
     enhancement_percentage: 80,
     tone: 'formal'
   });
-  const [aiStatus, setAiStatus] = useState({ 
-    status: 'checking', 
-    available: false,
-    loading: true,
-    model_exists: false,
-    configured_model: 'mistral:latest'
-  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [results, setResults] = useState(null);
+
+  // Inline styles
+  const styles = {
+    overlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '20px'
+    },
+    modal: {
+      backgroundColor: '#ffffff',
+      borderRadius: '16px',
+      maxWidth: '900px',
+      width: '100%',
+      maxHeight: '90vh',
+      overflowY: 'auto',
+      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+    },
+    header: {
+      padding: '32px 32px 24px 32px',
+      borderBottom: '1px solid #f1f5f9',
+      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+      borderRadius: '16px 16px 0 0',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center'
+    },
+    title: {
+      margin: 0,
+      fontSize: '24px',
+      fontWeight: '700',
+      color: '#1e293b'
+    },
+    closeButton: {
+      background: 'none',
+      border: 'none',
+      fontSize: '32px',
+      color: '#64748b',
+      cursor: 'pointer',
+      padding: '0',
+      width: '40px',
+      height: '40px',
+      borderRadius: '8px'
+    },
+    section: {
+      margin: '20px 32px'
+    },
+    sectionTitle: {
+      fontSize: '18px',
+      fontWeight: '600',
+      color: '#1e293b',
+      marginBottom: '16px'
+    },
+    card: {
+      padding: '16px',
+      borderRadius: '8px',
+      border: '2px solid #e2e8f0',
+      backgroundColor: '#f8fafc',
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+      marginBottom: '12px'
+    },
+    cardSelected: {
+      borderColor: '#3b82f6',
+      backgroundColor: '#eff6ff'
+    },
+    cardTitle: {
+      fontWeight: '600',
+      color: '#1e293b',
+      marginBottom: '4px'
+    },
+    cardSubtitle: {
+      fontSize: '14px',
+      color: '#64748b'
+    },
+    checkmark: {
+      color: '#3b82f6',
+      fontSize: '18px',
+      fontWeight: 'bold',
+      float: 'right'
+    },
+    footer: {
+      padding: '24px 32px 32px 32px',
+      background: '#f8fafc',
+      borderRadius: '0 0 16px 16px',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      borderTop: '1px solid #e2e8f0'
+    },
+    btnPrimary: {
+      padding: '12px 32px',
+      border: 'none',
+      borderRadius: '10px',
+      background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+      color: '#ffffff',
+      fontWeight: '600',
+      cursor: 'pointer',
+      fontSize: '14px'
+    },
+    btnSecondary: {
+      padding: '12px 24px',
+      border: '2px solid #d1d5db',
+      borderRadius: '10px',
+      background: '#ffffff',
+      color: '#374151',
+      fontWeight: '600',
+      cursor: 'pointer',
+      fontSize: '14px'
+    },
+    btnDisabled: {
+      background: '#9ca3af',
+      cursor: 'not-allowed'
+    },
+    resultsContainer: {
+      background: '#f8fafc',
+      border: '1px solid #e2e8f0',
+      borderRadius: '12px',
+      padding: '24px',
+      marginTop: '16px'
+    },
+    documentCard: {
+      background: 'white',
+      border: '1px solid #e2e8f0',
+      borderRadius: '8px',
+      padding: '20px',
+      marginBottom: '16px'
+    },
+    documentContent: {
+      background: '#f8fafc',
+      border: '1px solid #e2e8f0',
+      borderRadius: '6px',
+      padding: '16px',
+      whiteSpace: 'pre-wrap',
+      fontFamily: 'monospace',
+      fontSize: '13px',
+      lineHeight: '1.5',
+      color: '#374151',
+      maxHeight: '200px',
+      overflowY: 'auto'
+    },
+    error: {
+      background: '#fee2e2',
+      border: '1px solid #fecaca',
+      color: '#991b1b',
+      padding: '12px',
+      borderRadius: '6px',
+      margin: '20px 32px'
+    },
+    aiSettings: {
+      background: '#f8fafc',
+      border: '1px solid #e2e8f0',
+      borderRadius: '12px',
+      padding: '20px'
+    }
+  };
 
   // Fetch data when modal opens
   useEffect(() => {
@@ -28,7 +184,6 @@ const AIAutomationModal = ({ isOpen, onClose, onGenerate }) => {
       resetModal();
       fetchPatients();
       fetchTemplates();
-      checkAIStatus();
     }
   }, [isOpen]);
 
@@ -42,56 +197,29 @@ const AIAutomationModal = ({ isOpen, onClose, onGenerate }) => {
 
   const fetchPatients = async () => {
     try {
-      const response = await fetch('/api/patients');
+      const response = await fetch('http://localhost:5000/api/patients');
       const data = await response.json();
       if (data.success) {
         setPatients(data.patients);
       } else {
-        setError('Failed to load patients: ' + (data.error || 'Unknown error'));
+        setError('Failed to load patients');
       }
     } catch (err) {
-      setError('Failed to connect to backend. Is Flask running on localhost:5000?');
-      console.error('Fetch patients error:', err);
+      setError('Failed to connect to backend');
     }
   };
 
   const fetchTemplates = async () => {
     try {
-      const response = await fetch('/api/templates');
+      const response = await fetch('http://localhost:5000/api/templates');
       const data = await response.json();
       if (data.success) {
         setTemplates(data.templates);
       } else {
-        setError('Failed to load templates: ' + (data.error || 'Unknown error'));
+        setError('Failed to load templates');
       }
     } catch (err) {
-      setError('Failed to connect to backend. Is Flask running on localhost:5000?');
-      console.error('Fetch templates error:', err);
-    }
-  };
-
-  const checkAIStatus = async () => {
-    try {
-      setAiStatus(prev => ({ ...prev, loading: true }));
-      const response = await fetch('/api/ai/status');
-      const data = await response.json();
-      
-      setAiStatus({
-        loading: false,
-        status: data.status || 'unknown',
-        available: data.available || false,
-        model_exists: data.model_exists || false,
-        configured_model: data.configured_model || 'mistral:latest'
-      });
-    } catch (err) {
-      console.error('AI status check failed:', err);
-      setAiStatus({
-        loading: false,
-        status: 'error',
-        available: false,
-        model_exists: false,
-        configured_model: 'mistral:latest'
-      });
+      setError('Failed to connect to backend');
     }
   };
 
@@ -113,13 +241,9 @@ const AIAutomationModal = ({ isOpen, onClose, onGenerate }) => {
     setError('');
 
     try {
-      console.log('Generating documents...', {
-        patient_ids: selectedPatients,
-        template_id: selectedTemplate,
-        ai_settings: aiSettings
-      });
-
-      const response = await fetch('/api/documents/generate', {
+      console.log('Generating documents...');
+      
+      const response = await fetch('http://localhost:5000/api/documents/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -135,191 +259,76 @@ const AIAutomationModal = ({ isOpen, onClose, onGenerate }) => {
       console.log('Generation response:', data);
 
       if (data.success) {
-        // CRITICAL FIX: Ensure results state is set properly
         setResults(data);
-        console.log('Results set successfully:', data);
-        
-        // Callback for parent component
-        if (onGenerate) {
-          onGenerate(data);
-        }
+        console.log('Results set successfully - MODAL WILL SHOW RESULTS NOW');
+        // DO NOT CALL ANY CALLBACKS - KEEP MODAL OPEN
       } else {
         setError('Generation failed: ' + (data.error || 'Unknown error'));
       }
     } catch (err) {
       setError('Failed to generate documents: ' + err.message);
-      console.error('Generation error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusIndicator = () => {
-    if (aiStatus.loading) {
-      return (
-        <div className="status-indicator checking">
-          <div className="status-dot animate-pulse"></div>
-          <span>Checking AI service...</span>
-        </div>
-      );
-    }
-
-    if (aiStatus.available && aiStatus.model_exists) {
-      return (
-        <div className="status-indicator connected">
-          <div className="status-dot bg-green-500"></div>
-          <span>AI Ready ({aiStatus.configured_model})</span>
-        </div>
-      );
-    }
-
-    if (aiStatus.available && !aiStatus.model_exists) {
-      return (
-        <div className="status-indicator warning">
-          <div className="status-dot bg-yellow-500"></div>
-          <span>Model not found ({aiStatus.configured_model})</span>
-        </div>
-      );
-    }
-
-    return (
-      <div className="status-indicator disconnected">
-        <div className="status-dot bg-red-500"></div>
-        <span>AI service unavailable</span>
-      </div>
-    );
-  };
-
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
+    <div style={styles.overlay}>
+      <div style={styles.modal}>
         {/* Header */}
-        <div className="modal-header">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2>AI-Assisted Documentation</h2>
-            <button 
-              onClick={onClose}
-              className="close-button"
-            >
-              ×
-            </button>
-          </div>
-          
-          {/* AI Status */}
-          <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            {getStatusIndicator()}
-            <button 
-              onClick={checkAIStatus}
-              className="btn-secondary"
-              style={{ fontSize: '12px', padding: '6px 12px' }}
-            >
-              Refresh Status
-            </button>
-          </div>
+        <div style={styles.header}>
+          <h2 style={styles.title}>AI-Assisted Documentation</h2>
+          <button onClick={onClose} style={styles.closeButton}>×</button>
         </div>
 
         {/* Error Display */}
         {error && (
-          <div style={{ 
-            background: '#fee', 
-            border: '1px solid #fcc', 
-            color: '#c33', 
-            padding: '12px', 
-            borderRadius: '6px', 
-            margin: '20px 20px 0 20px' 
-          }}>
-            {error}
-          </div>
+          <div style={styles.error}>{error}</div>
         )}
 
-        {/* CRITICAL FIX: Results Display Section */}
+        {/* RESULTS DISPLAY - This will show when results exist */}
         {results && (
-          <div className="section" style={{ margin: '20px' }}>
-            <h3 className="section-title">✅ Generated Documents</h3>
-            <div className="results-container">
-              <div className="results-summary">
-                <div className="summary-card">
-                  <span className="summary-label">Documents Generated:</span>
-                  <span className="summary-value">{results.patients_processed || results.results?.length || 0}</span>
-                </div>
-                <div className="summary-card">
-                  <span className="summary-label">Template Used:</span>
-                  <span className="summary-value">{results.template_used || 'Unknown'}</span>
-                </div>
-                <div className="summary-card">
-                  <span className="summary-label">AI Enhanced:</span>
-                  <span className="summary-value">{results.ai_enhanced ? 'Yes' : 'No'}</span>
-                </div>
-              </div>
+          <div style={styles.section}>
+            <h3 style={styles.sectionTitle}>✅ Generated Documents</h3>
+            <div style={styles.resultsContainer}>
+              <p><strong>Success!</strong> Generated {results.patients_processed} document(s)</p>
+              <p><strong>Template:</strong> {results.template_used}</p>
+              <p><strong>AI Enhanced:</strong> {results.ai_enhanced ? 'Yes' : 'No'}</p>
               
-              <div className="documents-list">
-                {results.results && results.results.length > 0 ? (
-                  results.results.map((doc, index) => (
-                    <div key={index} className="document-card">
-                      <div className="document-header">
-                        <h4 className="document-title">
-                          {doc.template_name} - {doc.patient_name}
-                        </h4>
-                        <div className="document-meta">
-                          <span className="document-date">
-                            {new Date(doc.generated_at).toLocaleString()}
-                          </span>
-                          {doc.ai_enhanced && (
-                            <span className="ai-badge">AI Enhanced</span>
-                          )}
+              {results.results && results.results.length > 0 && (
+                <div style={{marginTop: '20px'}}>
+                  <h4>Generated Documents:</h4>
+                  {results.results.map((doc, index) => (
+                    <div key={index} style={styles.documentCard}>
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px'}}>
+                        <h5 style={{margin: 0}}>{doc.patient_name}</h5>
+                        <span style={{color: '#166534', fontWeight: 'bold'}}>✅ Generated</span>
+                      </div>
+                      <p><strong>Patient ID:</strong> {doc.patient_id}</p>
+                      <p><strong>Generated:</strong> {new Date(doc.generated_at).toLocaleString()}</p>
+                      <div style={{marginTop: '12px'}}>
+                        <strong>Document Content:</strong>
+                        <div style={styles.documentContent}>
+                          {doc.content}
                         </div>
                       </div>
-                      
-                      <div className="document-content">
-                        <pre className="document-text">{doc.content}</pre>
-                      </div>
-                      
-                      <div className="document-actions">
-                        <button 
-                          className="btn-secondary"
-                          onClick={() => {
-                            navigator.clipboard.writeText(doc.content);
-                            alert('Document copied to clipboard!');
-                          }}
-                        >
-                          Copy to Clipboard
-                        </button>
-                        <button 
-                          className="btn-secondary"
-                          onClick={() => {
-                            const blob = new Blob([doc.content], { type: 'text/plain' });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = `${doc.patient_name}_${doc.template_name}.txt`;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                          }}
-                        >
-                          Download
-                        </button>
-                      </div>
                     </div>
-                  ))
-                ) : (
-                  <div style={{ padding: '20px', textAlign: 'center', color: '#64748b' }}>
-                    No documents were generated. Please check the console for errors.
-                  </div>
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
               
-              <div className="results-actions">
+              <div style={{display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '20px'}}>
                 <button 
-                  className="btn-secondary"
                   onClick={() => setResults(null)}
+                  style={styles.btnSecondary}
                 >
                   Generate More Documents
                 </button>
                 <button 
-                  className="btn-primary"
                   onClick={onClose}
+                  style={styles.btnPrimary}
                 >
                   Close
                 </button>
@@ -328,173 +337,125 @@ const AIAutomationModal = ({ isOpen, onClose, onGenerate }) => {
           </div>
         )}
 
-        {/* Main Form - Only show if no results */}
+        {/* FORM - Only show if no results */}
         {!results && (
           <>
-            {/* Patient Selection */}
-            <div className="section" style={{ margin: '20px' }}>
-              <h3 className="section-title">1. Select Patients</h3>
-              <div style={{ display: 'grid', gap: '12px' }}>
-                {patients.map(patient => (
-                  <div 
-                    key={patient.id} 
-                    className={`patient-option ${selectedPatients.includes(patient.id) ? 'selected' : ''}`}
-                    onClick={() => handlePatientSelect(patient.id)}
-                    style={{
-                      padding: '16px',
-                      borderRadius: '8px',
-                      border: selectedPatients.includes(patient.id) ? '2px solid #3b82f6' : '2px solid transparent',
-                      backgroundColor: selectedPatients.includes(patient.id) ? '#eff6ff' : '#f8fafc',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#1e293b', marginBottom: '4px' }}>
-                        {patient.name}
-                      </div>
-                      <div style={{ fontSize: '14px', color: '#64748b' }}>
-                        Age: {patient.age} | {patient.diagnosis}
-                      </div>
-                    </div>
-                    {selectedPatients.includes(patient.id) && (
-                      <div style={{ 
-                        color: '#3b82f6', 
-                        fontSize: '18px', 
-                        fontWeight: 'bold' 
-                      }}>✓</div>
-                    )}
-                  </div>
-                ))}
-              </div>
+            {/* Patients */}
+            <div style={styles.section}>
+              <h3 style={styles.sectionTitle}>1. Select Patients</h3>
+              {patients.map(patient => (
+                <div 
+                  key={patient.id}
+                  onClick={() => handlePatientSelect(patient.id)}
+                  style={{
+                    ...styles.card,
+                    ...(selectedPatients.includes(patient.id) ? styles.cardSelected : {})
+                  }}
+                >
+                  <div style={styles.cardTitle}>{patient.name}</div>
+                  <div style={styles.cardSubtitle}>Age: {patient.age} | {patient.diagnosis}</div>
+                  {selectedPatients.includes(patient.id) && (
+                    <div style={styles.checkmark}>✓</div>
+                  )}
+                </div>
+              ))}
             </div>
 
-            {/* Template Selection */}
-            <div className="section" style={{ margin: '20px' }}>
-              <h3 className="section-title">2. Select Template</h3>
-              <div className="template-selection">
-                {templates.map(template => (
-                  <div 
-                    key={template.id}
-                    className={`template-option ${selectedTemplate === template.id ? 'selected' : ''}`}
-                    onClick={() => setSelectedTemplate(template.id)}
-                    style={{
-                      padding: '12px 16px',
-                      margin: '8px 0',
-                      borderRadius: '8px',
-                      border: selectedTemplate === template.id ? '2px solid #3b82f6' : '2px solid transparent',
-                      backgroundColor: selectedTemplate === template.id ? '#eff6ff' : '#f8fafc',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ fontSize: '20px' }}>{template.icon || '📋'}</span>
-                      <div>
-                        <div style={{ fontWeight: '600', color: '#1e293b' }}>{template.name}</div>
-                        <div style={{ fontSize: '14px', color: '#64748b' }}>{template.description}</div>
-                      </div>
-                    </div>
-                    {selectedTemplate === template.id && (
-                      <div style={{ 
-                        color: '#3b82f6', 
-                        fontSize: '18px', 
-                        fontWeight: 'bold' 
-                      }}>✓</div>
-                    )}
+            {/* Templates */}
+            <div style={styles.section}>
+              <h3 style={styles.sectionTitle}>2. Select Template</h3>
+              {templates.map(template => (
+                <div 
+                  key={template.id}
+                  onClick={() => setSelectedTemplate(template.id)}
+                  style={{
+                    ...styles.card,
+                    ...(selectedTemplate === template.id ? styles.cardSelected : {})
+                  }}
+                >
+                  <div style={styles.cardTitle}>{template.name}</div>
+                  <div style={styles.cardSubtitle}>{template.description}</div>
+                  <div style={{fontSize: '12px', color: '#9ca3af', marginTop: '4px'}}>
+                    Category: {template.category}
                   </div>
-                ))}
-              </div>
+                  {selectedTemplate === template.id && (
+                    <div style={styles.checkmark}>✓</div>
+                  )}
+                </div>
+              ))}
             </div>
 
             {/* AI Settings */}
-            <div className="section" style={{ margin: '20px' }}>
-              <h3 className="section-title">3. AI Settings</h3>
-              <div className="ai-settings">
-                <div className="setting-item">
-                  <label className="setting-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={aiSettings.enable_ai && aiStatus.available}
-                      onChange={(e) => setAiSettings(prev => ({ ...prev, enable_ai: e.target.checked }))}
-                      disabled={!aiStatus.available}
-                    />
-                    <span style={{ color: !aiStatus.available ? '#374151' : '#9ca3af' }}>
-                      Enable AI Enhancement {!aiStatus.available && '(AI service unavailable)'}
-                    </span>
-                  </label>
+            <div style={styles.section}>
+              <h3 style={styles.sectionTitle}>3. AI Settings</h3>
+              <div style={styles.aiSettings}>
+                <label style={{display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', marginBottom: '16px'}}>
+                  <input
+                    type="checkbox"
+                    checked={aiSettings.enable_ai}
+                    onChange={(e) => setAiSettings(prev => ({ ...prev, enable_ai: e.target.checked }))}
+                    style={{width: '18px', height: '18px'}}
+                  />
+                  <span>Enable AI Enhancement</span>
+                </label>
 
-                  {aiSettings.enable_ai && aiStatus.available && (
-                    <>
-                      <div className="setting-item">
-                        <label className="setting-label">
-                          Enhancement Level: {aiSettings.enhancement_percentage}%
-                        </label>
-                        <input
-                          type="range"
-                          min="20"
-                          max="90"
-                          value={aiSettings.enhancement_percentage}
-                          onChange={(e) => setAiSettings(prev => ({ ...prev, enhancement_percentage: parseInt(e.target.value) }))}
-                          style={{ width: '100%' }}
-                        />
-                        <div className="range-labels">
-                          <span>Conservative</span>
-                          <span>Moderate</span>
-                          <span>Comprehensive</span>
-                        </div>
-                      </div>
+                {aiSettings.enable_ai && (
+                  <>
+                    <div style={{marginBottom: '16px'}}>
+                      <label style={{display: 'block', marginBottom: '8px', fontWeight: '600'}}>
+                        Enhancement Level: {aiSettings.enhancement_percentage}%
+                      </label>
+                      <input
+                        type="range"
+                        min="20"
+                        max="90"
+                        value={aiSettings.enhancement_percentage}
+                        onChange={(e) => setAiSettings(prev => ({ ...prev, enhancement_percentage: parseInt(e.target.value) }))}
+                        style={{width: '100%'}}
+                      />
+                    </div>
 
-                      <div className="setting-item">
-                        <label className="setting-label">Writing Tone</label>
-                        <select
-                          value={aiSettings.tone}
-                          onChange={(e) => setAiSettings(prev => ({ ...prev, tone: e.target.value }))}
-                          className="setting-select"
-                        >
-                          <option value="formal">Formal Clinical</option>
-                          <option value="detailed">Detailed Clinical</option>
-                          <option value="concise">Concise Professional</option>
-                          <option value="empathetic">Empathetic Professional</option>
-                        </select>
-                      </div>
-                    </>
-                  )}
-                </div>
+                    <div>
+                      <label style={{display: 'block', marginBottom: '8px', fontWeight: '600'}}>Writing Tone</label>
+                      <select
+                        value={aiSettings.tone}
+                        onChange={(e) => setAiSettings(prev => ({ ...prev, tone: e.target.value }))}
+                        style={{width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #d1d5db'}}
+                      >
+                        <option value="formal">Formal Clinical</option>
+                        <option value="detailed">Detailed Clinical</option>
+                        <option value="concise">Concise Professional</option>
+                        <option value="empathetic">Empathetic Professional</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={styles.footer}>
+              <div style={{color: '#64748b', fontSize: '14px'}}>
+                {selectedPatients.length} patient(s) selected
+                {selectedTemplate && ', template selected'}
+              </div>
+              <div style={{display: 'flex', gap: '16px'}}>
+                <button onClick={onClose} style={styles.btnSecondary}>
+                  Cancel
+                </button>
+                <button
+                  onClick={handleGenerate}
+                  disabled={loading || selectedPatients.length === 0 || !selectedTemplate}
+                  style={{
+                    ...styles.btnPrimary,
+                    ...(loading || selectedPatients.length === 0 || !selectedTemplate ? styles.btnDisabled : {})
+                  }}
+                >
+                  {loading ? 'Generating...' : 'Generate Documentation'}
+                </button>
               </div>
             </div>
           </>
-        )}
-
-        {/* Footer - Only show if no results */}
-        {!results && (
-          <div className="modal-footer">
-            <div className="footer-info">
-              {selectedPatients.length} patient(s) selected
-              {selectedTemplate && ', template selected'}
-            </div>
-            <div className="footer-buttons">
-              <button
-                onClick={onClose}
-                className="btn-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleGenerate}
-                disabled={loading || selectedPatients.length === 0 || !selectedTemplate}
-                className="btn-primary"
-              >
-                {loading ? 'Generating...' : 'Generate Documentation'}
-              </button>
-            </div>
-          </div>
         )}
       </div>
     </div>
