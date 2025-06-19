@@ -1,5 +1,5 @@
 # fixed_app.py - MeDocPro with Corrected AI Status Response
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import requests
 import logging
@@ -23,13 +23,13 @@ CORS(app, origins=[
 
 # Configuration
 app.config['OLLAMA_URL'] = os.getenv('OLLAMA_URL', 'http://localhost:11434')
-app.config['OLLAMA_MODEL'] = os.getenv('OLLAMA_MODEL', 'mistral')
+app.config['OLLAMA_MODEL'] = os.getenv('OLLAMA_MODEL', 'mistral:latest')  # Fixed: Use full model name
 
 # Mock patient data
 MOCK_PATIENTS = [
-    {'id': 1, 'name': 'John Smith', 'age': 40, 'diagnosis': 'GAD'},
-    {'id': 2, 'name': 'Jane Doe', 'age': 32, 'diagnosis': 'Depression'},
-    {'id': 3, 'name': 'Bob Wilson', 'age': 26, 'diagnosis': 'PTSD'}
+    {'id': 1, 'patient_id': 1, 'name': 'John Smith', 'age': 40, 'diagnosis': 'GAD'},
+    {'id': 2, 'patient_id': 2, 'name': 'Jane Doe', 'age': 32, 'diagnosis': 'Depression'},
+    {'id': 3, 'patient_id': 3, 'name': 'Bob Wilson', 'age': 26, 'diagnosis': 'PTSD'}
 ]
 
 # Mock templates
@@ -146,6 +146,178 @@ def ai_status():
             'error': str(e),
             'recommendations': ['Check backend logs for details']
         }), 500
+
+def generate_documents():
+    """Generate AI-enhanced documents for patients using templates"""
+    try:
+        data = request.get_json()
+        
+        # DEBUG: Log the incoming data
+        logger.info(f"Received generation request: {data}")
+        
+        # Validate request data
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No data provided'
+            }), 400
+        
+        patient_ids = data.get('patient_ids', [])
+        template_id = data.get('template_id')
+        ai_settings = data.get('ai_settings', {})
+        
+        # DEBUG: Log the extracted values
+        logger.info(f"Patient IDs: {patient_ids}, Template ID: {template_id}")
+        logger.info(f"Available patients: {MOCK_PATIENTS}")
+        
+        # Find the selected template
+        template = next((t for t in MOCK_TEMPLATES if t['id'] == int(template_id)), None)
+        if not template:
+            return jsonify({
+                'success': False,
+                'error': 'Template not found'
+            }), 404
+        
+        # Find selected patients
+        selected_patients = [p for p in MOCK_PATIENTS if p['id'] in patient_ids]
+        
+        # Generate documents for each patient
+        results = []
+        for patient in selected_patients:
+            # Create a mock document
+            document_content = f"""
+{template['name']}
+
+Patient: {patient['name']}
+Age: {patient['age']}
+Primary Diagnosis: {patient['diagnosis']}
+
+Generated on: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}
+
+This is a mock document generated for demonstration purposes.
+The actual template content would be populated here with patient-specific information.
+
+AI Enhancement: {'Enabled' if ai_settings.get('enable_ai', False) else 'Disabled'}
+"""
+            
+            # If AI enhancement is enabled, add a note about it
+            if ai_settings.get('enable_ai', False):
+                enhancement_level = ai_settings.get('enhancement_percentage', 80)
+                tone = ai_settings.get('tone', 'formal')
+                document_content += f"""
+AI Enhancement Settings:
+- Enhancement Level: {enhancement_level}%
+- Tone: {tone}
+- Note: AI would enhance the clinical language and structure in a real implementation
+"""
+            
+            results.append({
+                'patient_id': patient['id'],
+                'patient_name': patient['name'],
+                'template_id': template_id,
+                'template_name': template['name'],
+                'content': document_content,
+                'ai_enhanced': ai_settings.get('enable_ai', False),
+                'generated_at': datetime.utcnow().isoformat()
+            })
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'template_used': template['name'],
+            'patients_processed': len(selected_patients),
+            'ai_enhanced': ai_settings.get('enable_ai', False),
+            'message': f'Successfully generated {len(results)} documents'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating documents: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Document generation failed: {str(e)}'
+        }), 500
+
+@app.route('/api/documents/generate', methods=['POST'])
+def generate_documents():
+    """Generate AI-enhanced documents for patients using templates"""
+    try:
+        data = request.get_json()
+        
+        # DEBUG: Log incoming data
+        logger.info(f"Generation request: {data}")
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        patient_ids = data.get('patient_ids', [])
+        template_id = data.get('template_id')
+        ai_settings = data.get('ai_settings', {})
+        
+        # Convert IDs to integers (handle both string and int inputs)
+        try:
+            patient_ids = [int(pid) for pid in patient_ids]
+            template_id = int(template_id)
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'Invalid ID format'}), 400
+        
+        if not patient_ids:
+            return jsonify({'success': False, 'error': 'No patients selected'}), 400
+        
+        # Find template and patients
+        template = next((t for t in MOCK_TEMPLATES if t['id'] == template_id), None)
+        if not template:
+            return jsonify({'success': False, 'error': 'Template not found'}), 404
+        
+        selected_patients = [p for p in MOCK_PATIENTS if p['id'] in patient_ids]
+        logger.info(f"Found {len(selected_patients)} patients")
+        
+        # Generate documents
+        results = []
+        for patient in selected_patients:
+            document_content = f"""
+{template['name']}
+
+Patient: {patient['name']}
+Age: {patient['age']}
+Primary Diagnosis: {patient['diagnosis']}
+
+Generated on: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}
+
+This is a mock document generated for demonstration purposes.
+AI Enhancement: {'Enabled' if ai_settings.get('enable_ai', False) else 'Disabled'}
+"""
+            
+            if ai_settings.get('enable_ai', False):
+                enhancement_level = ai_settings.get('enhancement_percentage', 80)
+                tone = ai_settings.get('tone', 'formal')
+                document_content += f"""
+AI Enhancement Settings:
+- Enhancement Level: {enhancement_level}%
+- Tone: {tone}
+"""
+            
+            results.append({
+                'patient_id': patient['id'],
+                'patient_name': patient['name'],
+                'template_id': template_id,
+                'template_name': template['name'],
+                'content': document_content,
+                'ai_enhanced': ai_settings.get('enable_ai', False),
+                'generated_at': datetime.utcnow().isoformat()
+            })
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'template_used': template['name'],
+            'patients_processed': len(selected_patients),
+            'ai_enhanced': ai_settings.get('enable_ai', False),
+            'message': f'Successfully generated {len(results)} documents'
+        })
+        
+    except Exception as e:
+        logger.error(f"Generation error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     print("🚀 Starting MeDocPro Backend (Fixed Version)")

@@ -325,6 +325,93 @@ const AIAutomationModal = ({ isOpen, onClose, onGenerate }) => {
           </div>
         </div>
 
+{/* Results Display */}
+{results && (
+  <div className="section">
+    <h3 className="section-title">Generated Documents</h3>
+    <div className="results-container">
+      <div className="results-summary">
+        <div className="summary-card">
+          <span className="summary-label">Documents Generated:</span>
+          <span className="summary-value">{results.patients_processed}</span>
+        </div>
+        <div className="summary-card">
+          <span className="summary-label">Template Used:</span>
+          <span className="summary-value">{results.template_used}</span>
+        </div>
+        <div className="summary-card">
+          <span className="summary-label">AI Enhanced:</span>
+          <span className="summary-value">{results.ai_enhanced ? 'Yes' : 'No'}</span>
+        </div>
+      </div>
+      
+      <div className="documents-list">
+        {results.results && results.results.map((doc, index) => (
+          <div key={index} className="document-card">
+            <div className="document-header">
+              <h4 className="document-title">
+                {doc.template_name} - {doc.patient_name}
+              </h4>
+              <div className="document-meta">
+                <span className="document-date">
+                  {new Date(doc.generated_at).toLocaleString()}
+                </span>
+                {doc.ai_enhanced && (
+                  <span className="ai-badge">AI Enhanced</span>
+                )}
+              </div>
+            </div>
+            
+            <div className="document-content">
+              <pre className="document-text">{doc.content}</pre>
+            </div>
+            
+            <div className="document-actions">
+              <button 
+                className="btn-secondary"
+                onClick={() => {
+                  navigator.clipboard.writeText(doc.content);
+                  alert('Document copied to clipboard!');
+                }}
+              >
+                📋 Copy to Clipboard
+              </button>
+              <button 
+                className="btn-secondary"
+                onClick={() => {
+                  const blob = new Blob([doc.content], { type: 'text/plain' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${doc.patient_name}_${doc.template_name}.txt`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                💾 Download
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      <div className="results-actions">
+        <button 
+          className="btn-secondary"
+          onClick={() => setResults(null)}
+        >
+          Generate More Documents
+        </button>
+        <button 
+          className="btn-primary"
+          onClick={onClose}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
         {/* Footer */}
         <div className="modal-footer">
           <div className="footer-info">
