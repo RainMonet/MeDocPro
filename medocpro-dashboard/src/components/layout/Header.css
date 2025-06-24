@@ -1,0 +1,14 @@
+/* medocpro-dashboard/src/components/layout/Header.css */
+
+/* 
+ * Header-specific styles
+ * Main styling comes from App.css - this file is for component-specific overrides only
+ */
+
+/* Import any header-specific styles that might be needed for the component */
+/* The .header, .logo, .user-menu, etc. classes are already defined in App.css */
+
+/* Optional: Component-specific refinements can go here */
+.header {
+  /* All styling is handled by App.css - keeping this minimal to avoid conflicts */
+}

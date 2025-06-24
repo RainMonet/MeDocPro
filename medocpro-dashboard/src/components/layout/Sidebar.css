@@ -1,0 +1,53 @@
+/* medocpro-dashboard/src/components/layout/Sidebar.css */
+
+/* 
+ * Sidebar-specific styles
+ * Main styling comes from App.css - this file is for component-specific enhancements
+ */
+
+/* Enhanced hover effects and animations for the extracted component */
+.sidebar .nav-link {
+  transition: all 0.3s ease;
+}
+
+.sidebar .nav-link:hover {
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.2);
+}
+
+.sidebar.expanded .nav-link:hover {
+  background: linear-gradient(135deg, 
+    rgba(0, 102, 204, 0.1) 0%, 
+    rgba(0, 68, 153, 0.15) 100%);
+}
+
+/* Icon animation on hover */
+.sidebar .nav-icon {
+  transition: transform 0.2s ease;
+}
+
+.sidebar .nav-link:hover .nav-icon {
+  transform: scale(1.1);
+}
+
+/* Text fade-in animation for expanded state */
+.sidebar.expanded .nav-text {
+  animation: fadeInRight 0.3s ease-out;
+}
+
+@keyframes fadeInRight {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Mobile-specific enhancements */
+.sidebar.mobile {
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
