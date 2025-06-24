@@ -1,6 +1,7 @@
-// medocpro-dashboard/src/App.jsx - FIXED VERSION
+// medocpro-dashboard/src/App.jsx - Updated with StatCard Component
 import React, { useState, useEffect } from 'react';
 import PatientCensusModal from './components/PatientCensusModal';
+import StatCard from './components/ui/StatCard';
 import './App.css';
 
 const App = () => {
@@ -78,52 +79,50 @@ const App = () => {
             <div className="toggle-track">
               <div className="toggle-thumb">
                 <div className="toggle-icon">
-                  {theme === 'light' ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="5"/>
-                      <path d="m12 1 0 6m0 6 0 6M4.22 4.22l4.24 4.24m8.49 8.49 4.24 4.24M1 12l6 0m6 0 6 0M4.22 19.78l4.24-4.24m8.49-8.49 4.24-4.24"/>
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                    </svg>
-                  )}
+                  {theme === 'light' ? '☀' : '🌙'}
                 </div>
               </div>
             </div>
           </button>
-          <div className="user-info">
-            <div className="user-name">{user?.firstName || 'Dr.'} {user?.lastName || 'Smith'}</div>
-            <div className="user-role">{user?.role || 'Psychiatrist'}</div>
-          </div>
-          <div className="user-avatar">
-            {(user?.firstName?.[0] || 'D')}
+          <div className="user-profile">
+            <div className="user-avatar">
+              {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+            </div>
+            <div className="user-info">
+              <div className="user-name">{user.firstName} {user.lastName}</div>
+              <div className="user-role">{user.role}</div>
+            </div>
           </div>
         </div>
       </div>
     </header>
   );
 
-  // Sidebar Navigation Component - Modal-based navigation
-  const Sidebar = ({ onModalOpen, expanded, isMobile }) => {
-    const navItems = [
-      { id: 'templates', label: 'Templates', action: () => onModalOpen('templates') },
-      { id: 'documents', label: 'Documents', action: () => onModalOpen('documents') },
-      { id: 'patients', label: 'Patient Census', action: () => onModalOpen('patients') },
-      { id: 'ai-assistant', label: 'AI Assistant', action: () => onModalOpen('ai-assistant') },
-      { id: 'reports', label: 'Reports', action: () => onModalOpen('reports') },
-      { id: 'settings', label: 'Settings', action: () => onModalOpen('settings') },
-    ];
+  // Navigation Items
+  const navItems = [
+    { id: 'dashboard', icon: '🏠', label: 'Dashboard' },
+    { id: 'templates', icon: '📋', label: 'Templates' },
+    { id: 'patients', icon: '👥', label: 'Patient Census' },
+    { id: 'documentation', icon: '📄', label: 'Documentation' },
+    { id: 'reports', icon: '📊', label: 'Reports' },
+    { id: 'settings', icon: '⚙', label: 'Settings' }
+  ];
 
-    const handleItemClick = (item) => {
-      item.action();
-      
-      // On mobile, close sidebar after selection
-      if (isMobile && expanded) {
-        setSidebarExpanded(false);
-      }
-    };
+  const handleItemClick = (item) => {
+    if (item.id === 'patients') {
+      setIsPatientCensusModalOpen(true);
+    }
+    
+    // Close sidebar on mobile after selection
+    if (isMobile) {
+      setSidebarExpanded(false);
+    }
+  };
 
+  // Sidebar Component
+  const Sidebar = ({ expanded, isMobile, items, onItemClick }) => {
+    if (isMobile && !expanded) return null;
+    
     return (
       <nav className={`sidebar ${expanded ? 'expanded' : 'collapsed'}`}>
         {navItems.map(item => (
@@ -167,143 +166,120 @@ const App = () => {
     );
   };
 
-  // Dashboard Content Component
-  const DashboardContent = () => (
-    <div className="dashboard-grid">
-      {/* Statistics Grid */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: '#0066cc' }}>📋</div>
-          <div className="stat-number">24</div>
-          <div className="stat-label">Active Templates</div>
-          <div className="stat-change positive">+3 this week</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: '#20b2aa' }}>📄</div>
-          <div className="stat-number">156</div>
-          <div className="stat-label">Documents Created</div>
-          <div className="stat-change positive">+12 today</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: '#10b981' }}>🤖</div>
-          <div className="stat-number">89%</div>
-          <div className="stat-label">AI Efficiency</div>
-          <div className="stat-change positive">+5% this month</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ background: '#f59e0b' }}>👥</div>
-          <div className="stat-number">42</div>
-          <div className="stat-label">Patient Records</div>
-          <div className="stat-change positive">+8 today</div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2">
-        {/* System Status */}
-        <div className="system-status">
-          <h3>System Status</h3>
-          <p>Real-time monitoring of backend services</p>
-          
-          <div className="status-grid">
-            <div className="status-item">
-              <span className="status-label">Backend API</span>
-              <div className="status-badge connected">
-                <div className="status-dot"></div>
-                Connected
-              </div>
-            </div>
-            <div className="status-item">
-              <span className="status-label">Database</span>
-              <div className="status-badge connected">
-                <div className="status-dot"></div>
-                Connected
-              </div>
-            </div>
-            <div className="status-item">
-              <span className="status-label">AI Service</span>
-              <div className="status-badge available">
-                <div className="status-dot"></div>
-                Available
-              </div>
-            </div>
-          </div>
-          
-          <div className="last-checked">
-            Last checked: {new Date().toLocaleTimeString()}
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="quick-actions">
-          <h3>Quick Actions</h3>
-          <p>Common clinical documentation tasks</p>
-          
-          <div className="action-grid">
-            <button className="action-button">📝 New Progress Note</button>
-            <button className="action-button">🔍 Initial Assessment</button>
-            <button className="action-button">📋 Treatment Plan</button>
-            <button className="action-button">🧠 Mental Status Exam</button>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Documents */}
-      <div className="recent-section">
-        <div className="section-header">
-          <h2 className="section-title">Recent Documents</h2>
-        </div>
-        <div className="document-list">
-          <div className="document-item">
-            <div className="document-icon progress">📝</div>
-            <div className="document-info">
-              <div className="document-title">Progress Note - Anderson, S.</div>
-              <div className="document-meta">Today, 2:30 PM</div>
-            </div>
-            <div className="document-status status-draft">Draft</div>
-          </div>
-          <div className="document-item">
-            <div className="document-icon assessment">🔍</div>
-            <div className="document-info">
-              <div className="document-title">Initial Assessment - Johnson, M.</div>
-              <div className="document-meta">Today, 10:15 AM</div>
-            </div>
-            <div className="document-status status-complete">Complete</div>
-          </div>
-          <div className="document-item">
-            <div className="document-icon treatment">📋</div>
-            <div className="document-info">
-              <div className="document-title">Treatment Plan - Williams, E.</div>
-              <div className="document-meta">Yesterday, 3:45 PM</div>
-            </div>
-            <div className="document-status status-active">Active</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Placeholder Modal Component for future development
-  const ComingSoonModal = ({ isOpen, onClose, title }) => {
-    if (!isOpen) return null;
+  // Dashboard Content Component - Updated to use StatCard component
+  const DashboardContent = () => {
+    // Clinical statistics data
+    const clinicalStats = [
+      {
+        icon: { background: '#0066cc', symbol: '📋' },
+        value: '24',
+        label: 'Active Templates',
+        change: '+3 this week',
+        trend: 'positive'
+      },
+      {
+        icon: { background: '#20b2aa', symbol: '📄' },
+        value: '156',
+        label: 'Documents Created',
+        change: '+12 today',
+        trend: 'positive'
+      },
+      {
+        icon: { background: '#10b981', symbol: '🤖' },
+        value: '89%',
+        label: 'AI Efficiency',
+        change: '+5% this month',
+        trend: 'positive'
+      },
+      {
+        icon: { background: '#f59e0b', symbol: '👥' },
+        value: '42',
+        label: 'Patient Records',
+        change: '+8 today',
+        trend: 'positive'
+      }
+    ];
 
     return (
-      <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-container" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
-            <h2 className="modal-title">{title}</h2>
-            <button className="modal-close" onClick={onClose}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
+      <div className="dashboard-grid">
+        {/* Statistics Grid - Now using StatCard component */}
+        <div className="stats-grid">
+          {clinicalStats.map((stat, index) => (
+            <StatCard key={index} {...stat} />
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2">
+          {/* System Status */}
+          <div className="system-status">
+            <h3>System Status</h3>
+            <div className="status-grid">
+              <div className="status-item">
+                <span>Backend API</span>
+                <div className="status online">Online</div>
+              </div>
+              <div className="status-item">
+                <span>Database</span>
+                <div className="status online">Connected</div>
+              </div>
+              <div className="status-item">
+                <span>AI Service</span>
+                <div className="status warning">Available</div>
+              </div>
+            </div>
           </div>
-          <div className="modal-content">
-            <div className="coming-soon-content">
-              <div className="coming-soon-icon">🚧</div>
-              <h3>Coming Soon</h3>
-              <p>This feature is being developed and will be available in a future release.</p>
-              <p>The {title.toLowerCase()} module will include comprehensive functionality for managing your psychiatric documentation workflow.</p>
+
+          {/* Quick Actions */}
+          <div className="quick-actions">
+            <h3>Quick Actions</h3>
+            <div className="action-buttons">
+              <button 
+                className="action-btn primary"
+                onClick={() => setIsPatientCensusModalOpen(true)}
+              >
+                <span className="action-icon">👥</span>
+                View Patient Census
+              </button>
+              <button className="action-btn secondary">
+                <span className="action-icon">📋</span>
+                New Assessment
+              </button>
+              <button className="action-btn secondary">
+                <span className="action-icon">📄</span>
+                Progress Note
+              </button>
+              <button className="action-btn secondary">
+                <span className="action-icon">🤖</span>
+                AI Assistant
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="recent-activity">
+          <h3>Recent Activity</h3>
+          <div className="activity-list">
+            <div className="activity-item">
+              <div className="activity-icon">📋</div>
+              <div className="activity-content">
+                <div className="activity-title">Completed intake assessment for Patient #P2024-156</div>
+                <div className="activity-time">2 hours ago</div>
+              </div>
+            </div>
+            <div className="activity-item">
+              <div className="activity-icon">📄</div>
+              <div className="activity-content">
+                <div className="activity-title">Generated progress note with AI assistance</div>
+                <div className="activity-time">4 hours ago</div>
+              </div>
+            </div>
+            <div className="activity-item">
+              <div className="activity-icon">🤖</div>
+              <div className="activity-content">
+                <div className="activity-title">AI enhancement applied to treatment plan</div>
+                <div className="activity-time">Yesterday</div>
+              </div>
             </div>
           </div>
         </div>
@@ -311,103 +287,42 @@ const App = () => {
     );
   };
 
-  // Modal handler function - only Patient Census works for now
-  const handleModalOpen = (modalType) => {
-    if (modalType === 'patients') {
-      setIsPatientCensusModalOpen(true);
-    } else {
-      // For now, show coming soon modal for other features
-      switch (modalType) {
-        case 'templates':
-          setIsTemplatesModalOpen(true);
-          break;
-        case 'documents':
-          setIsDocumentsModalOpen(true);
-          break;
-        case 'ai-assistant':
-          setIsAIAssistantModalOpen(true);
-          break;
-        case 'reports':
-          setIsReportsModalOpen(true);
-          break;
-        case 'settings':
-          setIsSettingsModalOpen(true);
-          break;
-      }
-    }
-  };
-
-  // Temporary state for coming soon modals
-  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
-  const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
-  const [isAIAssistantModalOpen, setIsAIAssistantModalOpen] = useState(false);
-  const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-
   return (
-    <div className="app-container">
+    <div className="app">
       <Header user={user} theme={theme} onToggleTheme={toggleTheme} />
       
-      <div className="main-content">
-        <SidebarToggle 
+      <div className="app-body">
+        <SidebarToggle expanded={sidebarExpanded} onToggle={toggleSidebar} />
+        <SidebarOverlay 
           expanded={sidebarExpanded} 
-          onToggle={toggleSidebar}
+          isMobile={isMobile} 
+          onClose={() => setSidebarExpanded(false)} 
         />
         
         <Sidebar 
-          onModalOpen={handleModalOpen}
           expanded={sidebarExpanded}
           isMobile={isMobile}
+          items={navItems}
+          onItemClick={handleItemClick}
         />
         
-        <SidebarOverlay 
-          expanded={sidebarExpanded}
-          isMobile={isMobile}
-          onClose={() => setSidebarExpanded(false)}
-        />
-        
-        {/* Dashboard is always visible */}
-        <div className={`content-area ${sidebarExpanded ? '' : 'expanded'}`}>
+        <main className={`main-content ${sidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
+          <div className="page-header">
+            <h1>Clinical Dashboard</h1>
+            <p>Streamlined psychiatric documentation with AI assistance</p>
+          </div>
+          
           <DashboardContent />
-        </div>
+        </main>
       </div>
 
-      {/* Patient Census Modal - Fully Functional */}
-      <PatientCensusModal 
-        isOpen={isPatientCensusModalOpen}
-        onClose={() => setIsPatientCensusModalOpen(false)}
-      />
-      
-      {/* Coming Soon Modals - Placeholder for future development */}
-      <ComingSoonModal 
-        isOpen={isTemplatesModalOpen}
-        onClose={() => setIsTemplatesModalOpen(false)}
-        title="Clinical Templates"
-      />
-      
-      <ComingSoonModal 
-        isOpen={isDocumentsModalOpen}
-        onClose={() => setIsDocumentsModalOpen(false)}
-        title="Clinical Documents"
-      />
-      
-      <ComingSoonModal 
-        isOpen={isAIAssistantModalOpen}
-        onClose={() => setIsAIAssistantModalOpen(false)}
-        title="AI Assistant"
-      />
-      
-      <ComingSoonModal 
-        isOpen={isReportsModalOpen}
-        onClose={() => setIsReportsModalOpen(false)}
-        title="Analytics & Reports"
-      />
-      
-      <ComingSoonModal 
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        title="System Settings"
-      />
+      {/* Patient Census Modal */}
+      {isPatientCensusModalOpen && (
+        <PatientCensusModal 
+          isOpen={isPatientCensusModalOpen}
+          onClose={() => setIsPatientCensusModalOpen(false)}
+        />
+      )}
     </div>
   );
 };
