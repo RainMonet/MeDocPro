@@ -1,77 +1,9 @@
-/* StatCard.css - Clinical Statistics Card Component */
-.stat-card {
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-tertiary) 100%);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
-  box-shadow: var(--shadow-md);
-  border-left: 4px solid var(--color-primary);
-  border: 1px solid var(--border-light);
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
+/* medocpro-dashboard/src/components/ui/StatCard.css - FINAL SOLUTION */
 
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-light));
-}
+/* 
+ * This file is intentionally minimal to avoid conflicts.
+ * All .stat-card styling comes from the main CSS files (App.css and index.css)
+ * which already have perfect styling that matches your original design.
+ */
 
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-}
-
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  color: white;
-  margin-bottom: var(--space-4);
-}
-
-.stat-number {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--color-primary);
-  margin-bottom: var(--space-2);
-  line-height: 1;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-  margin-bottom: var(--space-3);
-}
-
-.stat-change {
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: var(--radius-md);
-  background: var(--bg-tertiary);
-}
-
-.stat-change.positive {
-  color: var(--color-success);
-  background: rgba(16, 185, 129, 0.1);
-}
-
-.stat-change.negative {
-  color: var(--color-danger);
-  background: rgba(239, 68, 68, 0.1);
-}
-
-/* Dark theme adjustments */
-[data-theme="dark"] .stat-card {
-  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
-}
+/* Optional: Any component-specific overrides can go here if needed */
