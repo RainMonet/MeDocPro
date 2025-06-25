@@ -2,78 +2,93 @@
 import React from 'react';
 import './Sidebar.css';
 
-const Sidebar = ({ onModalOpen, onMobileClose, expanded, isMobile }) => {
+const Sidebar = ({ onModalOpen, expanded, isMobile, onToggle }) => {
   const handleItemClick = (modalType) => {
     onModalOpen(modalType);
-    // Close mobile sidebar after selection
-    if (isMobile && onMobileClose) {
-      onMobileClose();
+    // Close sidebar on mobile when opening modal
+    if (isMobile) {
+      onToggle();
     }
   };
 
   const menuItems = [
-    {
-      id: 'patients',
-      label: 'Patient Census',
-      icon: '👥',
-      description: 'View and manage current patients'
-    },
-    {
-      id: 'templates',
-      label: 'Clinical Templates',
-      icon: '📋',
-      description: 'Access documentation templates'
-    },
-    {
-      id: 'assessments',
-      label: 'Assessments',
-      icon: '🧠',
-      description: 'Psychiatric evaluation tools'
-    },
-    {
-      id: 'notes',
-      label: 'Progress Notes',
-      icon: '📝',
-      description: 'Create and review notes'
-    },
-    {
-      id: 'treatment',
-      label: 'Treatment Plans',
-      icon: '🎯',
-      description: 'Develop treatment strategies'
-    },
-    {
-      id: 'reports',
-      label: 'Clinical Reports',
-      icon: '📊',
-      description: 'Generate clinical reports'
-    },
-    {
-      id: 'settings',
-      label: 'Settings',
-      icon: '⚙️',
-      description: 'Application preferences'
-    }
+    { id: 'documents', label: 'Documents' },
+    { id: 'patients', label: 'Patient Census' },
+    { id: 'ai', label: 'AI Assistant' },
+    { id: 'reports', label: 'Reports' },
+    { id: 'settings', label: 'Settings' }
   ];
 
   return (
-    <nav className={`sidebar ${sidebarExpanded ? 'expanded' : 'collapsed'} ${isMobile ? 'mobile' : ''}`}>
-  <div className="sidebar-content">
-    <ul className="nav-list">
-      {menuItems.map((item) => (
-        <li key={item.id} className="nav-item">
-          <button
-            className="nav-link"
-            onClick={() => handleItemClick(item.id)}
-            title={!sidebarExpanded ? item.label : ''}
-          >
-            <span className="nav-label">{item.label}</span>
-          </button>
-        </li>
-      ))}
-    </ul>
-  </div>
-</nav>
+    <nav 
+      className={`sidebar ${expanded ? 'expanded' : 'collapsed'} ${isMobile ? 'mobile' : ''}`}
+      style={{
+        position: 'fixed',
+        top: '70px',
+        left: '0',
+        height: 'calc(100vh - 70px)',
+        background: 'var(--bg-secondary)',
+        borderRight: '1px solid var(--border-color)',
+        zIndex: 100,
+        transition: 'all 0.3s ease',
+        width: expanded ? '250px' : '0px',
+        overflow: 'hidden'
+      }}
+    >
+      <div 
+        className="sidebar-content"
+        style={{
+          width: '250px',
+          padding: '0',
+          height: '100%',
+          visibility: expanded ? 'visible' : 'hidden'
+        }}
+      >
+        <ul className="nav-list" style={{ 
+          listStyle: 'none', 
+          padding: 0, 
+          margin: '20px 0',
+          width: '250px'
+        }}>
+          {menuItems.map((item) => (
+            <li key={item.id} className="nav-item" style={{ margin: '8px 16px' }}>
+              <button
+                className="nav-link"
+                onClick={() => handleItemClick(item.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px 16px',
+                  background: 'none',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  width: 'calc(250px - 64px)',
+                  textAlign: 'left',
+                  fontSize: '0.9rem',
+                  fontWeight: '500',
+                  whiteSpace: 'nowrap'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = 'var(--bg-hover)';
+                  e.target.style.color = 'var(--text-primary)';
+                  e.target.style.transform = 'translateX(4px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = 'none';
+                  e.target.style.color = 'var(--text-secondary)';
+                  e.target.style.transform = 'translateX(0)';
+                }}
+              >
+                {item.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </nav>
   );
 };
 

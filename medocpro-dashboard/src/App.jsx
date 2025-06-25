@@ -1,5 +1,8 @@
-// medocpro-dashboard/src/App.jsx - COMPLETE FINAL VERSION
+// medocpro-dashboard/src/App.jsx - REFACTORED WITH EXTRACTED COMPONENTS
 import React, { useState, useEffect } from 'react';
+import Header from './components/layout/Header';
+import Sidebar from './components/layout/Sidebar';
+import SidebarToggle from './components/layout/SidebarToggle';
 import StatCard from './components/ui/StatCard';
 import PatientCensusModal from './components/PatientCensusModal';
 import './App.css';
@@ -21,14 +24,6 @@ function App() {
     role: "Psychiatrist"
   };
 
-  // Navigation items
-  const menuItems = [
-    { id: 'documents', label: 'Documents' },
-    { id: 'patients', label: 'Patient Census' },
-    { id: 'ai', label: 'AI Assistant' },
-    { id: 'reports', label: 'Reports' },
-    { id: 'settings', label: 'Settings' }
-  ];
 
   // Effects
   useEffect(() => {
@@ -89,149 +84,16 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* HAMBURGER BUTTON - Fixed with guaranteed three lines */}
-      <button 
-  className="sidebar-toggle-btn"
-  onClick={toggleSidebar}
-  style={{
-    position: 'fixed',
-    top: '13px',
-    left: '16px',
-    zIndex: 1001,
-    background: 'var(--bg-tertiary)',
-    border: '1px solid var(--border-color)',
-    borderRadius: '8px',
-    padding: '10px',
-    cursor: 'pointer',
-    width: '44px',
-    height: '44px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'background 0.2s ease', // Only animate background, not color
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-  }}
-  onMouseEnter={(e) => {
-    e.target.style.background = 'var(--bg-hover)';
-    // Don't change any color properties on hover
-  }}
-  onMouseLeave={(e) => {
-    e.target.style.background = 'var(--bg-tertiary)';
-  }}
->
-  <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Use explicit colors instead of currentColor */}
-    <rect x="0" y="0" width="18" height="2" rx="1" fill={theme === 'dark' ? '#e5e9f0' : '#495057'}/>
-    <rect x="0" y="6" width="18" height="2" rx="1" fill={theme === 'dark' ? '#e5e9f0' : '#495057'}/>
-    <rect x="0" y="12" width="18" height="2" rx="1" fill={theme === 'dark' ? '#e5e9f0' : '#495057'}/>
-  </svg>
-</button>
-
-      {/* Header */}
-      <header className="header">
-        <div className="header-left">
-          <div className="logo" style={{ marginLeft: '80px' }}>
-            <div className="logo-icon">
-              <div className="logo-symbol">M</div>
-            </div>
-            <span className="logo-text">MeDocPro</span>
-          </div>
-        </div>
-        
-        <div className="header-right">
-          <button 
-            className="theme-toggle"
-            onClick={toggleTheme}
-            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
-          
-          <div className="user-menu">
-            <div className="user-info">
-              <span className="user-name">{user.firstName} {user.lastName}</span>
-              <span className="user-role">{user.role}</span>
-            </div>
-            <div className="user-avatar">
-              <div className="avatar-placeholder">
-                {user.firstName.charAt(2)}{user.lastName.charAt(0)}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <SidebarToggle onClick={toggleSidebar} theme={theme} />
+      <Header user={user} theme={theme} onToggleTheme={toggleTheme} />
 
       <div className="main-layout">
-        {/* Sidebar */}
-        <nav 
-          className={`sidebar ${sidebarExpanded ? 'expanded' : 'collapsed'} ${isMobile ? 'mobile' : ''}`}
-          style={{
-            position: 'fixed',
-            top: '70px',
-            left: '0',
-            height: 'calc(100vh - 70px)',
-            background: 'var(--bg-secondary)',
-            borderRight: '1px solid var(--border-color)',
-            zIndex: 100,
-            transition: 'all 0.3s ease',
-            width: sidebarExpanded ? '250px' : '0px',
-            overflow: 'hidden'
-          }}
-        >
-          <div 
-            className="sidebar-content"
-            style={{
-              width: '250px',
-              padding: '0',
-              height: '100%',
-              visibility: sidebarExpanded ? 'visible' : 'hidden'
-            }}
-          >
-            <ul className="nav-list" style={{ 
-              listStyle: 'none', 
-              padding: 0, 
-              margin: '20px 0',
-              width: '250px'
-            }}>
-              {menuItems.map((item) => (
-                <li key={item.id} className="nav-item" style={{ margin: '8px 16px' }}>
-                  <button
-                    className="nav-link"
-                    onClick={() => handleModalOpen(item.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '12px 16px',
-                      background: 'none',
-                      border: 'none',
-                      borderRadius: '8px',
-                      color: 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      width: 'calc(250px - 64px)',
-                      textAlign: 'left',
-                      fontSize: '0.9rem',
-                      fontWeight: '500',
-                      whiteSpace: 'nowrap'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = 'var(--bg-hover)';
-                      e.target.style.color = 'var(--text-primary)';
-                      e.target.style.transform = 'translateX(4px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = 'none';
-                      e.target.style.color = 'var(--text-secondary)';
-                      e.target.style.transform = 'translateX(0)';
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </nav>
+        <Sidebar 
+          onModalOpen={handleModalOpen}
+          expanded={sidebarExpanded}
+          isMobile={isMobile}
+          onToggle={toggleSidebar}
+        />
         
         {/* Mobile Overlay */}
         {isMobile && sidebarExpanded && (
