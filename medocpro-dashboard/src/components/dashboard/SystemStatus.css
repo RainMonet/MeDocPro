@@ -1,0 +1,31 @@
+.system-status {
+  /* Styles will be inherited from existing App.css */
+}
+
+.status-items {
+  /* Styles will be inherited from existing App.css */
+}
+
+.status-item {
+  /* Styles will be inherited from existing App.css */
+}
+
+.status-label {
+  /* Styles will be inherited from existing App.css */
+}
+
+.status-badge {
+  /* Styles will be inherited from existing App.css */
+}
+
+.status-badge.connected {
+  /* Styles will be inherited from existing App.css */
+}
+
+.status-badge.available {
+  /* Styles will be inherited from existing App.css */
+}
+
+.last-checked {
+  /* Styles will be inherited from existing App.css */
+}

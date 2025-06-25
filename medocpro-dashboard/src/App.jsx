@@ -4,6 +4,7 @@ import Header from './components/layout/Header';
 import Sidebar from './components/layout/Sidebar';
 import SidebarToggle from './components/layout/SidebarToggle';
 import StatCard from './components/ui/StatCard';
+import { SystemStatus, QuickActions, RecentDocuments } from './components/dashboard';
 import PatientCensusModal from './components/PatientCensusModal';
 import './App.css';
 
@@ -145,78 +146,12 @@ function App() {
 
             {/* Dashboard Content Row */}
             <div className="dashboard-row">
-              <div className="system-status">
-                <h3>🟢 System Status</h3>
-                <p>Real-time monitoring of backend services</p>
-                
-                <div className="status-items">
-                  <div className="status-item">
-                    <span className="status-label">Backend API</span>
-                    <span className="status-badge connected">CONNECTED</span>
-                  </div>
-                  <div className="status-item">
-                    <span className="status-label">Database</span>
-                    <span className="status-badge connected">CONNECTED</span>
-                  </div>
-                  <div className="status-item">
-                    <span className="status-label">AI Service</span>
-                    <span className="status-badge available">AVAILABLE</span>
-                  </div>
-                </div>
-                
-                <div className="last-checked">
-                  Last checked: 9:11:00 AM
-                </div>
-              </div>
-
-              <div className="quick-actions">
-                <h3>⚡ Quick Actions</h3>
-                <p>Common clinical documentation tasks</p>
-                
-                <div className="action-buttons">
-                  <button 
-                    className="action-btn" 
-                    onClick={() => handleModalOpen('notes')}
-                  >
-                    <span className="action-icon">📝</span>
-                    <span className="action-label">New Progress Note</span>
-                  </button>
-                  <button 
-                    className="action-btn" 
-                    onClick={() => handleModalOpen('assessments')}
-                  >
-                    <span className="action-icon">🧠</span>
-                    <span className="action-label">Initial Assessment</span>
-                  </button>
-                  <button 
-                    className="action-btn" 
-                    onClick={() => handleModalOpen('treatment')}
-                  >
-                    <span className="action-icon">🎯</span>
-                    <span className="action-label">Treatment Plan</span>
-                  </button>
-                  <button 
-                    className="action-btn" 
-                    onClick={() => handleModalOpen('mental')}
-                  >
-                    <span className="action-icon">🧠</span>
-                    <span className="action-label">Mental Status Exam</span>
-                  </button>
-                </div>
-              </div>
+              <SystemStatus />
+              <QuickActions onModalOpen={handleModalOpen} />
             </div>
 
             {/* Recent Documents */}
-            <div className="recent-documents">
-              <h3>Recent Documents</h3>
-              <div className="document-item">
-                <span className="document-icon">📝</span>
-                <div className="document-info">
-                  <span className="document-title">Progress Note - Anderson, S.</span>
-                  <span className="document-date">Today, 2:30 PM</span>
-                </div>
-              </div>
-            </div>
+            <RecentDocuments />
           </div>
         </div>
       </div>
