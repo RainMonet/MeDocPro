@@ -5,7 +5,7 @@ import Sidebar from './components/layout/Sidebar';
 import SidebarToggle from './components/layout/SidebarToggle';
 import StatCard from './components/ui/StatCard';
 import { SystemStatus, QuickActions, RecentDocuments } from './components/dashboard';
-import PatientCensusModal from './components/PatientCensusModal';
+import { PatientCensusModal } from './components/modals';
 import './App.css';
 
 function App() {
