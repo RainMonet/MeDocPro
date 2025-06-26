@@ -1,4 +1,4 @@
-// medocpro-dashboard/src/App.jsx - REFACTORED WITH EXTRACTED COMPONENTS
+// medocpro-dashboard/src/App.jsx - COMBINED WITH TEMPLATE EDITOR
 import React, { useState, useEffect } from 'react';
 import Header from './components/layout/Header';
 import Sidebar from './components/layout/Sidebar';
@@ -6,6 +6,10 @@ import SidebarToggle from './components/layout/SidebarToggle';
 import StatCard from './components/ui/StatCard';
 import { SystemStatus, QuickActions, RecentDocuments } from './components/dashboard';
 import { PatientCensusModal } from './components/modals';
+import TemplateEditor from './components/TemplateEditor';
+import TemplateLibrary from './components/templates/TemplateLibrary';
+import TestModal from './components/TestModal';
+import apiService from './services/api';
 import './App.css';
 
 function App() {
@@ -17,6 +21,10 @@ function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
+  
+  // Template editor state
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false);
+  const [currentTemplate, setCurrentTemplate] = useState(null);
 
   // User data
   const user = {
@@ -58,7 +66,14 @@ function App() {
   };
 
   const handleModalOpen = (modalType) => {
-    setActiveModal(modalType);
+    console.log('Modal type clicked:', modalType);
+    if (modalType === 'template-editor') {
+      console.log('Opening template editor');
+      setShowTemplateEditor(true);
+      setCurrentTemplate(null);
+    } else {
+      setActiveModal(modalType);
+    }
     // Close sidebar on mobile when opening modal
     if (isMobile) {
       setSidebarExpanded(false);
@@ -67,6 +82,37 @@ function App() {
 
   const handleModalClose = () => {
     setActiveModal(null);
+  };
+
+  // Template editor handlers
+  const handleNewTemplate = () => {
+    setCurrentTemplate(null);
+    setShowTemplateEditor(true);
+  };
+
+  const handleEditTemplate = (template) => {
+    setCurrentTemplate(template);
+    setShowTemplateEditor(true);
+  };
+
+  const handleSaveTemplate = async (templateData) => {
+    try {
+      if (currentTemplate && currentTemplate.id) {
+        await apiService.updateTemplate(currentTemplate.id, templateData);
+      } else {
+        await apiService.createTemplate(templateData);
+      }
+      setShowTemplateEditor(false);
+      setCurrentTemplate(null);
+    } catch (error) {
+      console.error('Failed to save template:', error);
+      alert('Failed to save template. Please try again.');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setShowTemplateEditor(false);
+    setCurrentTemplate(null);
   };
 
   const getModalTitle = (modalType) => {
@@ -160,6 +206,13 @@ function App() {
       <PatientCensusModal
         isOpen={activeModal === 'patients'}
         onClose={handleModalClose}
+      />
+      
+      {/* Template Editor Modal */}
+      {console.log('showTemplateEditor state:', showTemplateEditor)}
+      <TestModal
+        isOpen={showTemplateEditor}
+        onClose={() => setShowTemplateEditor(false)}
       />
       
       {/* Coming Soon Modal for other features */}

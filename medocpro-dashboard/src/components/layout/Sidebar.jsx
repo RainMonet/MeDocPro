@@ -4,6 +4,8 @@ import './Sidebar.css';
 
 const Sidebar = ({ onModalOpen, expanded, isMobile, onToggle }) => {
   const handleItemClick = (modalType) => {
+    console.log('SIDEBAR CLICK:', modalType);
+    alert('Clicked: ' + modalType);
     onModalOpen(modalType);
     // Close sidebar on mobile when opening modal
     if (isMobile) {
@@ -13,6 +15,7 @@ const Sidebar = ({ onModalOpen, expanded, isMobile, onToggle }) => {
 
   const menuItems = [
     { id: 'documents', label: 'Documents' },
+    { id: 'template-editor', label: '🔥 TEMPLATE EDITOR 🔥' },
     { id: 'patients', label: 'Patient Census' },
     { id: 'ai', label: 'AI Assistant' },
     { id: 'reports', label: 'Reports' },
@@ -44,6 +47,9 @@ const Sidebar = ({ onModalOpen, expanded, isMobile, onToggle }) => {
           visibility: expanded ? 'visible' : 'hidden'
         }}
       >
+        <div style={{ padding: '20px', background: 'red', color: 'white', textAlign: 'center' }}>
+          UPDATED SIDEBAR - TEST
+        </div>
         <ul className="nav-list" style={{ 
           listStyle: 'none', 
           padding: 0, 
@@ -59,10 +65,10 @@ const Sidebar = ({ onModalOpen, expanded, isMobile, onToggle }) => {
                   display: 'flex',
                   alignItems: 'center',
                   padding: '12px 16px',
-                  background: 'none',
+                  background: item.id === 'template-editor' ? 'red' : 'none',
                   border: 'none',
                   borderRadius: '8px',
-                  color: 'var(--text-secondary)',
+                  color: item.id === 'template-editor' ? 'white' : 'var(--text-secondary)',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                   width: 'calc(250px - 64px)',
@@ -72,14 +78,18 @@ const Sidebar = ({ onModalOpen, expanded, isMobile, onToggle }) => {
                   whiteSpace: 'nowrap'
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.background = 'var(--bg-hover)';
-                  e.target.style.color = 'var(--text-primary)';
-                  e.target.style.transform = 'translateX(4px)';
+                  if (item.id !== 'template-editor') {
+                    e.target.style.background = 'var(--bg-hover)';
+                    e.target.style.color = 'var(--text-primary)';
+                    e.target.style.transform = 'translateX(4px)';
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.background = 'none';
-                  e.target.style.color = 'var(--text-secondary)';
-                  e.target.style.transform = 'translateX(0)';
+                  if (item.id !== 'template-editor') {
+                    e.target.style.background = 'none';
+                    e.target.style.color = 'var(--text-secondary)';
+                    e.target.style.transform = 'translateX(0)';
+                  }
                 }}
               >
                 {item.label}

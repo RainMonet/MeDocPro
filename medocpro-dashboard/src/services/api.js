@@ -217,6 +217,35 @@ class ApiService {
     return this.handleResponse(response);
   }
 
+  // Ollama AI Enhancement endpoints
+  async checkOllamaStatus() {
+    const response = await fetch(`${this.baseURL}/api/ai/ollama/status`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async enhanceContentWithOllama(enhancementRequest) {
+    const response = await fetch(`${this.baseURL}/api/ai/ollama/enhance`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(enhancementRequest),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async getOllamaModels() {
+    const response = await fetch(`${this.baseURL}/api/ai/ollama/models`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+    
+    return this.handleResponse(response);
+  }
+
   async spellCheck(text) {
     const response = await fetch(`${this.baseURL}/api/ai/spell-check`, {
       method: 'POST',
