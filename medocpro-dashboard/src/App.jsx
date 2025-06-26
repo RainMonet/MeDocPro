@@ -8,7 +8,6 @@ import { SystemStatus, QuickActions, RecentDocuments } from './components/dashbo
 import { PatientCensusModal } from './components/modals';
 import TemplateEditor from './components/TemplateEditor';
 import TemplateLibrary from './components/templates/TemplateLibrary';
-import TestModal from './components/TestModal';
 import apiService from './services/api';
 import './App.css';
 
@@ -209,10 +208,12 @@ function App() {
       />
       
       {/* Template Editor Modal */}
-      {console.log('showTemplateEditor state:', showTemplateEditor)}
-      <TestModal
+      <TemplateEditor
         isOpen={showTemplateEditor}
-        onClose={() => setShowTemplateEditor(false)}
+        initialTemplate={currentTemplate}
+        onSave={handleSaveTemplate}
+        onCancel={handleCancelEdit}
+        theme={theme}
       />
       
       {/* Coming Soon Modal for other features */}

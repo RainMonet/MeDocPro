@@ -44,8 +44,21 @@ const CloseIcon = () => (
   </svg>
 );
 
+// Theme-aware style helpers
+const getThemeStyles = (theme) => ({
+  modalBackground: theme === 'dark' ? '#1e293b' : 'white',
+  textPrimary: theme === 'dark' ? '#f1f5f9' : '#1f2937',
+  textSecondary: theme === 'dark' ? '#cbd5e1' : '#6b7280',
+  textMuted: theme === 'dark' ? '#94a3b8' : '#9ca3af',
+  borderColor: theme === 'dark' ? '#334155' : '#e2e8f0',
+  bgSecondary: theme === 'dark' ? '#0f172a' : '#f8fafc',
+  bgTertiary: theme === 'dark' ? '#334155' : '#f1f5f9',
+  inputBg: theme === 'dark' ? '#0f172a' : 'white',
+  cardBg: theme === 'dark' ? '#1e293b' : 'white'
+});
+
 // Placeholder Management Component
-const PlaceholderManager = ({ placeholders, onPlaceholdersChange }) => {
+const PlaceholderManager = ({ placeholders, onPlaceholdersChange, theme }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newPlaceholder, setNewPlaceholder] = useState({
     key: '',
@@ -53,6 +66,8 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }) => {
     example: '',
     type: 'text'
   });
+
+  const styles = getThemeStyles(theme);
 
   const addPlaceholder = () => {
     const { key, description, example, type } = newPlaceholder;
@@ -94,8 +109,14 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }) => {
 
   return (
     <div className="card" style={{ marginBottom: '20px' }}>
-      <div className="card-header" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
-        <h3 className="card-title">Placeholder Management</h3>
+      <div className="card-header" style={{ 
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+        color: 'white',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Placeholder Management</h3>
         <button 
           className="btn btn-sm"
           style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', border: '1px solid rgba(255, 255, 255, 0.3)' }}
@@ -105,7 +126,7 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }) => {
         </button>
       </div>
       <div className="card-content">
-        <div className="alert alert-warning" style={{ marginBottom: '20px' }}>
+        <div className="alert alert-warning">
           <strong>HIPAA Notice:</strong> Templates with PHI placeholders are for development/testing only. Never use real patient data in templates.
         </div>
 
@@ -116,9 +137,9 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }) => {
             gap: '12px',
             alignItems: 'end',
             padding: '16px',
-            background: '#f1f5f9',
+            background: styles.bgTertiary,
             borderRadius: '8px',
-            border: '2px dashed #cbd5e0',
+            border: `2px dashed ${styles.borderColor}`,
             marginBottom: '20px'
           }}>
             <div>
@@ -159,7 +180,7 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }) => {
 
         <div style={{ display: 'grid', gap: '8px' }}>
           {placeholders.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#64748b', padding: '20px' }}>
+            <p style={{ textAlign: 'center', color: styles.textMuted, padding: '20px' }}>
               No placeholders defined
             </p>
           ) : (
@@ -172,9 +193,11 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }) => {
                   gap: '12px',
                   alignItems: 'center',
                   padding: '8px 12px',
-                  background: placeholder.type === 'phi' ? '#fef2f2' : '#f8fafc',
+                  background: placeholder.type === 'phi' 
+                    ? (theme === 'dark' ? 'rgba(239, 68, 68, 0.1)' : '#fef2f2') 
+                    : styles.bgSecondary,
                   borderRadius: '6px',
-                  borderLeft: `3px solid ${placeholder.type === 'phi' ? '#ef4444' : '#e2e8f0'}`
+                  borderLeft: `3px solid ${placeholder.type === 'phi' ? '#ef4444' : styles.borderColor}`
                 }}
               >
                 <div style={{
@@ -182,21 +205,23 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }) => {
                   fontSize: '11px',
                   fontWeight: '600',
                   color: '#0066cc',
-                  background: 'white',
+                  background: styles.inputBg,
                   padding: '4px 6px',
                   borderRadius: '3px',
-                  border: '1px solid #e2e8f0'
+                  border: `1px solid ${styles.borderColor}`
                 }}>
                   {`{{${placeholder.key}}}`}
                 </div>
-                <div style={{ fontSize: '12px', color: '#4a5568' }}>
+                <div style={{ fontSize: '12px', color: styles.textSecondary }}>
                   {placeholder.description}
                 </div>
                 <div style={{ 
                   fontSize: '10px',
                   padding: '2px 6px',
                   borderRadius: '10px',
-                  background: placeholder.type === 'phi' ? '#fee2e2' : '#dbeafe',
+                  background: placeholder.type === 'phi' 
+                    ? (theme === 'dark' ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2') 
+                    : (theme === 'dark' ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe'),
                   color: placeholder.type === 'phi' ? '#dc2626' : '#1e40af',
                   textAlign: 'center'
                 }}>
@@ -219,7 +244,7 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange }) => {
 };
 
 // Main Template Editor Modal Component
-const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel }) => {
+const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'dark' }) => {
   const [template, setTemplate] = useState({
     name: '',
     category: 'progress',
@@ -235,8 +260,9 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel }) => {
   });
 
   const [validationErrors, setValidationErrors] = useState([]);
-  const [showAIEnhancement, setShowAIEnhancement] = useState(false);
   const [activeTab, setActiveTab] = useState('content'); // 'content', 'ai', 'preview'
+
+  const styles = getThemeStyles(theme);
 
   // Reset template when modal opens/closes or initialTemplate changes
   useEffect(() => {
@@ -435,7 +461,7 @@ Provider: {{provider_signature}}`
     >
       <div 
         style={{
-          backgroundColor: 'white',
+          backgroundColor: styles.modalBackground,
           borderRadius: '12px',
           maxWidth: '1000px',
           maxHeight: '90vh',
@@ -450,7 +476,7 @@ Provider: {{provider_signature}}`
         {/* Modal Header */}
         <div style={{
           padding: '24px 32px',
-          borderBottom: '1px solid #e2e8f0',
+          borderBottom: `1px solid ${styles.borderColor}`,
           background: 'linear-gradient(135deg, #0066cc 0%, #004499 100%)',
           color: 'white',
           display: 'flex',
@@ -469,7 +495,8 @@ Provider: {{provider_signature}}`
             <p style={{ 
               fontSize: '14px', 
               opacity: 0.9,
-              color: 'white'
+              color: 'white',
+              margin: 0
             }}>
               Create comprehensive psychiatric documentation template
             </p>
@@ -494,10 +521,11 @@ Provider: {{provider_signature}}`
 
         {/* Tab Navigation */}
         <div style={{
-          borderBottom: '1px solid #e2e8f0',
+          borderBottom: `1px solid ${styles.borderColor}`,
           padding: '0 32px',
           display: 'flex',
-          gap: '0'
+          gap: '0',
+          background: styles.bgSecondary
         }}>
           {[
             { id: 'content', label: 'Template Content', icon: '📝' },
@@ -506,20 +534,20 @@ Provider: {{provider_signature}}`
           ].map((tab) => (
             <button
               key={tab.id}
-              className={`btn ${activeTab === tab.id ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setActiveTab(tab.id)}
               style={{
                 borderRadius: '8px 8px 0 0',
                 border: 'none',
                 borderBottom: activeTab === tab.id ? '2px solid #0066cc' : '2px solid transparent',
-                background: activeTab === tab.id ? '#f8fafc' : 'transparent',
-                color: activeTab === tab.id ? '#0066cc' : '#64748b',
+                background: activeTab === tab.id ? styles.modalBackground : 'transparent',
+                color: activeTab === tab.id ? '#0066cc' : styles.textSecondary,
                 padding: '12px 16px',
                 fontWeight: '500',
                 fontSize: '14px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px'
+                gap: '6px',
+                cursor: 'pointer'
               }}
             >
               <span>{tab.icon}</span>
@@ -532,11 +560,13 @@ Provider: {{provider_signature}}`
         <div style={{
           flex: 1,
           overflow: 'auto',
-          padding: '24px 32px'
+          padding: '24px 32px',
+          background: styles.modalBackground,
+          color: styles.textPrimary
         }}>
           {/* Validation Errors */}
           {validationErrors.length > 0 && (
-            <div className="alert alert-danger" style={{ marginBottom: '20px' }}>
+            <div className="alert alert-danger">
               <strong>Validation Errors:</strong>
               <ul style={{ margin: '8px 0 0 20px' }}>
                 {validationErrors.map((error, index) => (
@@ -552,7 +582,7 @@ Provider: {{provider_signature}}`
               {/* Template Information */}
               <div className="card" style={{ marginBottom: '20px' }}>
                 <div className="card-header">
-                  <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Template Information</h3>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', color: styles.textPrimary }}>Template Information</h3>
                 </div>
                 <div className="card-content">
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -586,14 +616,15 @@ Provider: {{provider_signature}}`
               <PlaceholderManager
                 placeholders={template.placeholders}
                 onPlaceholdersChange={(placeholders) => setTemplate(prev => ({ ...prev, placeholders }))}
+                theme={theme}
               />
 
               {/* Template Content Editor */}
               <div className="card" style={{ marginBottom: '20px' }}>
-                <div className="card-header" style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                <div className="card-header" style={{ background: styles.bgSecondary, borderBottom: `1px solid ${styles.borderColor}` }}>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>
+                      <span style={{ fontSize: '11px', fontWeight: '600', color: styles.textMuted, textTransform: 'uppercase' }}>
                         Quick:
                       </span>
                       <button className="btn btn-sm btn-secondary" onClick={() => loadSampleTemplate('progress')}>
@@ -607,7 +638,7 @@ Provider: {{provider_signature}}`
                       </button>
                     </div>
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase' }}>
+                      <span style={{ fontSize: '11px', fontWeight: '600', color: styles.textMuted, textTransform: 'uppercase' }}>
                         Insert:
                       </span>
                       <button className="btn btn-sm btn-secondary" onClick={() => insertText('{{patient_name}}')}>
@@ -634,7 +665,9 @@ Provider: {{provider_signature}}`
                     resize: 'vertical',
                     fontFamily: 'monospace',
                     outline: 'none',
-                    width: '100%'
+                    width: '100%',
+                    backgroundColor: styles.inputBg,
+                    color: styles.textPrimary
                   }}
                   placeholder="Begin creating your clinical template here. Use {{placeholder_name}} syntax to insert dynamic fields..."
                   value={template.content}
@@ -657,44 +690,45 @@ Provider: {{provider_signature}}`
           {activeTab === 'preview' && (
             <div className="card">
               <div className="card-header">
-                <h3 style={{ fontSize: '16px', fontWeight: '600' }}>Template Preview</h3>
-                <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', color: styles.textPrimary }}>Template Preview</h3>
+                <p style={{ fontSize: '13px', color: styles.textSecondary, margin: '4px 0 0 0' }}>
                   Preview how your template will appear when populated
                 </p>
               </div>
               <div className="card-content">
                 <div style={{
-                  background: '#f8fafc',
-                  border: '1px solid #e2e8f0',
+                  background: styles.bgSecondary,
+                  border: `1px solid ${styles.borderColor}`,
                   borderRadius: '8px',
                   padding: '16px',
                   fontFamily: 'monospace',
                   fontSize: '14px',
                   lineHeight: '1.6',
                   whiteSpace: 'pre-wrap',
-                  minHeight: '300px'
+                  minHeight: '300px',
+                  color: styles.textPrimary
                 }}>
                   {template.content || 'No content to preview. Switch to Content tab to add template content.'}
                 </div>
                 
                 {template.placeholders.length > 0 && (
                   <div style={{ marginTop: '16px' }}>
-                    <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px' }}>
+                    <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: styles.textPrimary }}>
                       Available Placeholders:
                     </h4>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
                       {template.placeholders.map((placeholder, index) => (
                         <div key={index} style={{
                           padding: '8px 12px',
-                          background: '#f0f9ff',
-                          border: '1px solid #bae6fd',
+                          background: theme === 'dark' ? 'rgba(59, 130, 246, 0.1)' : '#f0f9ff',
+                          border: `1px solid ${theme === 'dark' ? 'rgba(59, 130, 246, 0.2)' : '#bae6fd'}`,
                           borderRadius: '6px',
                           fontSize: '12px'
                         }}>
                           <div style={{ fontWeight: '600', color: '#0369a1' }}>
                             {`{{${placeholder.key}}}`}
                           </div>
-                          <div style={{ color: '#64748b' }}>
+                          <div style={{ color: styles.textSecondary }}>
                             {placeholder.description}
                           </div>
                         </div>
@@ -710,8 +744,8 @@ Provider: {{provider_signature}}`
         {/* Modal Footer */}
         <div style={{
           padding: '20px 32px',
-          borderTop: '1px solid #e2e8f0',
-          background: '#f8fafc',
+          borderTop: `1px solid ${styles.borderColor}`,
+          background: styles.bgSecondary,
           display: 'flex',
           justifyContent: 'flex-end',
           gap: '12px'
