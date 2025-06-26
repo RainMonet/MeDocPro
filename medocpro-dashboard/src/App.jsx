@@ -121,6 +121,7 @@ function App() {
     const titles = {
       documents: "Document Library",
       templates: "Clinical Templates",
+      "template-library": "Template Library",
       assessments: "Psychiatric Assessments", 
       notes: "Progress Notes",
       treatment: "Treatment Plans",
@@ -280,8 +281,7 @@ function App() {
                   setShowTemplateEditor(true);
                 }}
                 onOpenTemplateLibrary={() => {
-                  setActiveModal(null);
-                  // Could add template library modal here
+                  setActiveModal('template-library');
                 }}
               />
             </div>
@@ -289,8 +289,81 @@ function App() {
         </div>
       )}
       
+      {/* Template Library Modal */}
+      {activeModal === 'template-library' && (
+        <div className="modal-overlay" onClick={handleModalClose}>
+          <div 
+            className="modal-content" 
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '95vw',
+              height: '90vh',
+              maxWidth: '1200px',
+              padding: '0',
+              backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
+              borderRadius: '12px',
+              overflow: 'hidden'
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 24px',
+              borderBottom: `1px solid ${theme === 'dark' ? '#374151' : '#e5e7eb'}`,
+              backgroundColor: theme === 'dark' ? '#1e293b' : '#f8fafc'
+            }}>
+              <h2 style={{ 
+                margin: 0, 
+                fontSize: '18px', 
+                fontWeight: '600',
+                color: theme === 'dark' ? '#f1f5f9' : '#1f2937'
+              }}>
+                📚 Template Library
+              </h2>
+              <button 
+                className="modal-close" 
+                onClick={handleModalClose}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: theme === 'dark' ? '#94a3b8' : '#6b7280',
+                  padding: '4px',
+                  borderRadius: '4px'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ 
+              height: 'calc(100% - 70px)', 
+              overflow: 'auto',
+              padding: '0'
+            }}>
+              <TemplateLibrary
+                onEditTemplate={(template) => {
+                  setActiveModal(null);
+                  handleEditTemplate(template);
+                }}
+                onUseTemplate={(template) => {
+                  setActiveModal(null);
+                  handleEditTemplate(template);
+                }}
+                onCreateNew={() => {
+                  setActiveModal(null);
+                  handleNewTemplate();
+                }}
+                theme={theme}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Coming Soon Modal for other features */}
-      {activeModal && activeModal !== 'patients' && activeModal !== 'clinical-workflow' && (
+      {activeModal && activeModal !== 'patients' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && (
         <div className="modal-overlay" onClick={handleModalClose}>
           <div className="modal-content coming-soon" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={handleModalClose}>×</button>

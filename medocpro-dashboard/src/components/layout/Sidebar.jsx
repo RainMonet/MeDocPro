@@ -15,6 +15,7 @@ const Sidebar = ({ onModalOpen, expanded, isMobile, onToggle }) => {
     { id: 'clinical-workflow', label: 'Clinical Workflow' },
     { id: 'documents', label: 'Documents' },
     { id: 'template-editor', label: 'Template Editor' },
+    { id: 'template-library', label: 'Template Library' },
     { id: 'patients', label: 'Patient Census' },
     { id: 'ai', label: 'AI Assistant' },
     { id: 'reports', label: 'Reports' },
