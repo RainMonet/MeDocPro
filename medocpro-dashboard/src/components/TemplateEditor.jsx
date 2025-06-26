@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AIEnhancement from './templates/AIEnhancement';
 
+import TemplateLibrary from './templates/TemplateLibrary';
+
 // Utility function to validate template data
 const validateTemplateData = (data, isUpdate = false) => {
   const errors = [];
@@ -260,7 +262,7 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'da
   });
 
   const [validationErrors, setValidationErrors] = useState([]);
-  const [activeTab, setActiveTab] = useState('content'); // 'content', 'ai', 'preview'
+  const [activeTab, setActiveTab] = useState('content'); // 'content', 'library', 'ai', 'preview'
 
   const styles = getThemeStyles(theme);
 
@@ -308,6 +310,38 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'da
   const handleAIEnhancedContent = useCallback((enhancedContent) => {
     setTemplate(prev => ({ ...prev, content: enhancedContent }));
     setActiveTab('content'); // Switch back to content tab to show result
+  }, []);
+
+  // Handle template library actions
+  const handleUseTemplateFromLibrary = useCallback((libraryTemplate) => {
+    setTemplate(prev => ({
+      ...prev,
+      name: libraryTemplate.name,
+      category: libraryTemplate.category,
+      content: libraryTemplate.content,
+      placeholders: libraryTemplate.placeholders || prev.placeholders
+    }));
+    setActiveTab('content');
+  }, []);
+
+  const handleEditTemplateFromLibrary = useCallback((libraryTemplate) => {
+    setTemplate({
+      name: libraryTemplate.name,
+      category: libraryTemplate.category,
+      version: libraryTemplate.version || '1.0',
+      content: libraryTemplate.content,
+      placeholders: libraryTemplate.placeholders || [
+        { key: 'patient_name', description: "Patient's full name", example: 'Doe, John', type: 'phi' },
+        { key: 'date_of_service', description: 'Date of service', example: new Date().toLocaleDateString(), type: 'date' },
+        { key: 'provider_name', description: 'Healthcare provider name', example: 'Dr. Smith', type: 'text' }
+      ],
+      aiEnhancementZones: libraryTemplate.aiEnhancementZones || []
+    });
+    setActiveTab('content');
+  }, []);
+
+  const handleCreateNewFromLibrary = useCallback(() => {
+    setActiveTab('content');
   }, []);
 
   // Validate and save template
@@ -529,6 +563,7 @@ Provider: {{provider_signature}}`
         }}>
           {[
             { id: 'content', label: 'Template Content', icon: '📝' },
+            { id: 'library', label: 'Template Library', icon: '📚' },
             { id: 'ai', label: 'AI Enhancement', icon: '🤖' },
             { id: 'preview', label: 'Preview', icon: '👁️' }
           ].map((tab) => (
@@ -675,6 +710,16 @@ Provider: {{provider_signature}}`
                 />
               </div>
             </>
+          )}
+
+          {/* Template Library Tab */}
+          {activeTab === 'library' && (
+            <TemplateLibrary
+              onEditTemplate={handleEditTemplateFromLibrary}
+              onUseTemplate={handleUseTemplateFromLibrary}
+              onCreateNew={handleCreateNewFromLibrary}
+              theme={theme}
+            />
           )}
 
           {/* AI Enhancement Tab */}

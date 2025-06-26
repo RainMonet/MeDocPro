@@ -8,6 +8,7 @@ import { SystemStatus, QuickActions, RecentDocuments } from './components/dashbo
 import { PatientCensusModal } from './components/modals';
 import TemplateEditor from './components/TemplateEditor';
 import TemplateLibrary from './components/templates/TemplateLibrary';
+import ClinicalWorkflowDashboard from './components/clinical/ClinicalWorkflowDashboard';
 import apiService from './services/api';
 import './App.css';
 
@@ -70,6 +71,8 @@ function App() {
       console.log('Opening template editor');
       setShowTemplateEditor(true);
       setCurrentTemplate(null);
+    } else if (modalType === 'clinical-workflow') {
+      setActiveModal(modalType);
     } else {
       setActiveModal(modalType);
     }
@@ -123,7 +126,8 @@ function App() {
       treatment: "Treatment Plans",
       reports: "Clinical Reports",
       ai: "AI Assistant",
-      settings: "Application Settings"
+      settings: "Application Settings",
+      "clinical-workflow": "Clinical Workflow Dashboard"
     };
     return titles[modalType] || "Feature";
   };
@@ -216,8 +220,77 @@ function App() {
         theme={theme}
       />
       
+      {/* Clinical Workflow Dashboard Modal */}
+      {activeModal === 'clinical-workflow' && (
+        <div className="modal-overlay" onClick={handleModalClose}>
+          <div 
+            className="modal-content" 
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '95vw',
+              height: '90vh',
+              maxWidth: '1400px',
+              padding: '0',
+              backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
+              borderRadius: '12px',
+              overflow: 'hidden'
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 24px',
+              borderBottom: `1px solid ${theme === 'dark' ? '#374151' : '#e5e7eb'}`,
+              backgroundColor: theme === 'dark' ? '#1e293b' : '#f8fafc'
+            }}>
+              <h2 style={{ 
+                margin: 0, 
+                fontSize: '18px', 
+                fontWeight: '600',
+                color: theme === 'dark' ? '#f1f5f9' : '#1f2937'
+              }}>
+                🏥 Clinical Workflow Dashboard
+              </h2>
+              <button 
+                className="modal-close" 
+                onClick={handleModalClose}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: theme === 'dark' ? '#94a3b8' : '#6b7280',
+                  padding: '4px',
+                  borderRadius: '4px'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ 
+              height: 'calc(100% - 70px)', 
+              overflow: 'auto',
+              padding: '0'
+            }}>
+              <ClinicalWorkflowDashboard 
+                theme={theme}
+                onOpenTemplateEditor={() => {
+                  setActiveModal(null);
+                  setShowTemplateEditor(true);
+                }}
+                onOpenTemplateLibrary={() => {
+                  setActiveModal(null);
+                  // Could add template library modal here
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Coming Soon Modal for other features */}
-      {activeModal && activeModal !== 'patients' && (
+      {activeModal && activeModal !== 'patients' && activeModal !== 'clinical-workflow' && (
         <div className="modal-overlay" onClick={handleModalClose}>
           <div className="modal-content coming-soon" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={handleModalClose}>×</button>

@@ -1277,3 +1277,186 @@ p {
     display: none;
   }
 }
+
+/* Clinical Scratch Pad Animations */
+@keyframes gentle-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.005);
+  }
+}
+
+@keyframes burn-warning {
+  0%, 100% {
+    opacity: 0.7;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4), 
+                0 0 20px rgba(239, 68, 68, 0.2);
+  }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+/* Loading spinner for scratch pad */
+.loading-spinner {
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #059669;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Age-based text effects */
+.text-aging {
+  background: linear-gradient(
+    90deg,
+    rgba(245, 158, 11, 0.8) 0%,
+    rgba(251, 191, 36, 0.8) 50%,
+    rgba(245, 158, 11, 0.8) 100%
+  );
+  background-size: 200px 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 2s infinite linear;
+}
+
+.text-expiring {
+  background: linear-gradient(
+    90deg,
+    rgba(239, 68, 68, 0.9) 0%,
+    rgba(248, 113, 113, 0.9) 50%,
+    rgba(239, 68, 68, 0.9) 100%
+  );
+  background-size: 200px 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* Clinical workflow specific animations */
+.scratch-note-enter {
+  animation: fade-in-up 0.3s ease-out;
+}
+
+.scratch-note-exit {
+  animation: fade-out-down 0.3s ease-in;
+}
+
+@keyframes fade-out-down {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* Paper texture effects for aging notes */
+.paper-texture-fresh {
+  background-image: 
+    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.3) 1px, transparent 1px),
+    radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.2) 1px, transparent 1px);
+  background-size: 50px 50px, 75px 75px;
+}
+
+.paper-texture-aging {
+  background-image: 
+    radial-gradient(circle at 25% 25%, rgba(245, 158, 11, 0.1) 1px, transparent 1px),
+    radial-gradient(circle at 75% 75%, rgba(251, 191, 36, 0.05) 1px, transparent 1px);
+  background-size: 30px 30px, 60px 60px;
+}
+
+.paper-texture-expiring {
+  background-image: 
+    radial-gradient(circle at 30% 40%, rgba(239, 68, 68, 0.15) 1px, transparent 1px),
+    radial-gradient(circle at 70% 20%, rgba(248, 113, 113, 0.1) 1px, transparent 1px);
+  background-size: 25px 25px, 45px 45px;
+}
+
+/* Burn effect for expired notes */
+.burn-edge {
+  position: relative;
+}
+
+.burn-edge::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(
+    45deg,
+    transparent 30%,
+    rgba(239, 68, 68, 0.1) 40%,
+    rgba(185, 28, 28, 0.2) 60%,
+    rgba(127, 29, 29, 0.3) 70%,
+    transparent 80%
+  );
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Countdown timer glow effects */
+.timer-critical {
+  animation: timer-pulse 1s infinite alternate;
+}
+
+@keyframes timer-pulse {
+  0% {
+    text-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
+  }
+  100% {
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.8), 
+                 0 0 20px rgba(239, 68, 68, 0.4);
+  }
+}
+
+/* Hover effects for scratch notes */
+.scratch-note-card:hover {
+  filter: brightness(1.05);
+}
+
+/* Mobile responsiveness for scratch pad */
+@media (max-width: 768px) {
+  .scratch-pad-container {
+    padding: var(--space-4);
+  }
+  
+  .scratch-note-actions {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  
+  .countdown-timer {
+    font-size: 0.75rem;
+  }
+}

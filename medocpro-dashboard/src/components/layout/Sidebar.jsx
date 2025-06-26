@@ -12,6 +12,7 @@ const Sidebar = ({ onModalOpen, expanded, isMobile, onToggle }) => {
   };
 
   const menuItems = [
+    { id: 'clinical-workflow', label: 'Clinical Workflow' },
     { id: 'documents', label: 'Documents' },
     { id: 'template-editor', label: 'Template Editor' },
     { id: 'patients', label: 'Patient Census' },

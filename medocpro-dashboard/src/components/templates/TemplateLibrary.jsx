@@ -102,9 +102,10 @@ const TEMPLATE_CATEGORIES = {
 };
 
 // Template Card Component
-const TemplateCard = ({ template, onEdit, onUse, onView }) => {
+const TemplateCard = ({ template, onEdit, onUse, onView, theme = 'dark' }) => {
   const category = TEMPLATE_CATEGORIES[template.category] || TEMPLATE_CATEGORIES.custom;
   const IconComponent = category.icon;
+  const styles = getThemeStyles(theme);
 
   // Generate content preview (first 150 characters)
   const contentPreview = template.content 
@@ -114,8 +115,9 @@ const TemplateCard = ({ template, onEdit, onUse, onView }) => {
   return (
     <div className="card template-card" style={{ 
       transition: 'all 0.2s ease',
-      border: '1px solid #e2e8f0',
-      borderRadius: '8px'
+      border: `1px solid ${styles.borderColor}`,
+      borderRadius: '8px',
+      backgroundColor: styles.cardBg
     }}>
       <div className="card-content" style={{ padding: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
@@ -126,7 +128,7 @@ const TemplateCard = ({ template, onEdit, onUse, onView }) => {
                 fontSize: '16px', 
                 fontWeight: '600', 
                 margin: 0,
-                color: '#1a202c'
+                color: styles.textPrimary
               }}>
                 {template.name}
               </h3>
@@ -162,7 +164,7 @@ const TemplateCard = ({ template, onEdit, onUse, onView }) => {
 
             <p style={{ 
               fontSize: '13px', 
-              color: '#64748b', 
+              color: styles.textSecondary, 
               lineHeight: '1.4',
               margin: '0 0 8px 0'
             }}>
@@ -171,7 +173,7 @@ const TemplateCard = ({ template, onEdit, onUse, onView }) => {
 
             <div style={{ 
               fontSize: '12px', 
-              color: '#9ca3af',
+              color: styles.textMuted,
               display: 'flex',
               gap: '12px'
             }}>
@@ -216,12 +218,13 @@ const TemplateCard = ({ template, onEdit, onUse, onView }) => {
 };
 
 // Category Filter Component
-const CategoryFilter = ({ selectedCategory, onCategoryChange, templateCounts }) => {
+const CategoryFilter = ({ selectedCategory, onCategoryChange, templateCounts, theme = 'dark' }) => {
   const allCount = Object.values(templateCounts).reduce((sum, count) => sum + count, 0);
+  const styles = getThemeStyles(theme);
 
   return (
     <div style={{ marginBottom: '20px' }}>
-      <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#374151' }}>
+      <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: styles.textPrimary }}>
         Filter by Category
       </h4>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -267,8 +270,19 @@ const CategoryFilter = ({ selectedCategory, onCategoryChange, templateCounts }) 
   );
 };
 
+// Theme-aware style helpers
+const getThemeStyles = (theme) => ({
+  textPrimary: theme === 'dark' ? '#f1f5f9' : '#1f2937',
+  textSecondary: theme === 'dark' ? '#cbd5e1' : '#6b7280',
+  textMuted: theme === 'dark' ? '#94a3b8' : '#9ca3af',
+  bgPrimary: theme === 'dark' ? '#1e293b' : 'white',
+  bgSecondary: theme === 'dark' ? '#0f172a' : '#f8fafc',
+  borderColor: theme === 'dark' ? '#334155' : '#e2e8f0',
+  cardBg: theme === 'dark' ? '#1e293b' : 'white'
+});
+
 // Main Template Library Component
-const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew }) => {
+const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew, theme = 'dark' }) => {
   const [templates, setTemplates] = useState([]);
   const [filteredTemplates, setFilteredTemplates] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -276,6 +290,8 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [templateCounts, setTemplateCounts] = useState({});
+
+  const styles = getThemeStyles(theme);
 
   // Load templates from API
   const loadTemplates = async () => {
@@ -387,7 +403,7 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew }) => {
         gap: '16px'
       }}>
         <div className="loading-spinner" style={{ width: '32px', height: '32px' }}></div>
-        <div style={{ color: '#64748b' }}>Loading template library...</div>
+        <div style={{ color: styles.textMuted }}>Loading template library...</div>
       </div>
     );
   }
@@ -398,10 +414,10 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew }) => {
       <div style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
           <div>
-            <h1 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px', color: '#1a202c' }}>
+            <h1 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px', color: styles.textPrimary }}>
               Clinical Template Library
             </h1>
-            <p style={{ color: '#64748b', fontSize: '14px' }}>
+            <p style={{ color: styles.textSecondary, fontSize: '14px' }}>
               Manage your clinical documentation templates with AI enhancement capabilities
             </p>
           </div>
@@ -432,7 +448,7 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew }) => {
               left: '12px',
               top: '50%',
               transform: 'translateY(-50%)',
-              color: '#9ca3af'
+              color: styles.textMuted
             }} />
             <input
               type="text"
@@ -462,11 +478,12 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew }) => {
         selectedCategory={selectedCategory}
         onCategoryChange={setSelectedCategory}
         templateCounts={templateCounts}
+        theme={theme}
       />
 
       {/* Results Summary */}
       <div style={{ marginBottom: '20px' }}>
-        <p style={{ color: '#64748b', fontSize: '14px' }}>
+        <p style={{ color: styles.textSecondary, fontSize: '14px' }}>
           Showing {filteredTemplates.length} of {templates.length} templates
           {selectedCategory !== 'all' && ` in ${TEMPLATE_CATEGORIES[selectedCategory]?.name}`}
           {searchQuery && ` matching "${searchQuery}"`}
@@ -479,11 +496,11 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew }) => {
           <div style={{ 
             textAlign: 'center', 
             padding: '60px 20px',
-            color: '#64748b'
+            color: styles.textMuted
           }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>📄</div>
-            <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>No templates found</h3>
-            <p style={{ fontSize: '14px', marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '18px', marginBottom: '8px', color: styles.textPrimary }}>No templates found</h3>
+            <p style={{ fontSize: '14px', marginBottom: '20px', color: styles.textSecondary }}>
               {searchQuery || selectedCategory !== 'all' 
                 ? 'Try adjusting your search or filter criteria'
                 : 'Create your first clinical template to get started'
@@ -502,6 +519,7 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew }) => {
               template={template}
               onEdit={handleEditTemplate}
               onUse={handleUseTemplate}
+              theme={theme}
             />
           ))
         )}

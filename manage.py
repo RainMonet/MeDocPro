@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Import after path setup
 try:
     from app import create_app
-    from app.models import db, User, Template, AuditLog
+    from app.models import db, User, Template, AuditLog, ScratchNote, PatientCensus, PatientCensusRow
 except ImportError as e:
     print(f"Error importing modules: {e}")
     print("Please ensure the application factory 'create_app' exists and dependencies are installed.")
@@ -261,7 +261,7 @@ def check_database():
                 click.echo("Database connection successful")
             
             # Check table existence
-            tables = ['user', 'template', 'audit_log']
+            tables = ['user', 'template', 'audit_log', 'scratch_note', 'patient_census', 'patient_census_row']
             for table in tables:
                 try:
                     db.session.execute(db.text(f'SELECT COUNT(*) FROM {table}')).scalar()
@@ -273,11 +273,15 @@ def check_database():
             user_count = User.query.count()
             template_count = Template.query.count()
             audit_count = AuditLog.query.count()
+            scratch_note_count = ScratchNote.query.count() if 'scratch_note' in [t.name for t in db.metadata.tables.values()] else 0
+            census_count = PatientCensus.query.count() if 'patient_census' in [t.name for t in db.metadata.tables.values()] else 0
             
             click.echo(f"Database Statistics:")
             click.echo(f"   Users: {user_count}")
             click.echo(f"   Templates: {template_count}")
             click.echo(f"   Audit Logs: {audit_count}")
+            click.echo(f"   Scratch Notes: {scratch_note_count}")
+            click.echo(f"   Patient Censuses: {census_count}")
             
         except Exception as e:
             click.echo(f"Database check failed: {e}")
