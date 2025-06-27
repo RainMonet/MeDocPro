@@ -29,8 +29,15 @@ const getStatusDisplay = (status) => {
 
 // Individual patient row component
 const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme }) => {
+  const [isHovered, setIsHovered] = useState(false);
   const styles = getThemeStyles(theme);
   const statusDisplay = getStatusDisplay(patient.clinical_status || 'follow-up');
+
+  const getBackgroundColor = () => {
+    if (isSelected) return `${styles.primaryColor}15`;
+    if (isHovered) return styles.bgAccent;
+    return 'transparent';
+  };
 
   return (
     <div
@@ -39,21 +46,13 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
         alignItems: 'center',
         padding: '12px 16px',
         borderBottom: `1px solid ${styles.borderColor}`,
-        backgroundColor: isSelected ? `${styles.primaryColor}15` : 'transparent',
+        backgroundColor: getBackgroundColor(),
         cursor: 'pointer',
         transition: 'all 0.2s ease'
       }}
       onClick={() => onSelect(patient.id)}
-      onMouseEnter={(e) => {
-        if (!isSelected) {
-          e.target.style.backgroundColor = styles.bgAccent;
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) {
-          e.target.style.backgroundColor = 'transparent';
-        }
-      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Selection Checkbox */}
       <div
