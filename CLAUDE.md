@@ -71,11 +71,12 @@ docker-compose exec api python manage.py create-admin
 - **Modular Blueprint Structure**: 
   - `/health` - Health check endpoints
   - `/auth` - Authentication endpoints  
-  - `/api` - Core API endpoints (templates, users)
+  - `/api` - Core API endpoints (templates, users, patient census)
 - **Database**: PostgreSQL with SQLAlchemy ORM, SQLite fallback for development
 - **Authentication**: JWT-based with role-based access control
 - **AI Integration**: Ollama for text enhancement with clinical terminology
 - **HIPAA Compliance**: Comprehensive audit logging with 6-year retention
+- **Development Backend**: `simple_backend.py` for rapid prototyping with in-memory storage
 
 ### Frontend Architecture  
 - **React 18** with Vite build system
@@ -83,19 +84,23 @@ docker-compose exec api python manage.py create-admin
   - `src/App.jsx` - Main application component with sidebar/header layout
   - `src/components/ui/` - Reusable UI components (StatCard)
   - `src/components/layout/` - Layout components (Header, Sidebar)
-  - `src/components/modals/` - Modal components (PatientCensusModal)
+  - `src/components/clinical/` - Clinical workflow components (ClinicalWorkspace, PatientCensusCard, BatchDocumentationCard)
+  - `src/components/modals/` - Modal components (PatientCensusModal, TemplateEditor)
 - **State Management**: Local React state with hooks, theme persistence in localStorage
 - **Responsive Design**: Mobile-first with sidebar collapse/overlay pattern
 
 ### Database Models
 - **User**: Authentication and user management (`app/models/user.py`)
 - **Template**: Clinical document templates (`app/models/template.py`) 
+- **PatientCensus**: Daily patient census records (`app/models/patient_census.py`)
+- **PatientCensusRow**: Individual patient records with workflow types
 - **AuditLog**: HIPAA compliance audit trail (`app/models/audit_log.py`)
 
 ### Key Files
 - `app.py` - Application entry point
 - `config.py` - Environment configuration with security defaults
 - `manage.py` - CLI tool for database operations and user management
+- `simple_backend.py` - Development server with patient census API (port 5001)
 - `requirements.txt` - Python dependencies (note: has encoding issues, may need fixing)
 
 ## Development Patterns
@@ -150,10 +155,48 @@ Key variables in `.env`:
 
 ### Default Ports
 - Backend API: 5000
+- Development Backend: 5001 (simple_backend.py)
 - Frontend dev server: 5173 (Vite default)
 - PostgreSQL: 5432
 - Redis: 6379
 - Ollama: 11434
 
 ### Current Branch Context
-Working on `features/app-jsx-refactoring` - refactoring React components into modular structure with extracted Sidebar, Header, and StatCard components.
+Working on `features/clinical-workflow` - implementing comprehensive clinical workflow management with patient census, batch documentation generation, and workflow type persistence.
+
+## Clinical Workflow Features
+
+### Patient Census Management
+- **StatCard Integration**: Active patient count with 7-day rolling averages
+- **Real-time Data**: Census data updates with backend synchronization
+- **Workflow Types**: Follow-up, Admission, Discharge status tracking
+- **Bulk Selection**: Multi-patient selection for batch operations
+
+### Clinical Workspace Components
+- **ClinicalWorkspace**: Main dashboard with StatCard layout (`medocpro-dashboard/src/components/clinical/ClinicalWorkspace.jsx`)
+- **PatientCensusCard**: Scrolling patient list with status indicators (`medocpro-dashboard/src/components/clinical/PatientCensusCard.jsx`)
+- **BatchDocumentationCard**: Template-based document generation (`medocpro-dashboard/src/components/clinical/BatchDocumentationCard.jsx`)
+- **PatientCensusModal**: Complete CRUD operations for patient management (`medocpro-dashboard/src/components/modals/PatientCensusModal.jsx`)
+
+### API Endpoints
+- `GET /api/patient-census/today` - Current day census data
+- `GET /api/patient-census/history` - Historical census for averages
+- `POST /api/patient-census/rows` - Add new patient
+- `PUT /api/patient-census/rows/<id>` - Update patient workflow type
+- `DELETE /api/patient-census/rows/<id>` - Remove patient
+
+### Development Setup
+For clinical workflow development:
+```bash
+# Start development backend (required for census functionality)
+python simple_backend.py
+
+# Start frontend in separate terminal
+cd medocpro-dashboard && npm run dev
+```
+
+### Workflow Type System
+- **Follow-up**: 🔄 Ongoing patient care
+- **Admission**: 🏥 New patient intake
+- **Discharge**: 🏠 Patient discharge planning
+- **Persistence**: Backend API maintains workflow state across sessions

@@ -32,6 +32,13 @@ def create_app(config_class=Config):
         # Template endpoints
         from .routes.templates import templates_bp
         app.register_blueprint(templates_bp, url_prefix='/api')
+        
+        # Clinical workflow endpoints
+        from .routes.scratch_notes import scratch_notes_bp
+        app.register_blueprint(scratch_notes_bp)
+        
+        from .routes.patient_census import patient_census_bp
+        app.register_blueprint(patient_census_bp)
 
         # Import models here to ensure they are registered with SQLAlchemy
         from . import models

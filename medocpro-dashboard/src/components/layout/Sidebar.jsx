@@ -2,19 +2,28 @@
 import React from 'react';
 import './Sidebar.css';
 
-const Sidebar = ({ onModalOpen, expanded, isMobile, onToggle }) => {
+const Sidebar = ({ onModalOpen, onViewChange, expanded, isMobile, onToggle, viewMode = 'workspace' }) => {
   const handleItemClick = (modalType) => {
-    onModalOpen(modalType);
-    // Close sidebar on mobile when opening modal
+    // Handle view switching vs modal opening
+    if (modalType === 'workspace' || modalType === 'dashboard') {
+      onViewChange(modalType);
+    } else {
+      onModalOpen(modalType);
+    }
+    // Close sidebar on mobile when opening modal or switching views
     if (isMobile) {
       onToggle();
     }
   };
 
   const menuItems = [
-    { id: 'documents', label: 'Documents' },
+    { id: 'workspace', label: '🏥 Clinical Workspace', isView: true },
+    { id: 'dashboard', label: '📊 Dashboard Overview', isView: true },
+    { id: 'separator', type: 'separator' },
     { id: 'template-editor', label: 'Template Editor' },
+    { id: 'template-library', label: 'Template Library' },
     { id: 'patients', label: 'Patient Census' },
+    { id: 'documents', label: 'Documents' },
     { id: 'ai', label: 'AI Assistant' },
     { id: 'reports', label: 'Reports' },
     { id: 'settings', label: 'Settings' }
@@ -51,42 +60,60 @@ const Sidebar = ({ onModalOpen, expanded, isMobile, onToggle }) => {
           margin: '20px 0',
           width: '250px'
         }}>
-          {menuItems.map((item) => (
-            <li key={item.id} className="nav-item" style={{ margin: '8px 16px' }}>
-              <button
-                className="nav-link"
-                onClick={() => handleItemClick(item.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '12px 16px',
-                  background: 'none',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  width: 'calc(250px - 64px)',
-                  textAlign: 'left',
-                  fontSize: '0.9rem',
-                  fontWeight: '500',
-                  whiteSpace: 'nowrap'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = 'var(--bg-hover)';
-                  e.target.style.color = 'var(--text-primary)';
-                  e.target.style.transform = 'translateX(4px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = 'none';
-                  e.target.style.color = 'var(--text-secondary)';
-                  e.target.style.transform = 'translateX(0)';
-                }}
-              >
-                {item.label}
-              </button>
-            </li>
-          ))}
+          {menuItems.map((item) => {
+            if (item.type === 'separator') {
+              return (
+                <li key={item.id} style={{ 
+                  margin: '12px 16px', 
+                  borderTop: '1px solid var(--border-color)', 
+                  height: '1px' 
+                }} />
+              );
+            }
+
+            const isActive = item.isView && viewMode === item.id;
+            
+            return (
+              <li key={item.id} className="nav-item" style={{ margin: '8px 16px' }}>
+                <button
+                  className="nav-link"
+                  onClick={() => handleItemClick(item.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '12px 16px',
+                    background: isActive ? 'var(--accent-color)' : 'none',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: isActive ? 'white' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    width: 'calc(250px - 64px)',
+                    textAlign: 'left',
+                    fontSize: '0.9rem',
+                    fontWeight: isActive ? '600' : '500',
+                    whiteSpace: 'nowrap'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.target.style.background = 'var(--bg-hover)';
+                      e.target.style.color = 'var(--text-primary)';
+                      e.target.style.transform = 'translateX(4px)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.target.style.background = 'none';
+                      e.target.style.color = 'var(--text-secondary)';
+                      e.target.style.transform = 'translateX(0)';
+                    }
+                  }}
+                >
+                  {item.label}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </nav>

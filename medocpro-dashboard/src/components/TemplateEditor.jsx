@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AIEnhancement from './templates/AIEnhancement';
 
+import TemplateLibrary from './templates/TemplateLibrary';
+
 // Utility function to validate template data
 const validateTemplateData = (data, isUpdate = false) => {
   const errors = [];
@@ -309,6 +311,7 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'da
     setTemplate(prev => ({ ...prev, content: enhancedContent }));
     setActiveTab('content'); // Switch back to content tab to show result
   }, []);
+
 
   // Validate and save template
   const handleSave = useCallback(() => {

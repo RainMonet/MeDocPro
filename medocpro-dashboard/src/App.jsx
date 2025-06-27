@@ -4,10 +4,12 @@ import Header from './components/layout/Header';
 import Sidebar from './components/layout/Sidebar';
 import SidebarToggle from './components/layout/SidebarToggle';
 import StatCard from './components/ui/StatCard';
-import { SystemStatus, QuickActions, RecentDocuments } from './components/dashboard';
+import { SystemStatus, ClinicalNotesOverview, RecentDocuments } from './components/dashboard';
 import { PatientCensusModal } from './components/modals';
 import TemplateEditor from './components/TemplateEditor';
 import TemplateLibrary from './components/templates/TemplateLibrary';
+import ClinicalWorkflowDashboard from './components/clinical/ClinicalWorkflowDashboard';
+import ClinicalWorkspace from './components/clinical/ClinicalWorkspace';
 import apiService from './services/api';
 import './App.css';
 
@@ -20,6 +22,8 @@ function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
+  const [viewMode, setViewMode] = useState('workspace'); // 'workspace' or 'dashboard'
+  const [workspaceRefreshKey, setWorkspaceRefreshKey] = useState(0);
   
   // Template editor state
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
@@ -37,6 +41,12 @@ function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
+    
+    // Auto-login for development
+    if (!localStorage.getItem('token')) {
+      localStorage.setItem('token', 'dev-token');
+      console.log('Development token set');
+    }
   }, [theme]);
 
   useEffect(() => {
@@ -70,6 +80,8 @@ function App() {
       console.log('Opening template editor');
       setShowTemplateEditor(true);
       setCurrentTemplate(null);
+    } else if (modalType === 'clinical-workflow') {
+      setActiveModal(modalType);
     } else {
       setActiveModal(modalType);
     }
@@ -81,6 +93,11 @@ function App() {
 
   const handleModalClose = () => {
     setActiveModal(null);
+    
+    // If we're in workspace mode, trigger a refresh
+    if (viewMode === 'workspace') {
+      setWorkspaceRefreshKey(prev => prev + 1);
+    }
   };
 
   // Template editor handlers
@@ -118,12 +135,14 @@ function App() {
     const titles = {
       documents: "Document Library",
       templates: "Clinical Templates",
+      "template-library": "Template Library",
       assessments: "Psychiatric Assessments", 
       notes: "Progress Notes",
       treatment: "Treatment Plans",
       reports: "Clinical Reports",
       ai: "AI Assistant",
-      settings: "Application Settings"
+      settings: "Application Settings",
+      "clinical-workflow": "Clinical Workflow Dashboard"
     };
     return titles[modalType] || "Feature";
   };
@@ -136,9 +155,11 @@ function App() {
       <div className="main-layout">
         <Sidebar 
           onModalOpen={handleModalOpen}
+          onViewChange={setViewMode}
           expanded={sidebarExpanded}
           isMobile={isMobile}
           onToggle={toggleSidebar}
+          viewMode={viewMode}
         />
         
         {/* Mobile Overlay */}
@@ -160,51 +181,67 @@ function App() {
         
         {/* Content Area */}
         <div className={`content-area ${sidebarExpanded ? '' : 'expanded'}`}>
-          <div className="dashboard-grid">
-            {/* Statistics Cards */}
-            <div className="stats-row">
-              <StatCard 
-                value="24" 
-                label="Active Templates" 
-                change="+3 this week" 
-                trend="positive" 
-              />
-              <StatCard 
-                value="156" 
-                label="Documents Created" 
-                change="+12 today" 
-                trend="positive" 
-              />
-              <StatCard 
-                value="89%" 
-                label="AI Efficiency" 
-                change="+5% this month" 
-                trend="positive" 
-              />
-              <StatCard 
-                value="42" 
-                label="Patient Records" 
-                change="+8 today" 
-                trend="positive" 
-              />
-            </div>
+          {viewMode === 'workspace' ? (
+            <ClinicalWorkspace 
+              key={workspaceRefreshKey} // Force refresh when key changes
+              onOpenTemplateEditor={() => {
+                setShowTemplateEditor(true);
+                setCurrentTemplate(null);
+              }}
+              onOpenModal={setActiveModal}
+            />
+          ) : (
+            <div className="dashboard-grid">
+              {/* Statistics Cards */}
+              <div className="stats-row">
+                <StatCard 
+                  value="24" 
+                  label="Active Templates" 
+                  change="+3 this week" 
+                  trend="positive" 
+                />
+                <StatCard 
+                  value="156" 
+                  label="Documents Created" 
+                  change="+12 today" 
+                  trend="positive" 
+                />
+                <StatCard 
+                  value="89%" 
+                  label="AI Efficiency" 
+                  change="+5% this month" 
+                  trend="positive" 
+                />
+                <StatCard 
+                  value="42" 
+                  label="Patient Records" 
+                  change="+8 today" 
+                  trend="positive" 
+                />
+              </div>
 
-            {/* Dashboard Content Row */}
-            <div className="dashboard-row">
-              <SystemStatus />
-              <QuickActions onModalOpen={handleModalOpen} />
-            </div>
+              {/* Dashboard Content Row */}
+              <div className="dashboard-row">
+                <SystemStatus />
+                <ClinicalNotesOverview onOpenClinicalWorkflow={(view) => {
+                  setViewMode('workspace');
+                  // Switch to workspace view instead of modal
+                }} />
+              </div>
 
-            {/* Recent Documents */}
-            <RecentDocuments />
-          </div>
+              {/* Recent Documents */}
+              <RecentDocuments />
+            </div>
+          )}
         </div>
       </div>
 
       {/* Modal System */}
       <PatientCensusModal
-        isOpen={activeModal === 'patients'}
+        isOpen={activeModal === 'patients' || activeModal === 'patient-census'}
         onClose={handleModalClose}
+        onDataChange={() => setWorkspaceRefreshKey(prev => prev + 1)}
+        theme={theme}
       />
       
       {/* Template Editor Modal */}
@@ -216,8 +253,149 @@ function App() {
         theme={theme}
       />
       
+      {/* Clinical Workflow Dashboard Modal */}
+      {activeModal === 'clinical-workflow' && (
+        <div className="modal-overlay" onClick={handleModalClose}>
+          <div 
+            className="modal-content" 
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '95vw',
+              height: '90vh',
+              maxWidth: '1400px',
+              padding: '0',
+              backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
+              borderRadius: '12px',
+              overflow: 'hidden'
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 24px',
+              borderBottom: `1px solid ${theme === 'dark' ? '#374151' : '#e5e7eb'}`,
+              backgroundColor: theme === 'dark' ? '#1e293b' : '#f8fafc'
+            }}>
+              <h2 style={{ 
+                margin: 0, 
+                fontSize: '18px', 
+                fontWeight: '600',
+                color: theme === 'dark' ? '#f1f5f9' : '#1f2937'
+              }}>
+                🏥 Clinical Workflow Dashboard
+              </h2>
+              <button 
+                className="modal-close" 
+                onClick={handleModalClose}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: theme === 'dark' ? '#94a3b8' : '#6b7280',
+                  padding: '4px',
+                  borderRadius: '4px'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ 
+              height: 'calc(100% - 70px)', 
+              overflow: 'auto',
+              padding: '0'
+            }}>
+              <ClinicalWorkflowDashboard 
+                theme={theme}
+                onOpenTemplateEditor={() => {
+                  setActiveModal(null);
+                  setShowTemplateEditor(true);
+                }}
+                onOpenTemplateLibrary={() => {
+                  setActiveModal('template-library');
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Template Library Modal */}
+      {activeModal === 'template-library' && (
+        <div className="modal-overlay" onClick={handleModalClose}>
+          <div 
+            className="modal-content" 
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '95vw',
+              height: '90vh',
+              maxWidth: '1200px',
+              padding: '0',
+              backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
+              borderRadius: '12px',
+              overflow: 'hidden'
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 24px',
+              borderBottom: `1px solid ${theme === 'dark' ? '#374151' : '#e5e7eb'}`,
+              backgroundColor: theme === 'dark' ? '#1e293b' : '#f8fafc'
+            }}>
+              <h2 style={{ 
+                margin: 0, 
+                fontSize: '18px', 
+                fontWeight: '600',
+                color: theme === 'dark' ? '#f1f5f9' : '#1f2937'
+              }}>
+                📚 Template Library
+              </h2>
+              <button 
+                className="modal-close" 
+                onClick={handleModalClose}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: theme === 'dark' ? '#94a3b8' : '#6b7280',
+                  padding: '4px',
+                  borderRadius: '4px'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ 
+              height: 'calc(100% - 70px)', 
+              overflow: 'auto',
+              padding: '0'
+            }}>
+              <TemplateLibrary
+                onEditTemplate={(template) => {
+                  setActiveModal(null);
+                  handleEditTemplate(template);
+                }}
+                onUseTemplate={(template) => {
+                  setActiveModal(null);
+                  handleEditTemplate(template);
+                }}
+                onCreateNew={() => {
+                  setActiveModal(null);
+                  handleNewTemplate();
+                }}
+                theme={theme}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Coming Soon Modal for other features */}
-      {activeModal && activeModal !== 'patients' && (
+      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && (
         <div className="modal-overlay" onClick={handleModalClose}>
           <div className="modal-content coming-soon" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={handleModalClose}>×</button>
