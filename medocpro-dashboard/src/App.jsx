@@ -170,18 +170,12 @@ function App() {
         {/* Content Area */}
         <div className={`content-area ${sidebarExpanded ? '' : 'expanded'}`}>
           {viewMode === 'workspace' ? (
-            <div style={{ 
-              height: '100vh', 
-              overflow: 'auto',
-              paddingTop: '70px' // Account for header height
-            }}>
-              <ClinicalWorkspace 
-                onOpenTemplateEditor={() => {
-                  setShowTemplateEditor(true);
-                  setCurrentTemplate(null);
-                }}
-              />
-            </div>
+            <ClinicalWorkspace 
+              onOpenTemplateEditor={() => {
+                setShowTemplateEditor(true);
+                setCurrentTemplate(null);
+              }}
+            />
           ) : (
             <div className="dashboard-grid">
               {/* Statistics Cards */}

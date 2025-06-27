@@ -16,9 +16,8 @@ const getThemeStyles = () => ({
   danger: '#ef4444'
 });
 
-// Header section with date and quick stats - matches dashboard design
+// Header section with date and quick stats - exactly matches dashboard StatCard grid
 const WorkspaceHeader = ({ censusData }) => {
-  const styles = getThemeStyles();
   const today = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
     year: 'numeric', 
@@ -27,122 +26,60 @@ const WorkspaceHeader = ({ censusData }) => {
   });
 
   return (
-    <div style={{
-      maxWidth: '1200px',
-      margin: '0 auto',
-      padding: '2rem 2rem 0',
-    }}>
-      <div style={{
-        background: styles.bgPrimary,
-        borderRadius: '12px',
-        padding: '1.5rem',
-        border: `1px solid ${styles.borderColor}`,
-        marginBottom: '2rem'
-      }}>
-        <div style={{
+    <div style={{ marginBottom: '2rem' }}>
+      {/* Page Title */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h1 style={{
+          margin: 0,
+          fontSize: '1.8rem',
+          fontWeight: '700',
+          color: 'var(--text-primary)',
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '1rem'
+          gap: '0.75rem'
         }}>
-          <div>
-            <h1 style={{
-              margin: 0,
-              fontSize: '1.5rem',
-              fontWeight: '700',
-              color: styles.textPrimary,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem'
-            }}>
-              🏥 Clinical Workspace
-            </h1>
-            <p style={{
-              margin: '0.25rem 0 0 0',
-              fontSize: '0.9rem',
-              color: styles.textSecondary
-            }}>
-              {today}
-            </p>
-          </div>
+          🏥 Clinical Workspace
+        </h1>
+        <p style={{
+          margin: '0.25rem 0 0 0',
+          fontSize: '1rem',
+          color: 'var(--text-secondary)'
+        }}>
+          {today}
+        </p>
+      </div>
+
+      {/* Stats Cards Row - exactly like dashboard with beautiful gradients */}
+      <div className="stats-row">
+        <div className="stat-card">
+          <div className="stat-value">{censusData?.current_census_count || 0}</div>
+          <div className="stat-label">Active Patients</div>
+          <div className="stat-change positive">Current census</div>
         </div>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-          gap: '1rem'
-        }}>
-          <div style={{
-            background: styles.bgSecondary,
-            borderRadius: '8px',
-            padding: '1rem',
-            border: `1px solid ${styles.borderColor}`,
-            textAlign: 'center'
-          }}>
-            <div style={{
-              fontSize: '1.5rem',
-              fontWeight: '700',
-              color: styles.accentColor,
-              marginBottom: '0.25rem'
-            }}>
-              {censusData?.current_census_count || 0}
-            </div>
-            <div style={{
-              fontSize: '0.8rem',
-              color: styles.textSecondary,
-              fontWeight: '500'
-            }}>
-              Active Patients
-            </div>
+        <div className="stat-card">
+          <div className="stat-value" style={{ color: '#10b981' }}>
+            {censusData?.admission_count || 0}
           </div>
+          <div className="stat-label">New Admissions</div>
+          <div className="stat-change positive">+{censusData?.admission_count || 0} today</div>
+        </div>
 
-          <div style={{
-            background: styles.bgSecondary,
-            borderRadius: '8px',
-            padding: '1rem',
-            border: `1px solid ${styles.borderColor}`,
-            textAlign: 'center'
-          }}>
-            <div style={{
-              fontSize: '1.5rem',
-              fontWeight: '700',
-              color: styles.success,
-              marginBottom: '0.25rem'
-            }}>
-              {censusData?.admission_count || 0}
-            </div>
-            <div style={{
-              fontSize: '0.8rem',
-              color: styles.textSecondary,
-              fontWeight: '500'
-            }}>
-              New Today
-            </div>
+        <div className="stat-card">
+          <div className="stat-value" style={{ color: '#f59e0b' }}>
+            {censusData?.discharge_count || 0}
           </div>
+          <div className="stat-label">Discharges</div>
+          <div className="stat-change">Processed today</div>
+        </div>
 
-          <div style={{
-            background: styles.bgSecondary,
-            borderRadius: '8px',
-            padding: '1rem',
-            border: `1px solid ${styles.borderColor}`,
-            textAlign: 'center'
-          }}>
-            <div style={{
-              fontSize: '1.5rem',
-              fontWeight: '700',
-              color: styles.warning,
-              marginBottom: '0.25rem'
-            }}>
-              {censusData?.discharge_count || 0}
-            </div>
-            <div style={{
-              fontSize: '0.8rem',
-              color: styles.textSecondary,
-              fontWeight: '500'
-            }}>
-              Discharged
-            </div>
+        <div className="stat-card">
+          <div className="stat-value" style={{ color: '#8b5cf6' }}>
+            {((censusData?.current_census_count || 0) > 0 ? 
+              Math.round(((censusData?.admission_count || 0) / (censusData?.current_census_count || 1)) * 100) : 0)}%
           </div>
+          <div className="stat-label">Turnover Rate</div>
+          <div className="stat-change">Daily metric</div>
         </div>
       </div>
     </div>
@@ -193,54 +130,18 @@ const BatchDocumentationPanel = ({
   ];
 
   return (
-    <div style={{
-      background: styles.bgPrimary,
-      borderRadius: '12px',
-      padding: '1.5rem',
-      border: `1px solid ${styles.borderColor}`,
-      marginBottom: '2rem'
-    }}>
-      <h3 style={{
-        margin: '0 0 1rem 0',
-        fontSize: '1.1rem',
-        fontWeight: '600',
-        color: styles.textPrimary,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem'
-      }}>
-        📄 Batch Documentation Generation
-      </h3>
+    <div className="system-status" style={{ marginBottom: '2rem' }}>
+      <h3>📄 Batch Documentation Generation</h3>
+      <p>Generate clinical documents for all active patients</p>
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '1rem',
-        marginBottom: '1.5rem'
-      }}>
+      <div className="status-grid" style={{ marginBottom: '1.5rem' }}>
         {/* Template Selection */}
-        <div>
-          <label style={{
-            display: 'block',
-            fontSize: '0.8rem',
-            fontWeight: '500',
-            color: styles.textPrimary,
-            marginBottom: '0.5rem'
-          }}>
-            Document Template
-          </label>
+        <div className="form-group">
+          <label className="form-label">Document Template</label>
           <select
             value={selectedTemplate}
             onChange={(e) => setSelectedTemplate(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: `1px solid ${styles.borderColor}`,
-              borderRadius: '8px',
-              background: styles.bgSecondary,
-              color: styles.textPrimary,
-              fontSize: '0.9rem'
-            }}
+            className="form-input"
           >
             {templateOptions.map(option => (
               <option key={option.value} value={option.value}>
@@ -251,28 +152,12 @@ const BatchDocumentationPanel = ({
         </div>
 
         {/* Export Format */}
-        <div>
-          <label style={{
-            display: 'block',
-            fontSize: '0.8rem',
-            fontWeight: '500',
-            color: styles.textPrimary,
-            marginBottom: '0.5rem'
-          }}>
-            Export Format
-          </label>
+        <div className="form-group">
+          <label className="form-label">Export Format</label>
           <select
             value={exportFormat}
             onChange={(e) => setExportFormat(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              border: `1px solid ${styles.borderColor}`,
-              borderRadius: '8px',
-              background: styles.bgSecondary,
-              color: styles.textPrimary,
-              fontSize: '0.9rem'
-            }}
+            className="form-input"
           >
             {exportOptions.map(option => (
               <option key={option.value} value={option.value}>
@@ -283,66 +168,38 @@ const BatchDocumentationPanel = ({
         </div>
 
         {/* AI Enhancement Toggle */}
-        <div>
-          <label style={{
-            display: 'block',
-            fontSize: '0.8rem',
-            fontWeight: '500',
-            color: styles.textPrimary,
-            marginBottom: '0.5rem'
-          }}>
-            AI Enhancement
-          </label>
-          <label style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            cursor: 'pointer',
-            padding: '0.75rem',
-            background: styles.bgSecondary,
-            border: `1px solid ${styles.borderColor}`,
-            borderRadius: '8px'
-          }}>
-            <input
-              type="checkbox"
-              checked={aiEnhancement}
-              onChange={(e) => setAiEnhancement(e.target.checked)}
-              style={{
-                width: '16px',
-                height: '16px'
-              }}
-            />
-            <span style={{
-              fontSize: '0.9rem',
-              color: styles.textPrimary
+        <div className="form-group">
+          <label className="form-label">AI Enhancement</label>
+          <div className="status-item">
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              cursor: 'pointer'
             }}>
-              🤖 Use Ollama LLM
-            </span>
-          </label>
+              <input
+                type="checkbox"
+                checked={aiEnhancement}
+                onChange={(e) => setAiEnhancement(e.target.checked)}
+                style={{
+                  width: '16px',
+                  height: '16px'
+                }}
+              />
+              <span>🤖 Use Ollama LLM</span>
+            </label>
+          </div>
         </div>
       </div>
 
       {/* Generation Status */}
-      <div style={{
-        padding: '0.75rem 1rem',
-        background: styles.bgSecondary,
-        borderRadius: '8px',
-        marginBottom: '1rem',
-        border: `1px solid ${styles.borderColor}`
-      }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '0.9rem'
-        }}>
-          <span style={{ color: styles.textPrimary }}>
-            Ready to generate <strong>{activePatients.length}</strong> patient documents
-          </span>
-          <span style={{ color: styles.textSecondary }}>
-            {templateOptions.find(t => t.value === selectedTemplate)?.label}
-          </span>
-        </div>
+      <div className="status-item" style={{ marginBottom: '1rem' }}>
+        <span>
+          Ready to generate <strong>{activePatients.length}</strong> patient documents
+        </span>
+        <span className="status-badge available">
+          {templateOptions.find(t => t.value === selectedTemplate)?.label}
+        </span>
       </div>
 
       {/* Action Buttons */}
@@ -358,26 +215,7 @@ const BatchDocumentationPanel = ({
             aiEnhancement
           })}
           disabled={activePatients.length === 0}
-          style={{
-            padding: '0.75rem 1rem',
-            background: 'transparent',
-            border: `1px solid ${styles.borderColor}`,
-            borderRadius: '8px',
-            color: styles.textPrimary,
-            fontSize: '0.9rem',
-            fontWeight: '500',
-            cursor: activePatients.length > 0 ? 'pointer' : 'not-allowed',
-            opacity: activePatients.length > 0 ? 1 : 0.5,
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            if (activePatients.length > 0) {
-              e.target.style.background = styles.bgAccent;
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background = 'transparent';
-          }}
+          className="btn btn-secondary"
         >
           👁️ Preview Sample
         </button>
@@ -385,24 +223,11 @@ const BatchDocumentationPanel = ({
         <button
           onClick={handleGenerate}
           disabled={activePatients.length === 0 || isGenerating}
-          style={{
-            padding: '0.75rem 1.25rem',
-            background: activePatients.length > 0 && !isGenerating ? styles.success : '#6b7280',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '0.9rem',
-            fontWeight: '500',
-            cursor: activePatients.length > 0 && !isGenerating ? 'pointer' : 'not-allowed',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            transition: 'all 0.2s ease'
-          }}
+          className="btn btn-primary"
         >
           {isGenerating ? (
             <>
-              <div className="loading-spinner" style={{ width: '16px', height: '16px' }}></div>
+              <div className="loading" style={{ width: '16px', height: '16px' }}></div>
               Generating...
             </>
           ) : (
@@ -510,45 +335,71 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor }) => {
   }
 
   return (
-    <div style={{
-      minHeight: 'calc(100vh - 70px)',
-      background: 'var(--bg-primary)'
-    }}>
-      {/* Workspace Header */}
+    <div className="dashboard-grid">
+      {/* Error Display */}
+      {error && (
+        <div style={{
+          padding: '0.75rem 1rem',
+          background: 'rgba(239, 68, 68, 0.1)',
+          borderLeft: '4px solid #ef4444',
+          color: '#ef4444',
+          borderRadius: '8px',
+          fontSize: '0.9rem',
+          border: '1px solid rgba(239, 68, 68, 0.2)'
+        }}>
+          {error}
+        </div>
+      )}
+
+      {/* Workspace Header with Stats */}
       <WorkspaceHeader censusData={censusData} />
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 2rem' }}>
-        {/* Error Display */}
-        {error && (
-          <div style={{
-            padding: '0.75rem 1rem',
-            background: 'rgba(239, 68, 68, 0.1)',
-            borderLeft: '4px solid #ef4444',
-            color: '#ef4444',
-            marginBottom: '2rem',
-            borderRadius: '8px',
-            fontSize: '0.9rem',
-            border: '1px solid rgba(239, 68, 68, 0.2)'
-          }}>
-            {error}
-          </div>
-        )}
-
+      {/* Main Content Row - like dashboard-row */}
+      <div className="dashboard-row">
         {/* Patient Census Management */}
-        <div style={{ marginBottom: '2rem' }}>
+        <div className="system-status">
+          <h3>👥 Patient Census Management</h3>
+          <p>Manage daily patient census and assignments</p>
           <PatientCensusTable
             scratchNotes={scratchNotes}
             onGenerateTemplate={() => {}} // Not used in this workflow
           />
         </div>
 
-        {/* Batch Documentation Generation */}
-        <BatchDocumentationPanel
-          censusData={censusData}
-          onGenerateDocuments={handleGenerateDocuments}
-          onPreviewDocuments={handlePreviewDocuments}
-        />
+        {/* Quick Actions */}
+        <div className="quick-actions">
+          <h3>Quick Actions</h3>
+          <p>Common clinical workflow tasks</p>
+          <div className="action-grid">
+            <button 
+              className="action-button"
+              onClick={() => onOpenTemplateEditor && onOpenTemplateEditor()}
+            >
+              <div className="action-icon">📝</div>
+              <div className="action-text">Create Template</div>
+            </button>
+            <button className="action-button">
+              <div className="action-icon">📊</div>
+              <div className="action-text">View Reports</div>
+            </button>
+            <button className="action-button">
+              <div className="action-icon">🤖</div>
+              <div className="action-text">AI Assistant</div>
+            </button>
+            <button className="action-button">
+              <div className="action-icon">⚙️</div>
+              <div className="action-text">Settings</div>
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Batch Documentation Generation */}
+      <BatchDocumentationPanel
+        censusData={censusData}
+        onGenerateDocuments={handleGenerateDocuments}
+        onPreviewDocuments={handlePreviewDocuments}
+      />
     </div>
   );
 };
