@@ -2,9 +2,48 @@
 """Simple backend with working CORS"""
 
 from flask import Flask, request, jsonify
+import time
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'dev-key'
+
+# In-memory storage for patients (will reset when server restarts)
+patient_storage = [
+    {
+        'id': 1,
+        'patient_name': 'Smith, John',
+        'patient_id': 'PT001',
+        'room_number': '101',
+        'status': 'active',
+        'data_fields': {'chief_complaint': 'Anxiety', 'assessment': 'GAD'}
+    },
+    {
+        'id': 2,
+        'patient_name': 'Jones, Mary',
+        'patient_id': 'PT002', 
+        'room_number': '102',
+        'status': 'active',
+        'data_fields': {'chief_complaint': 'Depression', 'assessment': 'MDD'}
+    },
+    {
+        'id': 3,
+        'patient_name': 'Brown, David',
+        'patient_id': 'PT003',
+        'room_number': '103', 
+        'status': 'active',
+        'data_fields': {'chief_complaint': 'Bipolar', 'assessment': 'Bipolar I'}
+    },
+    {
+        'id': 4,
+        'patient_name': 'Wilson, Sarah',
+        'patient_id': 'PT004',
+        'room_number': '104',
+        'status': 'active',
+        'data_fields': {'chief_complaint': 'PTSD', 'assessment': 'PTSD'}
+    }
+]
+
+next_patient_id = 5
 
 @app.before_request
 def handle_preflight():
@@ -93,50 +132,19 @@ def get_today_census():
     if request.method == 'OPTIONS':
         return '', 200
     
+    active_patients = [p for p in patient_storage if p['status'] != 'discharged']
+    
     return {
         'success': True,
         'census': {
             'id': 1,
             'census_date': '2025-06-27',
-            'current_census_count': 4,
+            'current_census_count': len(active_patients),
             'admission_count': 2,
             'discharge_count': 1,
             'is_active': True,
             'is_finalized': False,
-            'rows': [
-                {
-                    'id': 1,
-                    'patient_name': 'Smith, John',
-                    'patient_id': 'PT001',
-                    'room_number': '101',
-                    'status': 'active',
-                    'data_fields': {'chief_complaint': 'Anxiety', 'assessment': 'GAD'}
-                },
-                {
-                    'id': 2,
-                    'patient_name': 'Jones, Mary',
-                    'patient_id': 'PT002', 
-                    'room_number': '102',
-                    'status': 'active',
-                    'data_fields': {'chief_complaint': 'Depression', 'assessment': 'MDD'}
-                },
-                {
-                    'id': 3,
-                    'patient_name': 'Brown, David',
-                    'patient_id': 'PT003',
-                    'room_number': '103', 
-                    'status': 'active',
-                    'data_fields': {'chief_complaint': 'Bipolar', 'assessment': 'Bipolar I'}
-                },
-                {
-                    'id': 4,
-                    'patient_name': 'Wilson, Sarah',
-                    'patient_id': 'PT004',
-                    'room_number': '104',
-                    'status': 'active',
-                    'data_fields': {'chief_complaint': 'PTSD', 'assessment': 'PTSD'}
-                }
-            ]
+            'rows': active_patients
         }
     }
 
@@ -160,21 +168,63 @@ def get_census_history():
 
 @app.route('/api/patient-census/<int:census_id>/rows', methods=['POST', 'OPTIONS'])
 def add_patient_row(census_id):
+    global next_patient_id
     if request.method == 'OPTIONS':
         return '', 200
     
     data = request.get_json() or {}
+    
+    # Create new patient
+    new_patient = {
+        'id': next_patient_id,
+        'patient_name': data.get('patient_name', 'New Patient'),
+        'patient_id': data.get('patient_id', f'PT{next_patient_id:03d}'),
+        'room_number': data.get('room_number', ''),
+        'status': data.get('status', 'active'),
+        'data_fields': data.get('data_fields', {})
+    }
+    
+    # Add to storage
+    patient_storage.append(new_patient)
+    next_patient_id += 1
+    
+    print(f"Added patient: {new_patient['patient_name']} (ID: {new_patient['id']})")
+    
     return {
         'success': True,
-        'row': {
-            'id': 5,
-            'patient_name': data.get('patient_name', 'New Patient'),
-            'patient_id': data.get('patient_id', 'PT005'),
-            'room_number': data.get('room_number', '105'),
-            'status': data.get('status', 'active'),
-            'data_fields': data.get('data_fields', {})
-        }
+        'row': new_patient
     }
+
+@app.route('/api/patient-census/rows/<int:row_id>', methods=['PUT', 'OPTIONS'])
+def update_patient_row(row_id):
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    data = request.get_json() or {}
+    
+    # Find and update patient
+    for i, patient in enumerate(patient_storage):
+        if patient['id'] == row_id:
+            patient_storage[i].update(data)
+            print(f"Updated patient ID {row_id}: {data}")
+            return {
+                'success': True,
+                'row': patient_storage[i]
+            }
+    
+    return {'success': False, 'error': 'Patient not found'}, 404
+
+@app.route('/api/patient-census/rows/<int:row_id>', methods=['DELETE', 'OPTIONS'])
+def delete_patient_row(row_id):
+    global patient_storage
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    # Find and remove patient
+    patient_storage = [p for p in patient_storage if p['id'] != row_id]
+    print(f"Deleted patient ID {row_id}")
+    
+    return {'success': True}
 
 @app.route('/api/scratch-notes', methods=['GET', 'OPTIONS'])
 def get_scratch_notes():

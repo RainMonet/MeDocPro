@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import PatientCensusTable from './PatientCensusTable';
+import PatientCensusCard from './PatientCensusCard';
 
 // Use CSS variables to match dashboard styling
 const getThemeStyles = () => ({
@@ -286,11 +286,12 @@ const BatchDocumentationPanel = ({
 };
 
 // Main Clinical Workspace component - matches dashboard design
-const ClinicalWorkspace = ({ onOpenTemplateEditor }) => {
+const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
   const [censusData, setCensusData] = useState(null);
   const [scratchNotes, setScratchNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [censusRefreshKey, setCensusRefreshKey] = useState(0);
   const styles = getThemeStyles();
 
   // Load today's census data with 7-day historical data
@@ -397,15 +398,23 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor }) => {
   }, [loadCensusData, loadScratchNotes]);
 
   // Handle batch document generation
-  const handleGenerateDocuments = async (options) => {
+  const handleGenerateDocuments = async (selectedPatients) => {
     try {
-      console.log('Generating documents:', options);
-      // TODO: Implement actual document generation
-      alert(`Generating ${options.patients.length} ${options.template} documents in ${options.exportFormat} format${options.aiEnhancement ? ' with AI enhancement' : ''}`);
+      console.log('Generating documents for patients:', selectedPatients);
+      // TODO: Open template selection modal or directly generate
+      alert(`Ready to generate documents for ${selectedPatients.length} patients: ${selectedPatients.map(p => p.patient_name).join(', ')}`);
     } catch (err) {
       console.error('Failed to generate documents:', err);
       alert('Failed to generate documents. Please try again.');
     }
+  };
+
+  // Handle census data changes from modal
+  const handleCensusDataChange = () => {
+    console.log('Census data changed - triggering refresh');
+    setCensusRefreshKey(prev => prev + 1);
+    // Also refresh the main census data for the header
+    loadCensusData();
   };
 
   // Handle document preview
@@ -478,14 +487,13 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor }) => {
 
       {/* Main Content Row - like dashboard-row */}
       <div className="dashboard-row">
-        {/* Patient Census Management */}
+        {/* Patient Census */}
         <div className="system-status">
-          <h3>👥 Patient Census Management</h3>
-          <p>Manage daily patient census and assignments</p>
-          <PatientCensusTable
-            scratchNotes={scratchNotes}
-            onGenerateTemplate={() => {}} // Not used in this workflow
-            onCensusUpdate={loadCensusData} // Refresh census data when changes occur
+          <PatientCensusCard
+            theme={document.documentElement.getAttribute('data-theme') || 'dark'}
+            onBulkGenerate={handleGenerateDocuments}
+            onOpenCensusModal={() => onOpenModal && onOpenModal('patient-census')}
+            refreshKey={censusRefreshKey}
           />
         </div>
 

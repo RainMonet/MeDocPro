@@ -188,6 +188,7 @@ function App() {
                 setShowTemplateEditor(true);
                 setCurrentTemplate(null);
               }}
+              onOpenModal={setActiveModal}
             />
           ) : (
             <div className="dashboard-grid">
@@ -237,8 +238,10 @@ function App() {
 
       {/* Modal System */}
       <PatientCensusModal
-        isOpen={activeModal === 'patients'}
+        isOpen={activeModal === 'patients' || activeModal === 'patient-census'}
         onClose={handleModalClose}
+        onDataChange={() => setWorkspaceRefreshKey(prev => prev + 1)}
+        theme={theme}
       />
       
       {/* Template Editor Modal */}
