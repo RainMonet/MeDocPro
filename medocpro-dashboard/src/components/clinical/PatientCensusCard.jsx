@@ -10,6 +10,7 @@ const getThemeStyles = (theme = 'dark') => ({
   bgAccent: theme === 'dark' ? '#374151' : '#f3f4f6',
   bgHover: theme === 'dark' ? '#475569' : '#e5e7eb',
   borderColor: theme === 'dark' ? '#475569' : '#e5e7eb',
+  primaryColor: '#3b82f6',
   successColor: '#10b981',
   warningColor: '#f59e0b',
   errorColor: '#ef4444'
@@ -38,14 +39,14 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
         alignItems: 'center',
         padding: '12px 16px',
         borderBottom: `1px solid ${styles.borderColor}`,
-        backgroundColor: isSelected ? styles.bgAccent : 'transparent',
+        backgroundColor: isSelected ? `${styles.primaryColor}15` : 'transparent',
         cursor: 'pointer',
         transition: 'all 0.2s ease'
       }}
       onClick={() => onSelect(patient.id)}
       onMouseEnter={(e) => {
         if (!isSelected) {
-          e.target.style.backgroundColor = styles.bgHover;
+          e.target.style.backgroundColor = styles.bgAccent;
         }
       }}
       onMouseLeave={(e) => {
