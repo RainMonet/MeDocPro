@@ -9,6 +9,7 @@ import { PatientCensusModal } from './components/modals';
 import TemplateEditor from './components/TemplateEditor';
 import TemplateLibrary from './components/templates/TemplateLibrary';
 import ClinicalWorkflowDashboard from './components/clinical/ClinicalWorkflowDashboard';
+import ClinicalWorkspace from './components/clinical/ClinicalWorkspace';
 import apiService from './services/api';
 import './App.css';
 
@@ -21,6 +22,7 @@ function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
+  const [viewMode, setViewMode] = useState('workspace'); // 'workspace' or 'dashboard'
   
   // Template editor state
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
@@ -141,9 +143,11 @@ function App() {
       <div className="main-layout">
         <Sidebar 
           onModalOpen={handleModalOpen}
+          onViewChange={setViewMode}
           expanded={sidebarExpanded}
           isMobile={isMobile}
           onToggle={toggleSidebar}
+          viewMode={viewMode}
         />
         
         {/* Mobile Overlay */}
@@ -165,47 +169,62 @@ function App() {
         
         {/* Content Area */}
         <div className={`content-area ${sidebarExpanded ? '' : 'expanded'}`}>
-          <div className="dashboard-grid">
-            {/* Statistics Cards */}
-            <div className="stats-row">
-              <StatCard 
-                value="24" 
-                label="Active Templates" 
-                change="+3 this week" 
-                trend="positive" 
-              />
-              <StatCard 
-                value="156" 
-                label="Documents Created" 
-                change="+12 today" 
-                trend="positive" 
-              />
-              <StatCard 
-                value="89%" 
-                label="AI Efficiency" 
-                change="+5% this month" 
-                trend="positive" 
-              />
-              <StatCard 
-                value="42" 
-                label="Patient Records" 
-                change="+8 today" 
-                trend="positive" 
+          {viewMode === 'workspace' ? (
+            <div style={{ 
+              height: '100vh', 
+              overflow: 'auto',
+              paddingTop: '70px' // Account for header height
+            }}>
+              <ClinicalWorkspace 
+                onOpenTemplateEditor={() => {
+                  setShowTemplateEditor(true);
+                  setCurrentTemplate(null);
+                }}
               />
             </div>
+          ) : (
+            <div className="dashboard-grid">
+              {/* Statistics Cards */}
+              <div className="stats-row">
+                <StatCard 
+                  value="24" 
+                  label="Active Templates" 
+                  change="+3 this week" 
+                  trend="positive" 
+                />
+                <StatCard 
+                  value="156" 
+                  label="Documents Created" 
+                  change="+12 today" 
+                  trend="positive" 
+                />
+                <StatCard 
+                  value="89%" 
+                  label="AI Efficiency" 
+                  change="+5% this month" 
+                  trend="positive" 
+                />
+                <StatCard 
+                  value="42" 
+                  label="Patient Records" 
+                  change="+8 today" 
+                  trend="positive" 
+                />
+              </div>
 
-            {/* Dashboard Content Row */}
-            <div className="dashboard-row">
-              <SystemStatus />
-              <ClinicalNotesOverview onOpenClinicalWorkflow={(view) => {
-                setActiveModal('clinical-workflow');
-                // Could pass view parameter to set initial view in workflow dashboard
-              }} />
+              {/* Dashboard Content Row */}
+              <div className="dashboard-row">
+                <SystemStatus />
+                <ClinicalNotesOverview onOpenClinicalWorkflow={(view) => {
+                  setViewMode('workspace');
+                  // Switch to workspace view instead of modal
+                }} />
+              </div>
+
+              {/* Recent Documents */}
+              <RecentDocuments />
             </div>
-
-            {/* Recent Documents */}
-            <RecentDocuments />
-          </div>
+          )}
         </div>
       </div>
 
