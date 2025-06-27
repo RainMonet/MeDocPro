@@ -2,7 +2,7 @@
 
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import logging
 
 from ..models import db, PatientCensus, PatientCensusRow, ScratchNote, User
@@ -89,6 +89,65 @@ def get_todays_census():
         logger.error(f"Error retrieving today's census: {str(e)}")
         db.session.rollback()
         return jsonify({'success': False, 'error': 'Failed to retrieve today\'s census'}), 500
+
+@patient_census_bp.route('/api/patient-census/history', methods=['GET'])
+@jwt_required()
+def get_census_history():
+    """Get historical census data for calculating averages"""
+    try:
+        user_id = get_jwt_identity()
+        
+        # Get number of days to retrieve (default 7)
+        days = int(request.args.get('days', 7))
+        if days > 30:  # Limit to 30 days for performance
+            days = 30
+        
+        # Calculate date range
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days-1)  # Include today
+        
+        # Get census data for the date range
+        censuses = PatientCensus.query.filter(
+            PatientCensus.user_id == user_id,
+            PatientCensus.census_date >= start_date,
+            PatientCensus.census_date <= end_date,
+            PatientCensus.is_active == True
+        ).order_by(PatientCensus.census_date.desc()).all()
+        
+        # Build historical data
+        census_history = []
+        for census in censuses:
+            # Calculate census counts
+            active_count = len([row for row in census.rows if row.status == 'active'])
+            admission_count = len([row for row in census.rows if row.status == 'admission'])
+            discharge_count = len([row for row in census.rows if row.status == 'discharge'])
+            
+            census_history.append({
+                'census_date': census.census_date.isoformat(),
+                'census_count': active_count,
+                'admission_count': admission_count,
+                'discharge_count': discharge_count,
+                'total_capacity': census.total_capacity,
+                'facility_name': census.facility_name,
+                'unit_name': census.unit_name
+            })
+        
+        log_audit_event(user_id, 'census_history_viewed', f'Retrieved {days} days of census history')
+        
+        return jsonify({
+            'success': True,
+            'census_history': census_history,
+            'date_range': {
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat(),
+                'days_requested': days
+            },
+            'count': len(census_history)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error retrieving census history: {str(e)}")
+        return jsonify({'success': False, 'error': 'Failed to retrieve census history'}), 500
 
 @patient_census_bp.route('/api/patient-census', methods=['POST'])
 @jwt_required()

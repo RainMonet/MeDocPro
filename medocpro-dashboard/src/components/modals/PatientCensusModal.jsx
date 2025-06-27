@@ -16,15 +16,14 @@ const getThemeStyles = (theme = 'dark') => ({
   errorColor: '#ef4444'
 });
 
-// Patient status configuration
-const getStatusDisplay = (status) => {
-  const statusConfig = {
-    active: { icon: '🟢', label: 'Active', color: '#10b981' },
-    admitted: { icon: '🆕', label: 'New Admission', color: '#3b82f6' },
-    discharged: { icon: '🏠', label: 'Discharged', color: '#6b7280' },
-    transferred: { icon: '🔄', label: 'Transferred', color: '#f59e0b' }
+// Patient workflow type configuration
+const getWorkflowDisplay = (workflowType) => {
+  const workflowConfig = {
+    'follow-up': { icon: '🔄', label: 'Follow-up', color: '#3b82f6' },
+    'admission': { icon: '🏥', label: 'Admission', color: '#10b981' },
+    'discharge': { icon: '🏠', label: 'Discharge', color: '#ef4444' }
   };
-  return statusConfig[status] || statusConfig.active;
+  return workflowConfig[workflowType] || workflowConfig['follow-up'];
 };
 
 // Individual patient row component for editing
@@ -34,10 +33,10 @@ const EditablePatientRow = ({ patient, onUpdate, onDelete, theme }) => {
     patient_name: patient.patient_name || '',
     patient_id: patient.patient_id || '',
     room_number: patient.room_number || '',
-    status: patient.status || 'active'
+    workflow_type: patient.workflow_type || patient.status || 'follow-up'
   });
   const styles = getThemeStyles(theme);
-  const statusDisplay = getStatusDisplay(patient.status);
+  const workflowDisplay = getWorkflowDisplay(patient.workflow_type || patient.status);
 
   const handleSave = () => {
     onUpdate(patient.id, editData);
@@ -49,7 +48,7 @@ const EditablePatientRow = ({ patient, onUpdate, onDelete, theme }) => {
       patient_name: patient.patient_name || '',
       patient_id: patient.patient_id || '',
       room_number: patient.room_number || '',
-      status: patient.status || 'active'
+      workflow_type: patient.workflow_type || patient.status || 'follow-up'
     });
     setIsEditing(false);
   };
@@ -65,11 +64,11 @@ const EditablePatientRow = ({ patient, onUpdate, onDelete, theme }) => {
           alignItems: 'center',
           gap: '6px'
         }}>
-          <span style={{ fontSize: '14px' }}>{statusDisplay.icon}</span>
+          <span style={{ fontSize: '14px' }}>{workflowDisplay.icon}</span>
           {isEditing ? (
             <select
-              value={editData.status}
-              onChange={(e) => setEditData(prev => ({ ...prev, status: e.target.value }))}
+              value={editData.workflow_type}
+              onChange={(e) => setEditData(prev => ({ ...prev, workflow_type: e.target.value }))}
               style={{
                 padding: '4px 8px',
                 border: `1px solid ${styles.borderColor}`,
@@ -79,18 +78,17 @@ const EditablePatientRow = ({ patient, onUpdate, onDelete, theme }) => {
                 fontSize: '12px'
               }}
             >
-              <option value="active">Active</option>
-              <option value="admitted">Admitted</option>
-              <option value="discharged">Discharged</option>
-              <option value="transferred">Transferred</option>
+              <option value="follow-up">Follow-up</option>
+              <option value="admission">Admission</option>
+              <option value="discharge">Discharge</option>
             </select>
           ) : (
             <span style={{
               fontSize: '12px',
-              color: statusDisplay.color,
+              color: workflowDisplay.color,
               fontWeight: '500'
             }}>
-              {statusDisplay.label}
+              {workflowDisplay.label}
             </span>
           )}
         </div>
@@ -243,12 +241,13 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notification, setNotification] = useState(null);
-  const [stats, setStats] = useState({ total: 0, active: 0, admitted: 0, discharged: 0 });
+  const [stats, setStats] = useState({ total: 0, followUp: 0, admission: 0, discharge: 0 });
   
   // Form states for adding new patients
   const [newPatientName, setNewPatientName] = useState('');
   const [newPatientId, setNewPatientId] = useState('');
   const [newRoomNumber, setNewRoomNumber] = useState('');
+  const [newWorkflowType, setNewWorkflowType] = useState('follow-up');
   
   const styles = getThemeStyles(theme);
 
@@ -272,16 +271,17 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
         
         // Calculate stats
         const total = data.census.rows?.length || 0;
-        const statusCounts = (data.census.rows || []).reduce((acc, patient) => {
-          acc[patient.status] = (acc[patient.status] || 0) + 1;
+        const workflowCounts = (data.census.rows || []).reduce((acc, patient) => {
+          const workflowType = patient.workflow_type || patient.status || 'follow-up';
+          acc[workflowType] = (acc[workflowType] || 0) + 1;
           return acc;
         }, {});
         
         setStats({
           total,
-          active: statusCounts.active || 0,
-          admitted: statusCounts.admitted || 0,
-          discharged: statusCounts.discharged || 0
+          followUp: workflowCounts['follow-up'] || 0,
+          admission: workflowCounts['admission'] || 0,
+          discharge: workflowCounts['discharge'] || 0
         });
       } else {
         setError('Failed to load patient census');
@@ -318,7 +318,8 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
           patient_name: newPatientName.trim(),
           patient_id: newPatientId.trim(),
           room_number: newRoomNumber.trim() || null,
-          status: 'active',
+          workflow_type: newWorkflowType,
+          status: newWorkflowType,  // Keep status for backward compatibility
           data_fields: {}
         })
       });
@@ -329,6 +330,7 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
         setNewPatientName('');
         setNewPatientId('');
         setNewRoomNumber('');
+        setNewWorkflowType('follow-up');
         showNotification('Patient added successfully!', 'success');
         loadCensusData(); // Refresh the list
         
@@ -488,22 +490,22 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
               <div style={{ fontSize: '12px', color: styles.textMuted }}>Total Patients</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>
-                {stats.active}
-              </div>
-              <div style={{ fontSize: '12px', color: styles.textMuted }}>Active</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#3b82f6' }}>
-                {stats.admitted}
+                {stats.followUp}
               </div>
-              <div style={{ fontSize: '12px', color: styles.textMuted }}>Admitted</div>
+              <div style={{ fontSize: '12px', color: styles.textMuted }}>Follow-up</div>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#6b7280' }}>
-                {stats.discharged}
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>
+                {stats.admission}
               </div>
-              <div style={{ fontSize: '12px', color: styles.textMuted }}>Discharged</div>
+              <div style={{ fontSize: '12px', color: styles.textMuted }}>Admission</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ef4444' }}>
+                {stats.discharge}
+              </div>
+              <div style={{ fontSize: '12px', color: styles.textMuted }}>Discharge</div>
             </div>
           </div>
 
@@ -602,6 +604,33 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
                   }}
                 />
               </div>
+              <div style={{ flex: 1 }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '12px',
+                  color: styles.textSecondary,
+                  marginBottom: '4px'
+                }}>
+                  Workflow
+                </label>
+                <select
+                  value={newWorkflowType}
+                  onChange={(e) => setNewWorkflowType(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '6px',
+                    backgroundColor: styles.bgPrimary,
+                    color: styles.textPrimary,
+                    fontSize: '13px'
+                  }}
+                >
+                  <option value="follow-up">Follow-up</option>
+                  <option value="admission">Admission</option>
+                  <option value="discharge">Discharge</option>
+                </select>
+              </div>
               <button
                 onClick={handleAddPatient}
                 style={{
@@ -680,7 +709,7 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
                     fontWeight: '600',
                     color: styles.textPrimary
                   }}>
-                    Status
+                    Workflow Type
                   </th>
                   <th style={{
                     padding: '12px 16px',

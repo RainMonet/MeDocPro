@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PatientCensusCard from './PatientCensusCard';
+import BatchDocumentationCard from './BatchDocumentationCard';
 
 // Use CSS variables to match dashboard styling
 const getThemeStyles = () => ({
@@ -292,6 +293,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [censusRefreshKey, setCensusRefreshKey] = useState(0);
+  const [selectedPatients, setSelectedPatients] = useState([]);
   const styles = getThemeStyles();
 
   // Load today's census data with 7-day historical data
@@ -398,15 +400,20 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
   }, [loadCensusData, loadScratchNotes]);
 
   // Handle batch document generation
-  const handleGenerateDocuments = async (selectedPatients) => {
+  const handleGenerateDocuments = async (options) => {
     try {
-      console.log('Generating documents for patients:', selectedPatients);
-      // TODO: Open template selection modal or directly generate
-      alert(`Ready to generate documents for ${selectedPatients.length} patients: ${selectedPatients.map(p => p.patient_name).join(', ')}`);
+      console.log('Generating documents:', options);
+      // TODO: Implement actual document generation with template population
+      alert(`Generating ${options.patients.length} ${options.template.name} documents in ${options.exportFormat} format${options.aiEnhancement ? ' with AI enhancement' : ''}`);
     } catch (err) {
       console.error('Failed to generate documents:', err);
       alert('Failed to generate documents. Please try again.');
     }
+  };
+
+  // Handle selected patients change from census card
+  const handleSelectedPatientsChange = (patients) => {
+    setSelectedPatients(patients);
   };
 
   // Handle census data changes from modal
@@ -417,17 +424,6 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
     loadCensusData();
   };
 
-  // Handle document preview
-  const handlePreviewDocuments = async (options) => {
-    try {
-      console.log('Previewing document:', options);
-      // TODO: Implement document preview
-      alert(`Previewing ${options.template} for ${options.patients[0]?.patient_name || 'first patient'}`);
-    } catch (err) {
-      console.error('Failed to preview document:', err);
-      alert('Failed to preview document. Please try again.');
-    }
-  };
 
   useEffect(() => {
     loadData();
@@ -493,44 +489,21 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
             theme={document.documentElement.getAttribute('data-theme') || 'dark'}
             onBulkGenerate={handleGenerateDocuments}
             onOpenCensusModal={() => onOpenModal && onOpenModal('patient-census')}
+            onSelectedPatientsChange={handleSelectedPatientsChange}
             refreshKey={censusRefreshKey}
           />
         </div>
 
-        {/* Quick Actions */}
-        <div className="quick-actions">
-          <h3>Quick Actions</h3>
-          <p>Common clinical workflow tasks</p>
-          <div className="action-grid">
-            <button 
-              className="action-button"
-              onClick={() => onOpenTemplateEditor && onOpenTemplateEditor()}
-            >
-              <div className="action-icon">📝</div>
-              <div className="action-text">Create Template</div>
-            </button>
-            <button className="action-button">
-              <div className="action-icon">📊</div>
-              <div className="action-text">View Reports</div>
-            </button>
-            <button className="action-button">
-              <div className="action-icon">🤖</div>
-              <div className="action-text">AI Assistant</div>
-            </button>
-            <button className="action-button">
-              <div className="action-icon">⚙️</div>
-              <div className="action-text">Settings</div>
-            </button>
-          </div>
+        {/* Batch Documentation Generation */}
+        <div className="system-status">
+          <BatchDocumentationCard
+            selectedPatients={selectedPatients}
+            onGenerate={handleGenerateDocuments}
+            theme={document.documentElement.getAttribute('data-theme') || 'dark'}
+            onOpenTemplateEditor={() => onOpenTemplateEditor && onOpenTemplateEditor()}
+          />
         </div>
       </div>
-
-      {/* Batch Documentation Generation */}
-      <BatchDocumentationPanel
-        censusData={censusData}
-        onGenerateDocuments={handleGenerateDocuments}
-        onPreviewDocuments={handlePreviewDocuments}
-      />
     </div>
   );
 };

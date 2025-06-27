@@ -14,7 +14,8 @@ patient_storage = [
         'patient_name': 'Smith, John',
         'patient_id': 'PT001',
         'room_number': '101',
-        'status': 'active',
+        'status': 'follow-up',
+        'workflow_type': 'follow-up',
         'data_fields': {'chief_complaint': 'Anxiety', 'assessment': 'GAD'}
     },
     {
@@ -22,7 +23,8 @@ patient_storage = [
         'patient_name': 'Jones, Mary',
         'patient_id': 'PT002', 
         'room_number': '102',
-        'status': 'active',
+        'status': 'admission',
+        'workflow_type': 'admission',
         'data_fields': {'chief_complaint': 'Depression', 'assessment': 'MDD'}
     },
     {
@@ -30,7 +32,8 @@ patient_storage = [
         'patient_name': 'Brown, David',
         'patient_id': 'PT003',
         'room_number': '103', 
-        'status': 'active',
+        'status': 'discharge',
+        'workflow_type': 'discharge',
         'data_fields': {'chief_complaint': 'Bipolar', 'assessment': 'Bipolar I'}
     },
     {
@@ -38,7 +41,8 @@ patient_storage = [
         'patient_name': 'Wilson, Sarah',
         'patient_id': 'PT004',
         'room_number': '104',
-        'status': 'active',
+        'status': 'follow-up',
+        'workflow_type': 'follow-up',
         'data_fields': {'chief_complaint': 'PTSD', 'assessment': 'PTSD'}
     }
 ]
@@ -175,12 +179,14 @@ def add_patient_row(census_id):
     data = request.get_json() or {}
     
     # Create new patient
+    workflow_type = data.get('workflow_type', data.get('status', 'follow-up'))
     new_patient = {
         'id': next_patient_id,
         'patient_name': data.get('patient_name', 'New Patient'),
         'patient_id': data.get('patient_id', f'PT{next_patient_id:03d}'),
         'room_number': data.get('room_number', ''),
-        'status': data.get('status', 'active'),
+        'status': workflow_type,
+        'workflow_type': workflow_type,
         'data_fields': data.get('data_fields', {})
     }
     
@@ -205,8 +211,17 @@ def update_patient_row(row_id):
     # Find and update patient
     for i, patient in enumerate(patient_storage):
         if patient['id'] == row_id:
+            # Update the patient data
             patient_storage[i].update(data)
+            
+            # Ensure workflow_type is synced with status for compatibility
+            if 'workflow_type' in data:
+                patient_storage[i]['status'] = data['workflow_type']
+            elif 'status' in data:
+                patient_storage[i]['workflow_type'] = data['status']
+            
             print(f"Updated patient ID {row_id}: {data}")
+            print(f"Patient now: {patient_storage[i]}")
             return {
                 'success': True,
                 'row': patient_storage[i]

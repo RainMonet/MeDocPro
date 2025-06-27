@@ -18,18 +18,18 @@ const getThemeStyles = (theme = 'dark') => ({
 // Patient status indicators
 const getStatusDisplay = (status) => {
   const statusConfig = {
-    completed: { icon: '✅', label: 'Completed', color: '#10b981' },
-    draft: { icon: '📝', label: 'Draft', color: '#f59e0b' },
-    incomplete: { icon: '⏳', label: 'Incomplete', color: '#ef4444' },
-    active: { icon: '🟢', label: 'Active', color: '#10b981' }
+    'follow-up': { icon: '🔄', label: 'Follow-up', color: '#3b82f6' },
+    'admission': { icon: '🏥', label: 'Admission', color: '#10b981' },
+    'discharge': { icon: '🏠', label: 'Discharge', color: '#ef4444' },
+    'active': { icon: '🟢', label: 'Active', color: '#10b981' }  // fallback for existing data
   };
-  return statusConfig[status] || statusConfig.incomplete;
+  return statusConfig[status] || statusConfig['follow-up'];
 };
 
 // Individual patient row component
 const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme }) => {
   const styles = getThemeStyles(theme);
-  const statusDisplay = getStatusDisplay(patient.doc_status || 'incomplete');
+  const statusDisplay = getStatusDisplay(patient.clinical_status || 'follow-up');
 
   return (
     <div
@@ -157,6 +157,7 @@ const PatientCensusCard = ({
   theme = 'dark', 
   onBulkGenerate,
   onOpenCensusModal,
+  onSelectedPatientsChange,
   refreshKey = 0  // Add refresh key prop to trigger re-renders
 }) => {
   const [patients, setPatients] = useState([]);
@@ -181,10 +182,10 @@ const PatientCensusCard = ({
       const data = await response.json();
       
       if (data.success && data.census) {
-        // Add document status to each patient (for demo purposes)
+        // Use existing workflow_type or status, don't randomly assign
         const patientsWithStatus = data.census.rows.map(patient => ({
           ...patient,
-          doc_status: ['completed', 'draft', 'incomplete'][Math.floor(Math.random() * 3)]
+          clinical_status: patient.workflow_type || patient.status || 'follow-up'
         }));
         setPatients(patientsWithStatus);
       } else {
@@ -207,39 +208,73 @@ const PatientCensusCard = ({
       } else {
         newSet.add(patientId);
       }
+      
+      // Notify parent of selection change
+      if (onSelectedPatientsChange) {
+        const selectedPatientData = patients.filter(p => newSet.has(p.id));
+        onSelectedPatientsChange(selectedPatientData);
+      }
+      
       return newSet;
     });
   };
 
   // Handle select all/none
   const handleSelectAll = () => {
-    if (selectedPatients.size === patients.length) {
-      setSelectedPatients(new Set());
-    } else {
-      setSelectedPatients(new Set(patients.map(p => p.id)));
+    const newSelection = selectedPatients.size === patients.length 
+      ? new Set() 
+      : new Set(patients.map(p => p.id));
+    
+    setSelectedPatients(newSelection);
+    
+    // Notify parent of selection change
+    if (onSelectedPatientsChange) {
+      const selectedPatientData = patients.filter(p => newSelection.has(p.id));
+      onSelectedPatientsChange(selectedPatientData);
     }
   };
 
   // Handle status change
-  const handleStatusChange = (patientId) => {
-    setPatients(prev => prev.map(patient => {
-      if (patient.id === patientId) {
-        const statuses = ['incomplete', 'draft', 'completed'];
-        const currentIndex = statuses.indexOf(patient.doc_status || 'incomplete');
-        const nextIndex = (currentIndex + 1) % statuses.length;
-        return { ...patient, doc_status: statuses[nextIndex] };
-      }
-      return patient;
-    }));
-  };
+  const handleStatusChange = async (patientId) => {
+    const patient = patients.find(p => p.id === patientId);
+    if (!patient) return;
 
-  // Handle bulk document generation
-  const handleBulkGenerate = () => {
-    const selectedPatientData = patients.filter(p => selectedPatients.has(p.id));
-    if (selectedPatientData.length > 0 && onBulkGenerate) {
-      onBulkGenerate(selectedPatientData);
+    const statuses = ['follow-up', 'admission', 'discharge'];
+    const currentIndex = statuses.indexOf(patient.clinical_status || 'follow-up');
+    const nextIndex = (currentIndex + 1) % statuses.length;
+    const newStatus = statuses[nextIndex];
+
+    try {
+      // Update in backend
+      const response = await fetch(`http://localhost:5001/api/patient-census/rows/${patientId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          workflow_type: newStatus,
+          status: newStatus  // Keep both for compatibility
+        })
+      });
+
+      if (response.ok) {
+        // Update local state only if backend update succeeded
+        setPatients(prev => prev.map(pat => {
+          if (pat.id === patientId) {
+            return { ...pat, clinical_status: newStatus, workflow_type: newStatus, status: newStatus };
+          }
+          return pat;
+        }));
+      } else {
+        console.error('Failed to update patient workflow type');
+      }
+    } catch (error) {
+      console.error('Error updating patient workflow type:', error);
     }
   };
+
+  // No longer needed - bulk generation handled by BatchDocumentationCard
 
   useEffect(() => {
     loadPatients();
@@ -356,23 +391,9 @@ const PatientCensusCard = ({
             </span>
           </div>
 
-          {selectedPatients.size > 0 && (
-            <button
-              onClick={handleBulkGenerate}
-              style={{
-                padding: '6px 12px',
-                backgroundColor: styles.successColor,
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: '500',
-                cursor: 'pointer'
-              }}
-            >
-              📄 Generate Docs ({selectedPatients.size})
-            </button>
-          )}
+          <span style={{ color: styles.textMuted, fontSize: '11px' }}>
+            Selection synced with batch generation
+          </span>
         </div>
       </div>
 

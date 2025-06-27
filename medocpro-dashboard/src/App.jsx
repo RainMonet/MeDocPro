@@ -395,7 +395,7 @@ function App() {
       )}
       
       {/* Coming Soon Modal for other features */}
-      {activeModal && activeModal !== 'patients' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && (
+      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && (
         <div className="modal-overlay" onClick={handleModalClose}>
           <div className="modal-content coming-soon" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={handleModalClose}>×</button>
