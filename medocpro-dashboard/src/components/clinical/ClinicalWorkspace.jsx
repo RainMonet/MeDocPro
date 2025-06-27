@@ -70,27 +70,48 @@ const WorkspaceHeader = ({ censusData }) => {
             </p>
           </div>
           
-          <button
-            onClick={() => {
-              console.log('Manual refresh triggered');
-              loadData();
-            }}
-            style={{
-              padding: '0.5rem 1rem',
-              background: 'var(--accent-color)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '0.9rem',
-              fontWeight: '500',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}
-          >
-            🔄 Refresh Data
-          </button>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button
+              onClick={() => onOpenModal && onOpenModal('daily-info-entry')}
+              style={{
+                padding: '0.5rem 1rem',
+                background: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '0.9rem',
+                fontWeight: '500',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              📝 Daily Info Entry
+            </button>
+            
+            <button
+              onClick={() => {
+                console.log('Manual refresh triggered');
+                loadData();
+              }}
+              style={{
+                padding: '0.5rem 1rem',
+                background: 'var(--accent-color)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '0.9rem',
+                fontWeight: '500',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              🔄 Refresh Data
+            </button>
+          </div>
         </div>
       </div>
 

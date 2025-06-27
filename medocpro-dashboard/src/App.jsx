@@ -6,6 +6,7 @@ import SidebarToggle from './components/layout/SidebarToggle';
 import StatCard from './components/ui/StatCard';
 import { SystemStatus, ClinicalNotesOverview, RecentDocuments } from './components/dashboard';
 import { PatientCensusModal } from './components/modals';
+import DailyInfoEntryModal from './components/modals/DailyInfoEntryModal';
 import TemplateEditor from './components/TemplateEditor';
 import TemplateLibrary from './components/templates/TemplateLibrary';
 import ClinicalWorkflowDashboard from './components/clinical/ClinicalWorkflowDashboard';
@@ -28,6 +29,9 @@ function App() {
   // Template editor state
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState(null);
+  
+  // Patient data for daily info entry
+  const [patientList, setPatientList] = useState([]);
 
   // User data
   const user = {
@@ -74,12 +78,35 @@ function App() {
     setSidebarExpanded(prev => !prev);
   };
 
+  // Load patient data for daily info entry
+  const loadPatientData = async () => {
+    try {
+      const response = await fetch('http://localhost:5001/api/patient-census/today', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await response.json();
+      
+      if (data.success && data.census) {
+        setPatientList(data.census.rows || []);
+      }
+    } catch (err) {
+      console.error('Failed to load patient data:', err);
+    }
+  };
+
   const handleModalOpen = (modalType) => {
     console.log('Modal type clicked:', modalType);
     if (modalType === 'template-editor') {
       console.log('Opening template editor');
       setShowTemplateEditor(true);
       setCurrentTemplate(null);
+    } else if (modalType === 'daily-info-entry') {
+      // Load fresh patient data when opening daily info entry
+      loadPatientData();
+      setActiveModal(modalType);
     } else if (modalType === 'clinical-workflow') {
       setActiveModal(modalType);
     } else {
@@ -394,8 +421,16 @@ function App() {
         </div>
       )}
       
+      {/* Daily Info Entry Modal */}
+      <DailyInfoEntryModal
+        isOpen={activeModal === 'daily-info-entry'}
+        onClose={handleModalClose}
+        patients={patientList}
+        theme={theme}
+      />
+      
       {/* Coming Soon Modal for other features */}
-      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && (
+      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && (
         <div className="modal-overlay" onClick={handleModalClose}>
           <div className="modal-content coming-soon" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={handleModalClose}>×</button>
