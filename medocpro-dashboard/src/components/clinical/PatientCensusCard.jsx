@@ -164,7 +164,56 @@ const PatientCensusCard = ({
   const [selectedPatients, setSelectedPatients] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const styles = getThemeStyles(theme);
+  const [sortBy, setSortBy] = useState('name'); // 'name' or 'workflow'
+  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
+  const [currentTheme, setCurrentTheme] = useState(theme);
+  const styles = getThemeStyles(currentTheme);
+
+  // Listen for theme changes
+  useEffect(() => {
+    const updateTheme = () => {
+      const newTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+      setCurrentTheme(newTheme);
+    };
+
+    // Update theme on mount
+    updateTheme();
+
+    // Listen for theme changes
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Sort patients function
+  const sortPatients = (patientList) => {
+    return [...patientList].sort((a, b) => {
+      let compareValue = 0;
+      
+      if (sortBy === 'name') {
+        // Extract last name for sorting (assuming format "Last, First")
+        const getLastName = (name) => {
+          const parts = name.split(',');
+          return parts[0].trim().toLowerCase();
+        };
+        
+        const aName = getLastName(a.patient_name || '');
+        const bName = getLastName(b.patient_name || '');
+        compareValue = aName.localeCompare(bName);
+      } else if (sortBy === 'workflow') {
+        // Sort by workflow type
+        const aWorkflow = a.clinical_status || 'follow-up';
+        const bWorkflow = b.clinical_status || 'follow-up';
+        compareValue = aWorkflow.localeCompare(bWorkflow);
+      }
+      
+      return sortOrder === 'asc' ? compareValue : -compareValue;
+    });
+  };
 
   // Load patient census data
   const loadPatients = useCallback(async () => {
@@ -187,7 +236,7 @@ const PatientCensusCard = ({
           ...patient,
           clinical_status: patient.workflow_type || patient.status || 'follow-up'
         }));
-        setPatients(patientsWithStatus);
+        setPatients(sortPatients(patientsWithStatus));
       } else {
         setError('Failed to load patient census');
       }
@@ -274,7 +323,22 @@ const PatientCensusCard = ({
     }
   };
 
-  // No longer needed - bulk generation handled by BatchDocumentationCard
+  // Handle sort change
+  const handleSortChange = (newSortBy) => {
+    if (sortBy === newSortBy) {
+      // Toggle sort order if same field
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Change sort field and reset to ascending
+      setSortBy(newSortBy);
+      setSortOrder('asc');
+    }
+  };
+
+  // Re-sort patients when sort options change
+  useEffect(() => {
+    setPatients(prev => sortPatients(prev));
+  }, [sortBy, sortOrder]);
 
   useEffect(() => {
     loadPatients();
@@ -359,6 +423,62 @@ const PatientCensusCard = ({
             {error}
           </div>
         )}
+
+        {/* Sort and Selection Controls */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '13px',
+          marginBottom: '8px'
+        }}>
+          {/* Sort Controls */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span style={{ color: styles.textMuted, fontSize: '12px' }}>Sort:</span>
+            <button
+              onClick={() => handleSortChange('name')}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: sortBy === 'name' ? styles.primaryColor : 'transparent',
+                color: sortBy === 'name' ? '#ffffff' : styles.textSecondary,
+                border: `1px solid ${sortBy === 'name' ? styles.primaryColor : styles.borderColor}`,
+                borderRadius: '4px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+            </button>
+            <button
+              onClick={() => handleSortChange('workflow')}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: sortBy === 'workflow' ? styles.primaryColor : 'transparent',
+                color: sortBy === 'workflow' ? '#ffffff' : styles.textSecondary,
+                border: `1px solid ${sortBy === 'workflow' ? styles.primaryColor : styles.borderColor}`,
+                borderRadius: '4px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              Type {sortBy === 'workflow' && (sortOrder === 'asc' ? '↑' : '↓')}
+            </button>
+          </div>
+
+          <span style={{ color: styles.textMuted, fontSize: '11px' }}>
+            {patients.length} patients
+          </span>
+        </div>
 
         {/* Selection Controls */}
         <div style={{

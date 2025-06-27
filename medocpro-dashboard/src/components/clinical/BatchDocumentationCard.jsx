@@ -143,8 +143,29 @@ const BatchDocumentationCard = ({
   const [exportFormat, setExportFormat] = useState('pdf');
   const [aiEnhancement, setAiEnhancement] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState(theme);
   
-  const styles = getThemeStyles(theme);
+  const styles = getThemeStyles(currentTheme);
+
+  // Listen for theme changes
+  useEffect(() => {
+    const updateTheme = () => {
+      const newTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+      setCurrentTheme(newTheme);
+    };
+
+    // Update theme on mount
+    updateTheme();
+
+    // Listen for theme changes
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   // Handle template selection
   const handleTemplateSelect = (template) => {
@@ -284,7 +305,7 @@ const BatchDocumentationCard = ({
               </label>
               <TemplateSelector 
                 onSelect={handleTemplateSelect}
-                theme={theme}
+                theme={currentTheme}
               />
               {selectedTemplate && (
                 <div style={{
@@ -308,7 +329,7 @@ const BatchDocumentationCard = ({
             <ExportFormatSelector
               value={exportFormat}
               onChange={setExportFormat}
-              theme={theme}
+              theme={currentTheme}
             />
 
             {/* AI Enhancement Toggle */}
