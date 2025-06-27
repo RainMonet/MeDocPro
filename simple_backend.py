@@ -1,11 +1,46 @@
 #!/usr/bin/env python3
-"""Simple backend with working CORS"""
+"""Simple backend with working CORS and file persistence"""
 
 from flask import Flask, request, jsonify
 import time
+import json
+import os
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'dev-key'
+
+# File persistence
+PATIENT_DATA_FILE = 'patient_data.json'
+
+def save_patient_data():
+    """Save patient data to file"""
+    try:
+        with open(PATIENT_DATA_FILE, 'w') as f:
+            json.dump({
+                'patients': patient_storage,
+                'next_id': next_patient_id,
+                'last_updated': datetime.now().isoformat()
+            }, f, indent=2)
+    except Exception as e:
+        print(f"Error saving patient data: {e}")
+
+def load_patient_data():
+    """Load patient data from file"""
+    global patient_storage, next_patient_id
+    
+    if os.path.exists(PATIENT_DATA_FILE):
+        try:
+            with open(PATIENT_DATA_FILE, 'r') as f:
+                data = json.load(f)
+                patient_storage = data.get('patients', [])
+                next_patient_id = data.get('next_id', 5)
+                print(f"Loaded {len(patient_storage)} patients from file")
+                return
+        except Exception as e:
+            print(f"Error loading patient data: {e}")
+    
+    print("Using default patient data")
 
 # In-memory storage for patients (will reset when server restarts)
 patient_storage = [
@@ -194,6 +229,9 @@ def add_patient_row(census_id):
     patient_storage.append(new_patient)
     next_patient_id += 1
     
+    # Save to file
+    save_patient_data()
+    
     print(f"Added patient: {new_patient['patient_name']} (ID: {new_patient['id']})")
     
     return {
@@ -222,6 +260,10 @@ def update_patient_row(row_id):
             
             print(f"Updated patient ID {row_id}: {data}")
             print(f"Patient now: {patient_storage[i]}")
+            
+            # Save to file
+            save_patient_data()
+            
             return {
                 'success': True,
                 'row': patient_storage[i]
@@ -236,8 +278,12 @@ def delete_patient_row(row_id):
         return '', 200
     
     # Find and remove patient
+    global patient_storage
     patient_storage = [p for p in patient_storage if p['id'] != row_id]
     print(f"Deleted patient ID {row_id}")
+    
+    # Save to file
+    save_patient_data()
     
     return {'success': True}
 
@@ -253,4 +299,6 @@ def get_scratch_notes():
 
 if __name__ == '__main__':
     print('Starting simple backend with CORS on port 5001...')
+    # Load existing patient data
+    load_patient_data()
     app.run(host='0.0.0.0', port=5001, debug=True)
