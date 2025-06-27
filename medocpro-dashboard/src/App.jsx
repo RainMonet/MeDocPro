@@ -4,7 +4,7 @@ import Header from './components/layout/Header';
 import Sidebar from './components/layout/Sidebar';
 import SidebarToggle from './components/layout/SidebarToggle';
 import StatCard from './components/ui/StatCard';
-import { SystemStatus, QuickActions, RecentDocuments } from './components/dashboard';
+import { SystemStatus, ClinicalNotesOverview, RecentDocuments } from './components/dashboard';
 import { PatientCensusModal } from './components/modals';
 import TemplateEditor from './components/TemplateEditor';
 import TemplateLibrary from './components/templates/TemplateLibrary';
@@ -197,7 +197,10 @@ function App() {
             {/* Dashboard Content Row */}
             <div className="dashboard-row">
               <SystemStatus />
-              <QuickActions onModalOpen={handleModalOpen} />
+              <ClinicalNotesOverview onOpenClinicalWorkflow={(view) => {
+                setActiveModal('clinical-workflow');
+                // Could pass view parameter to set initial view in workflow dashboard
+              }} />
             </div>
 
             {/* Recent Documents */}
