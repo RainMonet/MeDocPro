@@ -25,28 +25,72 @@ const WorkspaceHeader = ({ censusData }) => {
     day: 'numeric' 
   });
 
+  // Calculate 7-day average daily caseload
+  const calculate7DayAverage = () => {
+    if (!censusData?.historical_data || censusData.historical_data.length === 0) {
+      return censusData?.current_census_count || 0;
+    }
+    
+    // Get last 7 days of census data
+    const last7Days = censusData.historical_data.slice(-7);
+    const total = last7Days.reduce((sum, day) => sum + (day.census_count || 0), 0);
+    return Math.round(total / last7Days.length);
+  };
+
+  const averageDailyCaseload = calculate7DayAverage();
+
   return (
     <div style={{ marginBottom: '2rem' }}>
       {/* Page Title */}
       <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{
-          margin: 0,
-          fontSize: '1.8rem',
-          fontWeight: '700',
-          color: 'var(--text-primary)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem'
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center' 
         }}>
-          🏥 Clinical Workspace
-        </h1>
-        <p style={{
-          margin: '0.25rem 0 0 0',
-          fontSize: '1rem',
-          color: 'var(--text-secondary)'
-        }}>
-          {today}
-        </p>
+          <div>
+            <h1 style={{
+              margin: 0,
+              fontSize: '1.8rem',
+              fontWeight: '700',
+              color: 'var(--text-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem'
+            }}>
+              🏥 Clinical Workspace
+            </h1>
+            <p style={{
+              margin: '0.25rem 0 0 0',
+              fontSize: '1rem',
+              color: 'var(--text-secondary)'
+            }}>
+              {today}
+            </p>
+          </div>
+          
+          <button
+            onClick={() => {
+              console.log('Manual refresh triggered');
+              loadData();
+            }}
+            style={{
+              padding: '0.5rem 1rem',
+              background: 'var(--accent-color)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '0.9rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}
+          >
+            🔄 Refresh Data
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards Row - exactly like dashboard with beautiful gradients */}
@@ -54,7 +98,7 @@ const WorkspaceHeader = ({ censusData }) => {
         <div className="stat-card">
           <div className="stat-value">{censusData?.current_census_count || 0}</div>
           <div className="stat-label">Active Patients</div>
-          <div className="stat-change positive">Current census</div>
+          <div className="stat-change positive">Avg {averageDailyCaseload} over 7 days</div>
         </div>
 
         <div className="stat-card">
@@ -249,26 +293,92 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor }) => {
   const [error, setError] = useState('');
   const styles = getThemeStyles();
 
-  // Load today's census data
+  // Load today's census data with 7-day historical data
   const loadCensusData = useCallback(async () => {
     try {
-      const response = await fetch('/api/patient-census/today');
-      const data = await response.json();
+      // Load today's census data (primary data - required)
+      const todayResponse = await fetch('http://localhost:5001/api/patient-census/today', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const todayData = await todayResponse.json();
       
-      if (data.success) {
-        setCensusData(data.census);
-      } else {
-        setError(data.error || 'Failed to load census');
+      if (!todayData.success) {
+        setError(todayData.error || 'Failed to load census');
+        return;
       }
+
+      // Try to load 7-day historical data (optional - for averages)
+      let historicalData = [];
+      try {
+        const historyResponse = await fetch('http://localhost:5001/api/patient-census/history?days=7', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        const historyData = await historyResponse.json();
+        
+        if (historyData.success) {
+          historicalData = historyData.census_history;
+        }
+        // Silently continue if historical data fails - it's not critical
+      } catch (historyErr) {
+        console.warn('Historical data not available:', historyErr);
+        // Continue without historical data
+      }
+      
+      // Set census data with or without historical data
+      const censusWithHistory = {
+        ...todayData.census,
+        historical_data: historicalData
+      };
+      
+      console.log('Census data loaded:', {
+        current_census_count: censusWithHistory.current_census_count,
+        admission_count: censusWithHistory.admission_count,
+        discharge_count: censusWithHistory.discharge_count,
+        totalRows: censusWithHistory.rows?.length || 0,
+        activeRows: censusWithHistory.rows?.filter(r => r.status === 'active').length || 0
+      });
+      
+      setCensusData(censusWithHistory);
+      setError(''); // Clear any previous errors
+      
     } catch (err) {
-      setError('Network error loading census');
+      console.error('Census loading error:', err);
+      
+      // More specific error messages
+      if (err.name === 'TypeError' && err.message.includes('fetch')) {
+        setError('Backend server not running - using demo data');
+      } else if (err.message.includes('401') || err.message.includes('Unauthorized')) {
+        setError('Authentication failed - please log in');
+      } else {
+        setError(`Network error: ${err.message}`);
+      }
+      
+      // Provide fallback data so the workspace is still usable
+      setCensusData({
+        current_census_count: 0,
+        admission_count: 0,
+        discharge_count: 0,
+        rows: [],
+        historical_data: []
+      });
     }
   }, []);
 
   // Load scratch notes for integration
   const loadScratchNotes = useCallback(async () => {
     try {
-      const response = await fetch('/api/scratch-notes');
+      const response = await fetch('http://localhost:5001/api/scratch-notes', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
       const data = await response.json();
       
       if (data.success) {
@@ -314,7 +424,19 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor }) => {
     loadData();
     // Auto-refresh every 5 minutes
     const interval = setInterval(loadData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+    
+    // Refresh data when window gains focus (when switching from modal back to workspace)
+    const handleFocus = () => {
+      console.log('Window focused - refreshing census data');
+      loadData();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [loadData]);
 
   if (loading) {
@@ -363,6 +485,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor }) => {
           <PatientCensusTable
             scratchNotes={scratchNotes}
             onGenerateTemplate={() => {}} // Not used in this workflow
+            onCensusUpdate={loadCensusData} // Refresh census data when changes occur
           />
         </div>
 

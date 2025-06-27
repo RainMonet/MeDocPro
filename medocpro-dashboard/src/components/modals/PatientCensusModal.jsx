@@ -227,15 +227,57 @@ const PatientCensusModal = ({ isOpen, onClose }) => {
     setNotification({ message, type });
   };
 
-  const handleAddPatient = () => {
-    const result = patientCensus.addPatient(newPatientName, newPatientId, 'active');
-    
-    if (result.success) {
-      setNewPatientName('');
-      setNewPatientId('');
-      showNotification(result.message, 'success');
-    } else {
-      showNotification(result.message, 'error');
+  const handleAddPatient = async () => {
+    if (!newPatientName || !newPatientId) {
+      showNotification('Please enter both patient name and ID', 'error');
+      return;
+    }
+
+    try {
+      // First get today's census
+      const censusResponse = await fetch('http://localhost:5001/api/patient-census/today', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const censusData = await censusResponse.json();
+      
+      if (!censusData.success) {
+        showNotification('Failed to load census', 'error');
+        return;
+      }
+
+      // Add patient to the census
+      const addResponse = await fetch(`http://localhost:5001/api/patient-census/${censusData.census.id}/rows`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          patient_name: newPatientName,
+          patient_id: newPatientId,
+          status: 'active',
+          data_fields: {}
+        })
+      });
+
+      const addData = await addResponse.json();
+      
+      if (addData.success) {
+        setNewPatientName('');
+        setNewPatientId('');
+        showNotification('Patient added successfully!', 'success');
+        
+        // Update the local manager for immediate UI feedback
+        patientCensus.addPatient(newPatientName, newPatientId, 'active');
+      } else {
+        showNotification(addData.error || 'Failed to add patient', 'error');
+      }
+    } catch (error) {
+      console.error('Error adding patient:', error);
+      showNotification('Network error adding patient', 'error');
     }
   };
 

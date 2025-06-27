@@ -464,6 +464,7 @@ const ColumnManager = ({ columns, onAddColumn, onRemoveColumn, theme = 'dark' })
 const PatientCensusTable = ({ 
   scratchNotes = [], 
   onGenerateTemplate, 
+  onCensusUpdate,
   theme = 'dark' 
 }) => {
   const [census, setCensus] = useState(null);
@@ -476,7 +477,12 @@ const PatientCensusTable = ({
   const loadTodaysCensus = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/patient-census/today');
+      const response = await fetch('http://localhost:5001/api/patient-census/today', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
       const data = await response.json();
       
       if (data.success) {
@@ -497,9 +503,12 @@ const PatientCensusTable = ({
     if (!census) return;
 
     try {
-      const response = await fetch(`/api/patient-census/${census.id}/rows`, {
+      const response = await fetch(`http://localhost:5001/api/patient-census/${census.id}/rows`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json' 
+        },
         body: JSON.stringify({
           status: 'active',
           data_fields: {}
@@ -513,6 +522,11 @@ const PatientCensusTable = ({
           ...prev,
           rows: [...prev.rows, data.row]
         }));
+        
+        // Notify parent component to refresh census stats
+        if (onCensusUpdate) {
+          onCensusUpdate();
+        }
       } else {
         setError(data.error || 'Failed to add patient');
       }
@@ -524,9 +538,12 @@ const PatientCensusTable = ({
   // Update patient row
   const updatePatientRow = async (rowId, updates) => {
     try {
-      const response = await fetch(`/api/patient-census/rows/${rowId}`, {
+      const response = await fetch(`http://localhost:5001/api/patient-census/rows/${rowId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json' 
+        },
         body: JSON.stringify(updates)
       });
 
@@ -539,6 +556,11 @@ const PatientCensusTable = ({
             row.id === rowId ? data.row : row
           )
         }));
+        
+        // Notify parent component to refresh census stats
+        if (onCensusUpdate) {
+          onCensusUpdate();
+        }
       } else {
         setError(data.error || 'Failed to update patient');
       }
@@ -550,7 +572,7 @@ const PatientCensusTable = ({
   // Delete patient row
   const deletePatientRow = async (rowId) => {
     try {
-      const response = await fetch(`/api/patient-census/rows/${rowId}`, {
+      const response = await fetch(`http://localhost:5001/api/patient-census/rows/${rowId}`, {
         method: 'DELETE'
       });
 
@@ -570,7 +592,7 @@ const PatientCensusTable = ({
   // Populate row from scratch note
   const populateFromScratchNote = async (rowId, scratchNoteId) => {
     try {
-      const response = await fetch(`/api/patient-census/rows/${rowId}/populate-from-scratch`, {
+      const response = await fetch(`http://localhost:5001/api/patient-census/rows/${rowId}/populate-from-scratch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scratch_note_id: scratchNoteId })

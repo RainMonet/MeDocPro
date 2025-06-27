@@ -23,6 +23,7 @@ function App() {
   const [isMobile, setIsMobile] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
   const [viewMode, setViewMode] = useState('workspace'); // 'workspace' or 'dashboard'
+  const [workspaceRefreshKey, setWorkspaceRefreshKey] = useState(0);
   
   // Template editor state
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
@@ -40,6 +41,12 @@ function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
+    
+    // Auto-login for development
+    if (!localStorage.getItem('token')) {
+      localStorage.setItem('token', 'dev-token');
+      console.log('Development token set');
+    }
   }, [theme]);
 
   useEffect(() => {
@@ -86,6 +93,11 @@ function App() {
 
   const handleModalClose = () => {
     setActiveModal(null);
+    
+    // If we're in workspace mode, trigger a refresh
+    if (viewMode === 'workspace') {
+      setWorkspaceRefreshKey(prev => prev + 1);
+    }
   };
 
   // Template editor handlers
@@ -171,6 +183,7 @@ function App() {
         <div className={`content-area ${sidebarExpanded ? '' : 'expanded'}`}>
           {viewMode === 'workspace' ? (
             <ClinicalWorkspace 
+              key={workspaceRefreshKey} // Force refresh when key changes
               onOpenTemplateEditor={() => {
                 setShowTemplateEditor(true);
                 setCurrentTemplate(null);
