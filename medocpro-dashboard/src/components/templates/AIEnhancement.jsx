@@ -88,8 +88,24 @@ const ENHANCEMENT_LEVELS = {
   }
 };
 
+// Theme-aware style helpers - consistent with other modals
+const getThemeStyles = (theme) => ({
+  textPrimary: theme === 'dark' ? '#f1f5f9' : '#2d1810',
+  textSecondary: theme === 'dark' ? '#cbd5e1' : '#5d4d3a',
+  textMuted: theme === 'dark' ? '#94a3b8' : '#8b7355',
+  bgPrimary: theme === 'dark' ? '#1e293b' : '#faf8f3',
+  bgSecondary: theme === 'dark' ? '#0f172a' : '#f4f1eb',
+  bgAccent: theme === 'dark' ? '#374151' : '#ede8df',
+  borderColor: theme === 'dark' ? '#475569' : '#d4c4a8',
+  primaryColor: theme === 'dark' ? '#3b82f6' : '#8b4513',
+  successColor: theme === 'dark' ? '#10b981' : '#6b8e23',
+  warningColor: theme === 'dark' ? '#f59e0b' : '#cd853f',
+  errorColor: theme === 'dark' ? '#ef4444' : '#a0522d'
+});
+
 // AI Enhancement Settings Component
-const AISettings = ({ settings, onSettingsChange, isVisible, onToggle }) => {
+const AISettings = ({ settings, onSettingsChange, isVisible, onToggle, theme = 'dark' }) => {
+  const styles = getThemeStyles(theme);
   if (!isVisible) {
     return (
       <button 
@@ -104,13 +120,18 @@ const AISettings = ({ settings, onSettingsChange, isVisible, onToggle }) => {
   }
 
   return (
-    <div className="card" style={{ marginBottom: '16px', border: '2px solid #e2e8f0' }}>
+    <div className="card" style={{ 
+      marginBottom: '16px', 
+      border: `2px solid ${styles.borderColor}`,
+      backgroundColor: styles.bgPrimary
+    }}>
       <div className="card-header" style={{ 
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-        color: 'white',
+        background: styles.bgSecondary,
+        color: styles.textPrimary,
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center'
+        alignItems: 'center',
+        borderBottom: `1px solid ${styles.borderColor}`
       }}>
         <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>
           <BrainIcon style={{ marginRight: '8px' }} />
@@ -118,14 +139,22 @@ const AISettings = ({ settings, onSettingsChange, isVisible, onToggle }) => {
         </h4>
         <button 
           className="btn btn-sm"
-          style={{ background: 'rgba(255, 255, 255, 0.2)', border: 'none', color: 'white' }}
+          style={{ 
+            background: styles.bgAccent, 
+            border: `1px solid ${styles.borderColor}`, 
+            color: styles.textSecondary
+          }}
           onClick={onToggle}
         >
           ×
         </button>
       </div>
       
-      <div className="card-content" style={{ padding: '20px' }}>
+      <div className="card-content" style={{ 
+        padding: '20px', 
+        backgroundColor: styles.bgPrimary,
+        color: styles.textPrimary
+      }}>
         {/* Compute Mode Selection */}
         <div style={{ marginBottom: '20px' }}>
           <label className="form-label" style={{ fontWeight: '600', marginBottom: '8px' }}>
@@ -254,8 +283,8 @@ const AISettings = ({ settings, onSettingsChange, isVisible, onToggle }) => {
                 <div style={{ 
                   fontSize: '11px', 
                   fontStyle: 'italic',
-                  color: '#64748b',
-                  background: 'rgba(0,0,0,0.05)',
+                  color: styles.textMuted,
+                  background: styles.bgAccent,
                   padding: '4px 8px',
                   borderRadius: '4px'
                 }}>
@@ -304,7 +333,8 @@ const AISettings = ({ settings, onSettingsChange, isVisible, onToggle }) => {
 };
 
 // Main AI Enhancement Component
-const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
+const AIEnhancement = ({ content, onEnhancedContent, isVisible, theme = 'dark' }) => {
+  const styles = getThemeStyles(theme);
   const [settings, setSettings] = useState({
     computeMode: 'cpu',
     model: 'mistral:latest',
@@ -410,8 +440,10 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
         alignItems: 'center',
         marginBottom: '16px',
         padding: '12px 16px',
-        background: ollamaStatus === 'online' ? '#f0f9ff' : '#fef2f2',
-        border: `1px solid ${ollamaStatus === 'online' ? '#bae6fd' : '#fecaca'}`,
+        background: ollamaStatus === 'online' ? 
+          (theme === 'dark' ? 'rgba(16, 185, 129, 0.1)' : '#f0f9ff') : 
+          (theme === 'dark' ? 'rgba(239, 68, 68, 0.1)' : '#fef2f2'),
+        border: `1px solid ${ollamaStatus === 'online' ? styles.successColor : styles.errorColor}`,
         borderRadius: '8px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -421,10 +453,10 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
             borderRadius: '50%',
             backgroundColor: ollamaStatus === 'online' ? '#10b981' : ollamaStatus === 'offline' ? '#ef4444' : '#f59e0b'
           }} />
-          <span style={{ fontSize: '13px', fontWeight: '500' }}>
+          <span style={{ fontSize: '13px', fontWeight: '500', color: styles.textPrimary }}>
             Ollama {settings.computeMode.toUpperCase()}: {ollamaStatus === 'online' ? 'Connected' : ollamaStatus === 'offline' ? 'Disconnected' : 'Checking...'}
           </span>
-          <span style={{ fontSize: '11px', color: '#64748b' }}>
+          <span style={{ fontSize: '11px', color: styles.textMuted }}>
             Model: {settings.model}
           </span>
         </div>
@@ -435,6 +467,7 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
             onSettingsChange={setSettings}
             isVisible={showSettings}
             onToggle={() => setShowSettings(!showSettings)}
+            theme={theme}
           />
           <button
             className="btn btn-sm btn-secondary"
@@ -451,24 +484,43 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
         onSettingsChange={setSettings}
         isVisible={showSettings}
         onToggle={() => setShowSettings(!showSettings)}
+        theme={theme}
       />
 
       {/* Enhancement Controls */}
-      <div className="card">
-        <div className="card-header" style={{ background: '#f8fafc' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="card" style={{ backgroundColor: styles.bgPrimary }}>
+        <div className="card-header" style={{ 
+          background: styles.bgSecondary,
+          borderBottom: `1px solid ${styles.borderColor}`
+        }}>
+          <h3 style={{ 
+            fontSize: '16px', 
+            fontWeight: '600', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '8px',
+            color: styles.textPrimary
+          }}>
             <SparklesIcon />
             AI-Powered Clinical Enhancement
           </h3>
-          <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
+          <p style={{ fontSize: '13px', color: styles.textMuted, margin: '4px 0 0 0' }}>
             Transform your notes with {ENHANCEMENT_LEVELS[settings.enhancementLevel].name.toLowerCase()} using {settings.model}
           </p>
         </div>
 
-        <div className="card-content">
+        <div className="card-content" style={{ 
+          backgroundColor: styles.bgPrimary,
+          color: styles.textPrimary
+        }}>
           {/* Error Display */}
           {error && (
-            <div className="alert alert-danger" style={{ marginBottom: '16px' }}>
+            <div className="alert alert-danger" style={{ 
+              marginBottom: '16px',
+              backgroundColor: theme === 'dark' ? 'rgba(239, 68, 68, 0.1)' : '#fef2f2',
+              border: `1px solid ${styles.errorColor}`,
+              color: styles.errorColor
+            }}>
               <strong>Enhancement Error:</strong> {error}
             </div>
           )}
@@ -485,7 +537,10 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
                 gap: '8px',
                 width: '100%',
                 justifyContent: 'center',
-                padding: '12px'
+                padding: '12px',
+                backgroundColor: styles.primaryColor,
+                border: 'none',
+                color: 'white'
               }}
             >
               <BrainIcon />
@@ -497,7 +552,7 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
                 textAlign: 'center', 
                 marginTop: '8px', 
                 fontSize: '12px', 
-                color: '#64748b' 
+                color: styles.textMuted
               }}>
                 Processing on {settings.computeMode.toUpperCase()}... This may take 30-60 seconds
               </div>
@@ -507,7 +562,7 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
           {/* Enhancement History */}
           {enhancementHistory.length > 0 && (
             <div>
-              <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>
+              <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: styles.textPrimary }}>
                 Recent Enhancements
               </h4>
               <div style={{ display: 'grid', gap: '8px', maxHeight: '200px', overflow: 'auto' }}>
@@ -516,34 +571,32 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
                     key={item.id}
                     style={{
                       padding: '8px 12px',
-                      background: '#f8fafc',
+                      background: styles.bgSecondary,
                       borderRadius: '6px',
-                      border: '1px solid #e2e8f0',
+                      border: `1px solid ${styles.borderColor}`,
                       cursor: 'pointer',
                       transition: 'all 0.2s ease'
                     }}
                     onClick={() => onEnhancedContent(item.enhanced)}
                     onMouseEnter={(e) => {
-                      e.target.style.background = '#f1f5f9';
-                      e.target.style.borderColor = '#cbd5e0';
+                      e.target.style.background = styles.bgAccent;
                     }}
                     onMouseLeave={(e) => {
-                      e.target.style.background = '#f8fafc';
-                      e.target.style.borderColor = '#e2e8f0';
+                      e.target.style.background = styles.bgSecondary;
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: '12px', color: '#4a5568' }}>
+                      <div style={{ fontSize: '12px', color: styles.textSecondary }}>
                         {CLINICAL_STYLES[item.settings.clinicalStyle].name} • {ENHANCEMENT_LEVELS[item.settings.enhancementLevel].name}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>
+                      <div style={{ fontSize: '11px', color: styles.textMuted }}>
                         {new Date(item.timestamp).toLocaleTimeString()}
                         {item.processingTime && ` • ${item.processingTime}s`}
                       </div>
                     </div>
                     <div style={{ 
                       fontSize: '11px', 
-                      color: '#64748b', 
+                      color: styles.textMuted, 
                       marginTop: '4px',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
@@ -559,12 +612,32 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
 
           {/* Ollama Setup Instructions */}
           {ollamaStatus === 'offline' && (
-            <div className="alert alert-info" style={{ marginTop: '16px' }}>
+            <div className="alert alert-info" style={{ 
+              marginTop: '16px',
+              backgroundColor: theme === 'dark' ? 'rgba(59, 130, 246, 0.1)' : '#f0f9ff',
+              border: `1px solid ${styles.primaryColor}`,
+              color: styles.textPrimary
+            }}>
               <strong>Ollama Setup Required:</strong>
-              <ol style={{ margin: '8px 0 0 20px', fontSize: '13px' }}>
-                <li>Install Ollama: <code>curl -fsSL https://ollama.ai/install.sh | sh</code></li>
-                <li>Pull Mistral model: <code>ollama pull mistral:latest</code></li>
-                <li>Start Ollama service: <code>ollama serve</code></li>
+              <ol style={{ margin: '8px 0 0 20px', fontSize: '13px', color: styles.textSecondary }}>
+                <li>Install Ollama: <code style={{ 
+                  backgroundColor: styles.bgAccent, 
+                  padding: '2px 4px', 
+                  borderRadius: '3px',
+                  color: styles.textPrimary
+                }}>curl -fsSL https://ollama.ai/install.sh | sh</code></li>
+                <li>Pull Mistral model: <code style={{ 
+                  backgroundColor: styles.bgAccent, 
+                  padding: '2px 4px', 
+                  borderRadius: '3px',
+                  color: styles.textPrimary
+                }}>ollama pull mistral:latest</code></li>
+                <li>Start Ollama service: <code style={{ 
+                  backgroundColor: styles.bgAccent, 
+                  padding: '2px 4px', 
+                  borderRadius: '3px',
+                  color: styles.textPrimary
+                }}>ollama serve</code></li>
                 <li>For GPU: Ensure CUDA/ROCm drivers are installed</li>
               </ol>
             </div>
