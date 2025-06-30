@@ -22,10 +22,7 @@ function App() {
   
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  // const [activeModal, setActiveModal] = useState(null);
-  
-  // Temporary: Force modal open for testing
-  const [activeModal, setActiveModal] = useState('daily-info-entry');
+  const [activeModal, setActiveModal] = useState(null);
   const [viewMode, setViewMode] = useState('workspace'); // 'workspace' or 'dashboard'
   const [workspaceRefreshKey, setWorkspaceRefreshKey] = useState(0);
   
@@ -104,14 +101,17 @@ function App() {
       const data = await response.json();
       
       if (data.success && data.census) {
+        console.log('Loaded patients:', data.census.rows?.length || 0);
         setPatientList(data.census.rows || []);
+      } else {
+        console.error('Failed to load patient data:', data);
       }
     } catch (err) {
       console.error('Failed to load patient data:', err);
     }
   };
 
-  const handleModalOpen = (modalType) => {
+  const handleModalOpen = async (modalType) => {
     console.log('handleModalOpen called with:', modalType);
     if (modalType === 'template-editor') {
       console.log('Opening template editor');
@@ -120,7 +120,7 @@ function App() {
     } else if (modalType === 'daily-info-entry') {
       console.log('Opening daily info entry modal');
       // Load fresh patient data when opening daily info entry
-      loadPatientData();
+      await loadPatientData();
       setActiveModal(modalType);
       console.log('Set activeModal to:', modalType);
     } else if (modalType === 'clinical-workflow') {

@@ -19,7 +19,7 @@ const getThemeStyles = () => ({
 });
 
 // Header section with date and quick stats - exactly matches dashboard StatCard grid
-const WorkspaceHeader = ({ censusData, userName }) => {
+const WorkspaceHeader = ({ censusData, userName, onOpenModal }) => {
   const [is24HourFormat, setIs24HourFormat] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -563,7 +563,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
       )}
 
       {/* Workspace Header with Stats */}
-      <WorkspaceHeader censusData={censusData} userName={user?.firstName} />
+      <WorkspaceHeader censusData={censusData} userName={user?.firstName} onOpenModal={onOpenModal} />
 
       {/* Main Content Row - like dashboard-row */}
       <div className="dashboard-row">
