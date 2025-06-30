@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PatientCensusCard from './PatientCensusCard';
 import BatchDocumentationCard from './BatchDocumentationCard';
+import { RecentDocuments } from '../dashboard';
 
 // Use CSS variables to match dashboard styling
 const getThemeStyles = () => ({
@@ -18,13 +19,41 @@ const getThemeStyles = () => ({
 });
 
 // Header section with date and quick stats - exactly matches dashboard StatCard grid
-const WorkspaceHeader = ({ censusData }) => {
+const WorkspaceHeader = ({ censusData, userName }) => {
+  const [is24HourFormat, setIs24HourFormat] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, []);
+
   const today = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
     year: 'numeric', 
     month: 'long', 
     day: 'numeric' 
   });
+
+  const formatTime = (date) => {
+    if (is24HourFormat) {
+      return date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+      });
+    } else {
+      return date.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      });
+    }
+  };
 
   // Calculate 7-day average daily caseload
   const calculate7DayAverage = () => {
@@ -54,46 +83,80 @@ const WorkspaceHeader = ({ censusData }) => {
               margin: 0,
               fontSize: '1.8rem',
               fontWeight: '700',
-              color: 'var(--text-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem'
+              color: 'var(--text-primary)'
             }}>
-              🏥 Clinical Workspace
+              {userName ? `${userName}'s Workspace` : 'Clinical Workspace'}
             </h1>
-            <p style={{
+            <div style={{
               margin: '0.25rem 0 0 0',
               fontSize: '1rem',
-              color: 'var(--text-secondary)'
+              color: 'var(--text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
             }}>
-              {today}
-            </p>
+              <span>{today}</span>
+              <span>•</span>
+              <button
+                onClick={() => setIs24HourFormat(!is24HourFormat)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  fontSize: '1rem',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  padding: '0'
+                }}
+                title={`Switch to ${is24HourFormat ? '12-hour' : '24-hour'} format`}
+              >
+                {formatTime(currentTime)}
+              </button>
+            </div>
           </div>
           
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', zIndex: 1001, position: 'relative' }}>
             <button
-              onClick={() => onOpenModal && onOpenModal('daily-info-entry')}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Daily Info Entry button clicked!');
+                console.log('onOpenModal:', onOpenModal);
+                if (onOpenModal) {
+                  console.log('Calling onOpenModal with daily-info-entry');
+                  onOpenModal('daily-info-entry');
+                } else {
+                  console.error('onOpenModal is not defined! Trying alternative approach...');
+                  // Try to dispatch a custom event as fallback
+                  const event = new CustomEvent('openModal', { detail: { modalType: 'daily-info-entry' } });
+                  window.dispatchEvent(event);
+                }
+              }}
               style={{
-                padding: '0.5rem 1rem',
+                padding: '10px 20px',
                 background: '#10b981',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
-                fontSize: '0.9rem',
+                fontSize: '14px',
                 fontWeight: '500',
                 cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
+                zIndex: 1002,
+                position: 'relative',
+                pointerEvents: 'auto'
               }}
             >
-              📝 Daily Info Entry
+              📝 DAILY INFO
             </button>
             
             <button
               onClick={() => {
                 console.log('Manual refresh triggered');
-                loadData();
+                if (loadData) {
+                  loadData();
+                } else {
+                  console.error('loadData function not found');
+                }
               }}
               style={{
                 padding: '0.5rem 1rem',
@@ -308,7 +371,7 @@ const BatchDocumentationPanel = ({
 };
 
 // Main Clinical Workspace component - matches dashboard design
-const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
+const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
   const [censusData, setCensusData] = useState(null);
   const [scratchNotes, setScratchNotes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -500,7 +563,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
       )}
 
       {/* Workspace Header with Stats */}
-      <WorkspaceHeader censusData={censusData} />
+      <WorkspaceHeader censusData={censusData} userName={user?.firstName} />
 
       {/* Main Content Row - like dashboard-row */}
       <div className="dashboard-row">
@@ -525,6 +588,9 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
           />
         </div>
       </div>
+
+      {/* Recent Documents */}
+      <RecentDocuments theme={document.documentElement.getAttribute('data-theme') || 'dark'} />
     </div>
   );
 };

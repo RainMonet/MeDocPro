@@ -22,7 +22,10 @@ function App() {
   
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [activeModal, setActiveModal] = useState(null);
+  // const [activeModal, setActiveModal] = useState(null);
+  
+  // Temporary: Force modal open for testing
+  const [activeModal, setActiveModal] = useState('daily-info-entry');
   const [viewMode, setViewMode] = useState('workspace'); // 'workspace' or 'dashboard'
   const [workspaceRefreshKey, setWorkspaceRefreshKey] = useState(0);
   
@@ -51,6 +54,17 @@ function App() {
       localStorage.setItem('token', 'dev-token');
       console.log('Development token set');
     }
+
+    // Listen for custom modal events (fallback)
+    const handleCustomModalEvent = (event) => {
+      console.log('Custom modal event received:', event.detail);
+      if (event.detail?.modalType) {
+        handleModalOpen(event.detail.modalType);
+      }
+    };
+
+    window.addEventListener('openModal', handleCustomModalEvent);
+    return () => window.removeEventListener('openModal', handleCustomModalEvent);
   }, [theme]);
 
   useEffect(() => {
@@ -98,15 +112,17 @@ function App() {
   };
 
   const handleModalOpen = (modalType) => {
-    console.log('Modal type clicked:', modalType);
+    console.log('handleModalOpen called with:', modalType);
     if (modalType === 'template-editor') {
       console.log('Opening template editor');
       setShowTemplateEditor(true);
       setCurrentTemplate(null);
     } else if (modalType === 'daily-info-entry') {
+      console.log('Opening daily info entry modal');
       // Load fresh patient data when opening daily info entry
       loadPatientData();
       setActiveModal(modalType);
+      console.log('Set activeModal to:', modalType);
     } else if (modalType === 'clinical-workflow') {
       setActiveModal(modalType);
     } else {
@@ -177,7 +193,13 @@ function App() {
   return (
     <div className="app-container">
       <SidebarToggle onClick={toggleSidebar} theme={theme} />
-      <Header user={user} theme={theme} onToggleTheme={toggleTheme} />
+      <Header 
+        user={user} 
+        theme={theme} 
+        onToggleTheme={toggleTheme}
+        viewMode={viewMode}
+        onViewChange={setViewMode}
+      />
 
       <div className="main-layout">
         <Sidebar 
@@ -215,7 +237,8 @@ function App() {
                 setShowTemplateEditor(true);
                 setCurrentTemplate(null);
               }}
-              onOpenModal={setActiveModal}
+              onOpenModal={handleModalOpen}
+              user={user}
             />
           ) : (
             <div className="dashboard-grid">
@@ -256,8 +279,6 @@ function App() {
                 }} />
               </div>
 
-              {/* Recent Documents */}
-              <RecentDocuments />
             </div>
           )}
         </div>
@@ -428,6 +449,11 @@ function App() {
         patients={patientList}
         theme={theme}
       />
+      
+      {/* Debug info */}
+      {console.log('Current activeModal:', activeModal)}
+      {console.log('Modal should be open:', activeModal === 'daily-info-entry')}
+      {console.log('Patient list length:', patientList.length)}
       
       {/* Coming Soon Modal for other features */}
       {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && (

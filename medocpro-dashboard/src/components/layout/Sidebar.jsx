@@ -17,9 +17,6 @@ const Sidebar = ({ onModalOpen, onViewChange, expanded, isMobile, onToggle, view
   };
 
   const menuItems = [
-    { id: 'workspace', label: '🏥 Clinical Workspace', isView: true },
-    { id: 'dashboard', label: '📊 Dashboard Overview', isView: true },
-    { id: 'separator', type: 'separator' },
     { id: 'template-editor', label: 'Template Editor' },
     { id: 'template-library', label: 'Template Library' },
     { id: 'patients', label: 'Patient Census' },
