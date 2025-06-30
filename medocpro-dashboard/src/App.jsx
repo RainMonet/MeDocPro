@@ -11,6 +11,7 @@ import TemplateEditor from './components/TemplateEditor';
 import TemplateLibrary from './components/templates/TemplateLibrary';
 import ClinicalWorkflowDashboard from './components/clinical/ClinicalWorkflowDashboard';
 import ClinicalWorkspace from './components/clinical/ClinicalWorkspace';
+import LoginForm from './components/auth/LoginForm';
 import apiService from './services/api';
 import './App.css';
 
@@ -18,6 +19,10 @@ function App() {
   // State management
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('theme') || 'dark';
+  });
+  
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return !!localStorage.getItem('token');
   });
   
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
@@ -35,22 +40,26 @@ function App() {
 
   // User data
   const user = {
-    firstName: "Dr. Jane",
+    firstName: "Jane",
     lastName: "Smith",
     role: "Psychiatrist"
   };
 
 
+  // Authentication handlers
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsAuthenticated(false);
+  };
+
   // Effects
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
-    
-    // Auto-login for development
-    if (!localStorage.getItem('token')) {
-      localStorage.setItem('token', 'dev-token');
-      console.log('Development token set');
-    }
 
     // Listen for custom modal events (fallback)
     const handleCustomModalEvent = (event) => {
@@ -190,6 +199,11 @@ function App() {
     return titles[modalType] || "Feature";
   };
 
+  // Show login form if not authenticated
+  if (!isAuthenticated) {
+    return <LoginForm onLogin={handleLogin} theme={theme} />;
+  }
+
   return (
     <div className="app-container">
       <SidebarToggle onClick={toggleSidebar} theme={theme} />
@@ -199,6 +213,7 @@ function App() {
         onToggleTheme={toggleTheme}
         viewMode={viewMode}
         onViewChange={setViewMode}
+        onLogout={handleLogout}
       />
 
       <div className="main-layout">
@@ -380,7 +395,7 @@ function App() {
               height: '90vh',
               maxWidth: '1200px',
               padding: '0',
-              backgroundColor: theme === 'dark' ? '#0f172a' : '#ffffff',
+              backgroundColor: theme === 'dark' ? '#0f172a' : '#faf8f3',
               borderRadius: '12px',
               overflow: 'hidden'
             }}
@@ -390,14 +405,14 @@ function App() {
               justifyContent: 'space-between',
               alignItems: 'center',
               padding: '16px 24px',
-              borderBottom: `1px solid ${theme === 'dark' ? '#374151' : '#e5e7eb'}`,
-              backgroundColor: theme === 'dark' ? '#1e293b' : '#f8fafc'
+              borderBottom: `1px solid ${theme === 'dark' ? '#374151' : '#d4c4a8'}`,
+              backgroundColor: theme === 'dark' ? '#1e293b' : '#f4f1eb'
             }}>
               <h2 style={{ 
                 margin: 0, 
                 fontSize: '18px', 
                 fontWeight: '600',
-                color: theme === 'dark' ? '#f1f5f9' : '#1f2937'
+                color: theme === 'dark' ? '#f1f5f9' : '#2d1810'
               }}>
                 📚 Template Library
               </h2>
@@ -409,7 +424,7 @@ function App() {
                   border: 'none',
                   fontSize: '24px',
                   cursor: 'pointer',
-                  color: theme === 'dark' ? '#94a3b8' : '#6b7280',
+                  color: theme === 'dark' ? '#94a3b8' : '#8b7355',
                   padding: '4px',
                   borderRadius: '4px'
                 }}
