@@ -81,13 +81,17 @@ docker-compose exec api python manage.py create-admin
 ### Frontend Architecture  
 - **React 18** with Vite build system
 - **Component Structure**:
-  - `src/App.jsx` - Main application component with sidebar/header layout
+  - `src/App.jsx` - Main application component with authentication and layout management
   - `src/components/ui/` - Reusable UI components (StatCard)
-  - `src/components/layout/` - Layout components (Header, Sidebar)
+  - `src/components/layout/` - Layout components (Header with user menu, Sidebar)
+  - `src/components/auth/` - Authentication components (LoginForm)
   - `src/components/clinical/` - Clinical workflow components (ClinicalWorkspace, PatientCensusCard, BatchDocumentationCard)
-  - `src/components/modals/` - Modal components (PatientCensusModal, TemplateEditor)
-- **State Management**: Local React state with hooks, theme persistence in localStorage
+  - `src/components/modals/` - Modal components (PatientCensusModal, DailyInfoEntryModal)
+  - `src/components/templates/` - Template management (TemplateEditor, TemplateLibrary, AIEnhancement)
+- **State Management**: Local React state with hooks, authentication state, theme persistence in localStorage
+- **Theming**: Comprehensive antique book design with warm earth tones for light mode
 - **Responsive Design**: Mobile-first with sidebar collapse/overlay pattern
+- **Authentication**: Complete login/logout flow with proper state management
 
 ### Database Models
 - **User**: Authentication and user management (`app/models/user.py`)
@@ -112,10 +116,12 @@ Routes are organized by blueprint:
 - API routes: RESTful endpoints with proper error handling
 
 ### React Component Patterns
-- Functional components with hooks
-- Theme context for dark/light mode
-- Modal system with overlay and proper accessibility
-- Responsive sidebar with mobile overlay
+- Functional components with hooks and proper state management
+- Theme-aware styling using CSS variables and dynamic functions
+- Modal system with React portals for proper z-index handling
+- Authentication state management with conditional rendering
+- Responsive sidebar with mobile overlay and theme synchronization
+- Component-level theming with consistent antique book aesthetic
 
 ### Security Patterns
 - JWT tokens with short expiration (15 minutes)
@@ -162,7 +168,7 @@ Key variables in `.env`:
 - Ollama: 11434
 
 ### Current Branch Context
-Working on `features/clinical-workflow` - implementing comprehensive clinical workflow management with patient census, batch documentation generation, and workflow type persistence.
+Working on `features/info-entry` - Enhanced clinical workflow with comprehensive authentication system, antique book theming, template editor improvements, and daily information entry capabilities.
 
 ## Clinical Workflow Features
 
@@ -200,3 +206,141 @@ cd medocpro-dashboard && npm run dev
 - **Admission**: 🏥 New patient intake
 - **Discharge**: 🏠 Patient discharge planning
 - **Persistence**: Backend API maintains workflow state across sessions
+
+## Authentication System
+
+### Login Interface
+- **Professional Design**: Clean login form with antique book theming
+- **Demo Account**: Quick login with `demo@medocpro.com` / `demo123`
+- **Theme Support**: Consistent styling in both dark and light modes
+- **State Management**: Proper authentication state with token handling
+- **Error Handling**: User-friendly error messages and validation
+
+### User Interface
+- **Clean Header**: Minimalist design with just user avatar (initials)
+- **Dropdown Menu**: Contextual user information and logout option
+- **Portal Architecture**: Z-index issues resolved using React portals
+- **Responsive**: Works seamlessly on desktop and mobile devices
+
+### Authentication Flow
+```bash
+# Demo Login Credentials
+Username: demo@medocpro.com
+Password: demo123
+
+# Or use "Use Demo Account" button for one-click login
+```
+
+## Design System & Theming
+
+### Antique Book Theme
+- **Light Mode**: Warm cream backgrounds (`#faf8f3`) with coffee brown text (`#2d1810`)
+- **Dark Mode**: Rich dark backgrounds (`#1e293b`) with soft light text (`#f1f5f9`)
+- **Earth Tone Palette**: Saddle brown (`#8b4513`), olive green (`#6b8e23`), warm cream tones
+- **Reduced Eye Strain**: Soft, warm colors instead of harsh whites and blues
+
+### Color System
+```css
+/* Light Mode (Antique Book) */
+--bg-primary: #faf8f3;      /* Warm cream - like aged paper */
+--bg-secondary: #f4f1eb;    /* Slightly warmer off-white */
+--text-primary: #2d1810;    /* Dark coffee brown */
+--color-primary: #8b4513;   /* Rich saddle brown */
+
+/* Dark Mode */
+--bg-primary: #1e293b;      /* Rich dark slate */
+--bg-secondary: #0f172a;    /* Deeper dark */
+--text-primary: #f1f5f9;    /* Soft white */
+--color-primary: #3b82f6;   /* Professional blue */
+```
+
+### Component Theming
+- **Global CSS Variables**: Consistent theming across all components
+- **Theme-Aware Functions**: Dynamic styling based on current theme
+- **Modal Consistency**: All modals use unified antique book design
+- **Accessibility**: Proper contrast ratios maintained in both themes
+
+## Template Management System
+
+### Template Editor
+- **Professional Interface**: Clean, tabbed design with consistent theming
+- **AI Enhancement**: Integrated Ollama support for clinical text improvement
+- **Placeholder System**: Dynamic field management with type classification
+- **Preview Mode**: Real-time template preview with placeholder visualization
+- **Theme Integration**: Full antique book styling throughout
+
+### Template Library
+- **Grid Layout**: Professional template browsing interface
+- **Statistics Display**: Template usage and management metrics
+- **Consistent Design**: Matches Patient Census modal layout
+- **Search & Filter**: Easy template discovery and organization
+
+### AI Enhancement Features
+- **Ollama Integration**: Local AI for clinical text enhancement
+- **Multiple Models**: Support for Mistral, Llama 2, and other models
+- **Clinical Styles**: Professional, concise, detailed, and narrative formats
+- **Enhancement Levels**: Light (25%), moderate (50%), comprehensive (75%)
+- **Theme Support**: Complete dark/light mode compatibility
+
+## Daily Information Entry
+
+### Modal Interface
+- **Patient-Centric**: Individual patient information management
+- **Template Integration**: Dynamic form generation from templates
+- **Navigation System**: Easy patient-to-patient workflow
+- **Data Persistence**: Automatic saving and state management
+- **Responsive Design**: Works on all device sizes
+
+## Recent Improvements & Features
+
+### Authentication Enhancements (Latest)
+- **Complete Auth System**: Full login/logout flow with proper state management
+- **Demo Credentials**: `demo@medocpro.com` / `demo123` for easy testing
+- **User Avatar**: Dynamic initials generation (JS for Jane Smith)
+- **Dropdown Menu**: Clean user interface with portal-based rendering
+- **Theme Integration**: Authentication flows match antique book design
+
+### UI/UX Improvements
+- **Antique Book Theme**: Warm, eye-strain reducing color palette
+- **Consistent Modals**: All modals use unified design language
+- **Z-Index Fixes**: Portal architecture prevents element overlap
+- **Clean Navigation**: Minimalist header with contextual user information
+- **Professional Styling**: Removed decorative emojis for business appearance
+
+### Technical Enhancements
+- **React Portals**: Proper modal rendering outside stacking contexts
+- **CSS Variables**: Global theming system with dynamic color switching
+- **State Management**: Improved authentication and theme state handling
+- **Component Architecture**: Modular design with clear separation of concerns
+- **Development Experience**: Better debugging and error handling
+
+### Component Hierarchy
+```
+src/
+├── components/
+│   ├── auth/
+│   │   └── LoginForm.jsx           # Professional login interface
+│   ├── layout/
+│   │   ├── Header.jsx              # User menu with portal dropdown
+│   │   └── Sidebar.jsx             # Navigation with theme support
+│   ├── clinical/
+│   │   ├── ClinicalWorkspace.jsx   # Main workspace dashboard
+│   │   ├── PatientCensusCard.jsx   # Patient management interface
+│   │   └── BatchDocumentationCard.jsx # Document generation
+│   ├── modals/
+│   │   ├── PatientCensusModal.jsx  # Patient CRUD operations
+│   │   └── DailyInfoEntryModal.jsx # Daily information management
+│   ├── templates/
+│   │   ├── TemplateEditor.jsx      # Template creation/editing
+│   │   ├── TemplateLibrary.jsx     # Template browsing
+│   │   └── AIEnhancement.jsx       # Ollama AI integration
+│   └── ui/
+│       └── StatCard.jsx            # Reusable statistics cards
+```
+
+### Development Notes
+- **Theme Consistency**: All new components must implement theme-aware styling
+- **Portal Usage**: Use React portals for modals to avoid z-index issues
+- **Authentication**: Check `isAuthenticated` state before rendering protected content
+- **Color Variables**: Use CSS custom properties for consistent theming
+- **Responsive Design**: Ensure mobile-first approach with proper breakpoints

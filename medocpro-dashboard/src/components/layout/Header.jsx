@@ -1,6 +1,5 @@
 // medocpro-dashboard/src/components/layout/Header.jsx
 import React, { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import './Header.css';
 
 const Header = ({ user, theme, onToggleTheme, viewMode, onViewChange, onLogout }) => {
@@ -13,11 +12,24 @@ const Header = ({ user, theme, onToggleTheme, viewMode, onViewChange, onLogout }
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     console.log('Logout clicked!');
+    console.log('onLogout prop:', onLogout);
+    console.log('typeof onLogout:', typeof onLogout);
+    
     setShowUserMenu(false); // Close the dropdown
-    if (onLogout) {
+    
+    if (onLogout && typeof onLogout === 'function') {
+      console.log('Calling onLogout function');
       onLogout();
+    } else {
+      console.error('onLogout is not a function or is undefined');
+      // Fallback - try direct localStorage manipulation
+      console.log('Using fallback logout method');
+      localStorage.removeItem('token');
+      window.location.reload();
     }
   };
 
@@ -130,74 +142,73 @@ const Header = ({ user, theme, onToggleTheme, viewMode, onViewChange, onLogout }
               >
                 {user.firstName.charAt(0)}{user.lastName.charAt(0)}
               </div>
+              
+              {/* Dropdown Menu - Rendered inline with very high z-index */}
+              {showUserMenu && (
+                <div style={{
+                  position: 'fixed',
+                  top: '70px',
+                  right: '20px',
+                  background: theme === 'dark' ? '#1e293b' : '#faf8f3',
+                  border: `1px solid ${theme === 'dark' ? '#475569' : '#d4c4a8'}`,
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
+                  minWidth: '180px',
+                  zIndex: 2147483647, // Maximum possible z-index value
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    padding: '12px 16px',
+                    borderBottom: `1px solid ${theme === 'dark' ? '#374151' : '#ede8df'}`,
+                    background: theme === 'dark' ? '#0f172a' : '#f4f1eb'
+                  }}>
+                    <div style={{ 
+                      fontSize: '14px', 
+                      fontWeight: '600',
+                      color: theme === 'dark' ? '#f1f5f9' : '#2d1810'
+                    }}>
+                      {user.firstName} {user.lastName}
+                    </div>
+                    <div style={{ 
+                      fontSize: '12px',
+                      color: theme === 'dark' ? '#cbd5e1' : '#5d4d3a'
+                    }}>
+                      {user.role}
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: 'none',
+                      background: 'none',
+                      textAlign: 'left',
+                      fontSize: '14px',
+                      color: theme === 'dark' ? '#f1f5f9' : '#2d1810',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = theme === 'dark' ? '#374151' : '#ede8df';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <span>🚪</span>
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </header>
-      
-      {/* Dropdown Menu Portal - Renders outside header to avoid z-index issues */}
-      {showUserMenu && createPortal(
-        <div style={{
-          position: 'fixed',
-          top: '70px',
-          right: '20px',
-          background: theme === 'dark' ? '#1e293b' : '#faf8f3',
-          border: `1px solid ${theme === 'dark' ? '#475569' : '#d4c4a8'}`,
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
-          minWidth: '180px',
-          zIndex: 99999,
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            padding: '12px 16px',
-            borderBottom: `1px solid ${theme === 'dark' ? '#374151' : '#ede8df'}`,
-            background: theme === 'dark' ? '#0f172a' : '#f4f1eb'
-          }}>
-            <div style={{ 
-              fontSize: '14px', 
-              fontWeight: '600',
-              color: theme === 'dark' ? '#f1f5f9' : '#2d1810'
-            }}>
-              {user.firstName} {user.lastName}
-            </div>
-            <div style={{ 
-              fontSize: '12px',
-              color: theme === 'dark' ? '#cbd5e1' : '#5d4d3a'
-            }}>
-              {user.role}
-            </div>
-          </div>
-          
-          <button
-            onClick={handleLogout}
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              border: 'none',
-              background: 'none',
-              textAlign: 'left',
-              fontSize: '14px',
-              color: theme === 'dark' ? '#f1f5f9' : '#2d1810',
-              cursor: 'pointer',
-              transition: 'background-color 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = theme === 'dark' ? '#374151' : '#ede8df';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'transparent';
-            }}
-          >
-            <span>🚪</span>
-            Logout
-          </button>
-        </div>,
-        document.body
-      )}
     </>
   );
 };

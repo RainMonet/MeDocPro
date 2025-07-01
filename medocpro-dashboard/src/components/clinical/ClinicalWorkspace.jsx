@@ -115,66 +115,6 @@ const WorkspaceHeader = ({ censusData, userName, onOpenModal }) => {
             </div>
           </div>
           
-          <div style={{ display: 'flex', gap: '0.75rem', zIndex: 1001, position: 'relative' }}>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('Daily Info Entry button clicked!');
-                console.log('onOpenModal:', onOpenModal);
-                if (onOpenModal) {
-                  console.log('Calling onOpenModal with daily-info-entry');
-                  onOpenModal('daily-info-entry');
-                } else {
-                  console.error('onOpenModal is not defined! Trying alternative approach...');
-                  // Try to dispatch a custom event as fallback
-                  const event = new CustomEvent('openModal', { detail: { modalType: 'daily-info-entry' } });
-                  window.dispatchEvent(event);
-                }
-              }}
-              style={{
-                padding: '10px 20px',
-                background: '#10b981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: '500',
-                cursor: 'pointer',
-                zIndex: 1002,
-                position: 'relative',
-                pointerEvents: 'auto'
-              }}
-            >
-              📝 DAILY INFO
-            </button>
-            
-            <button
-              onClick={() => {
-                console.log('Manual refresh triggered');
-                if (loadData) {
-                  loadData();
-                } else {
-                  console.error('loadData function not found');
-                }
-              }}
-              style={{
-                padding: '0.5rem 1rem',
-                background: 'var(--accent-color)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '0.9rem',
-                fontWeight: '500',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              🔄 Refresh Data
-            </button>
-          </div>
         </div>
       </div>
 
@@ -187,7 +127,7 @@ const WorkspaceHeader = ({ censusData, userName, onOpenModal }) => {
         </div>
 
         <div className="stat-card">
-          <div className="stat-value" style={{ color: '#10b981' }}>
+          <div className="stat-value" style={{ color: 'var(--color-success)' }}>
             {censusData?.admission_count || 0}
           </div>
           <div className="stat-label">New Admissions</div>
@@ -195,7 +135,7 @@ const WorkspaceHeader = ({ censusData, userName, onOpenModal }) => {
         </div>
 
         <div className="stat-card">
-          <div className="stat-value" style={{ color: '#f59e0b' }}>
+          <div className="stat-value" style={{ color: 'var(--color-warning)' }}>
             {censusData?.discharge_count || 0}
           </div>
           <div className="stat-label">Discharges</div>
@@ -203,13 +143,51 @@ const WorkspaceHeader = ({ censusData, userName, onOpenModal }) => {
         </div>
 
         <div className="stat-card">
-          <div className="stat-value" style={{ color: '#8b5cf6' }}>
+          <div className="stat-value" style={{ color: 'var(--color-info)' }}>
             {((censusData?.current_census_count || 0) > 0 ? 
               Math.round(((censusData?.admission_count || 0) / (censusData?.current_census_count || 1)) * 100) : 0)}%
           </div>
           <div className="stat-label">Turnover Rate</div>
           <div className="stat-change">Daily metric</div>
         </div>
+      </div>
+      
+      {/* Daily Info Button - Temporary location away from header */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'flex-end', 
+        marginBottom: '1rem',
+        paddingRight: '1rem'
+      }}>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Daily Info Entry button clicked!');
+            console.log('onOpenModal:', onOpenModal);
+            if (onOpenModal) {
+              console.log('Calling onOpenModal with daily-info-entry');
+              onOpenModal('daily-info-entry');
+            } else {
+              console.error('onOpenModal is not defined! Trying alternative approach...');
+              // Try to dispatch a custom event as fallback
+              const event = new CustomEvent('openModal', { detail: { modalType: 'daily-info-entry' } });
+              window.dispatchEvent(event);
+            }
+          }}
+          style={{
+            padding: '10px 20px',
+            background: 'var(--color-success)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            fontSize: '14px',
+            fontWeight: '500',
+            cursor: 'pointer'
+          }}
+        >
+          📝 DAILY INFO
+        </button>
       </div>
     </div>
   );

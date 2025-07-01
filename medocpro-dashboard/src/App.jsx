@@ -52,8 +52,12 @@ function App() {
   };
 
   const handleLogout = () => {
+    console.log('App.jsx handleLogout called!');
+    console.log('Current isAuthenticated:', isAuthenticated);
     localStorage.removeItem('token');
+    console.log('Token removed from localStorage');
     setIsAuthenticated(false);
+    console.log('isAuthenticated set to false');
   };
 
   // Effects
