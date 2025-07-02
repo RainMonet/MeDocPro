@@ -104,20 +104,8 @@ const getThemeStyles = (theme) => ({
 });
 
 // AI Enhancement Settings Component
-const AISettings = ({ settings, onSettingsChange, isVisible, onToggle, theme = 'dark' }) => {
+const AISettings = ({ settings, onSettingsChange, theme = 'dark' }) => {
   const styles = getThemeStyles(theme);
-  if (!isVisible) {
-    return (
-      <button 
-        className="btn btn-sm btn-secondary"
-        onClick={onToggle}
-        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-      >
-        <SettingsIcon />
-        AI Settings
-      </button>
-    );
-  }
 
   return (
     <div className="card" style={{ 
@@ -128,26 +116,12 @@ const AISettings = ({ settings, onSettingsChange, isVisible, onToggle, theme = '
       <div className="card-header" style={{ 
         background: styles.bgSecondary,
         color: styles.textPrimary,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
         borderBottom: `1px solid ${styles.borderColor}`
       }}>
-        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>
-          <BrainIcon style={{ marginRight: '8px' }} />
+        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <BrainIcon />
           Ollama AI Enhancement Settings
         </h4>
-        <button 
-          className="btn btn-sm"
-          style={{ 
-            background: styles.bgAccent, 
-            border: `1px solid ${styles.borderColor}`, 
-            color: styles.textSecondary
-          }}
-          onClick={onToggle}
-        >
-          ×
-        </button>
       </div>
       
       <div className="card-content" style={{ 
@@ -348,7 +322,6 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible, theme = 'dark' }
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [enhancementHistory, setEnhancementHistory] = useState([]);
-  const [showSettings, setShowSettings] = useState(false);
   const [ollamaStatus, setOllamaStatus] = useState('checking');
 
   // Check Ollama service status
@@ -462,13 +435,6 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible, theme = 'dark' }
         </div>
         
         <div style={{ display: 'flex', gap: '8px' }}>
-          <AISettings
-            settings={settings}
-            onSettingsChange={setSettings}
-            isVisible={showSettings}
-            onToggle={() => setShowSettings(!showSettings)}
-            theme={theme}
-          />
           <button
             className="btn btn-sm btn-secondary"
             onClick={checkOllamaStatus}
@@ -482,8 +448,6 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible, theme = 'dark' }
       <AISettings
         settings={settings}
         onSettingsChange={setSettings}
-        isVisible={showSettings}
-        onToggle={() => setShowSettings(!showSettings)}
         theme={theme}
       />
 
