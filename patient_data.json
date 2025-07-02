@@ -1,18 +1,6 @@
 {
   "patients": [
     {
-      "id": 1,
-      "patient_name": "Smith, John",
-      "patient_id": "PT001",
-      "room_number": "101",
-      "status": "follow-up",
-      "workflow_type": "follow-up",
-      "data_fields": {
-        "chief_complaint": "Anxiety",
-        "assessment": "GAD"
-      }
-    },
-    {
       "id": 2,
       "patient_name": "Jones, Mary",
       "patient_id": "PT002",
@@ -400,5 +388,5 @@
     }
   ],
   "next_id": 30,
-  "last_updated": "2025-06-27T14:34:38.321913"
+  "last_updated": "2025-06-30T09:17:00.740072"
 }

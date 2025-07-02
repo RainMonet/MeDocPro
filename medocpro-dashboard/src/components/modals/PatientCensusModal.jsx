@@ -4,16 +4,17 @@ import './PatientCensusModal.css';
 
 // Helper function for theme-aware styling
 const getThemeStyles = (theme = 'dark') => ({
-  textPrimary: theme === 'dark' ? '#f1f5f9' : '#1f2937',
-  textSecondary: theme === 'dark' ? '#cbd5e1' : '#6b7280',
-  textMuted: theme === 'dark' ? '#94a3b8' : '#9ca3af',
-  bgPrimary: theme === 'dark' ? '#1e293b' : 'white',
-  bgSecondary: theme === 'dark' ? '#0f172a' : '#f8fafc',
-  bgAccent: theme === 'dark' ? '#374151' : '#f3f4f6',
-  borderColor: theme === 'dark' ? '#475569' : '#e5e7eb',
-  successColor: '#10b981',
-  warningColor: '#f59e0b',
-  errorColor: '#ef4444'
+  textPrimary: theme === 'dark' ? '#f1f5f9' : '#2d1810',
+  textSecondary: theme === 'dark' ? '#cbd5e1' : '#5d4d3a',
+  textMuted: theme === 'dark' ? '#94a3b8' : '#8b7355',
+  bgPrimary: theme === 'dark' ? '#1e293b' : '#faf8f3',
+  bgSecondary: theme === 'dark' ? '#0f172a' : '#f4f1eb',
+  bgAccent: theme === 'dark' ? '#374151' : '#ede8df',
+  borderColor: theme === 'dark' ? '#475569' : '#d4c4a8',
+  primaryColor: theme === 'dark' ? '#3b82f6' : '#8b4513',
+  successColor: theme === 'dark' ? '#10b981' : '#6b8e23',
+  warningColor: theme === 'dark' ? '#f59e0b' : '#cd853f',
+  errorColor: theme === 'dark' ? '#ef4444' : '#a0522d'
 });
 
 // Patient workflow type configuration

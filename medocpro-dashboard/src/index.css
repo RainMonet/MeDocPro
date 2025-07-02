@@ -64,6 +64,41 @@
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
+/* Light Theme Variables - Antique Book Inspired */
+[data-theme="light"] {
+  /* Warm, off-white backgrounds inspired by aged paper */
+  --bg-primary: #faf8f3;      /* Warm cream - like aged paper */
+  --bg-secondary: #f4f1eb;    /* Slightly warmer off-white */
+  --bg-tertiary: #ede8df;     /* Soft parchment tone */
+  
+  /* Rich, readable text colors */
+  --text-primary: #2d1810;    /* Dark coffee brown for readability */
+  --text-secondary: #5d4d3a;  /* Medium brown for secondary text */
+  --text-muted: #8b7355;      /* Muted earth tone */
+  
+  /* Subtle earth-tone borders */
+  --border-light: #d4c4a8;    /* Light sandy brown */
+  --border-medium: #c4b29a;   /* Medium warm brown */
+  --border-dark: #a69080;     /* Darker earth tone */
+  
+  /* Warm accent colors inspired by leather binding */
+  --color-primary: #8b4513;   /* Rich saddle brown */
+  --color-primary-light: #a0522d; /* Lighter sienna */
+  --color-primary-dark: #654321;  /* Dark chocolate brown */
+  
+  /* Additional earth tones for variety */
+  --color-success: #6b8e23;   /* Olive green */
+  --color-warning: #cd853f;   /* Peru/tan */
+  --color-danger: #a0522d;    /* Sienna for errors */
+  --color-info: #708090;      /* Slate gray */
+  
+  /* Warm shadows with brown undertones */
+  --shadow-sm: 0 1px 2px 0 rgba(45, 24, 16, 0.08);
+  --shadow-md: 0 4px 6px -1px rgba(45, 24, 16, 0.12), 0 2px 4px -1px rgba(45, 24, 16, 0.08);
+  --shadow-lg: 0 10px 15px -3px rgba(45, 24, 16, 0.12), 0 4px 6px -2px rgba(45, 24, 16, 0.06);
+  --shadow-xl: 0 20px 25px -5px rgba(45, 24, 16, 0.12), 0 10px 10px -5px rgba(45, 24, 16, 0.05);
+}
+
 /* Dark Theme Variables */
 [data-theme="dark"] {
   --bg-primary: #1e293b;
@@ -665,8 +700,8 @@ p {
 }
 
 [data-theme="light"] .toggle-icon {
-  color: #f59e0b;
-  text-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+  color: #cd853f;
+  text-shadow: 0 0 6px rgba(205, 133, 63, 0.4);
 }
 
 [data-theme="dark"] .toggle-icon {
