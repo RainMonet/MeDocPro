@@ -23,7 +23,9 @@ const Sidebar = ({ onModalOpen, onViewChange, expanded, isMobile, onToggle, view
     { id: 'documents', label: 'Documents' },
     { id: 'ai', label: 'AI Assistant' },
     { id: 'reports', label: 'Reports' },
-    { id: 'settings', label: 'Settings' }
+    { id: 'settings', label: 'Settings' },
+    { id: 'separator', type: 'separator' },
+    { id: 'accessibility', label: '♿ Accessibility Options' }
   ];
 
   return (

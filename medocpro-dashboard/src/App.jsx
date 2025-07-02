@@ -7,6 +7,7 @@ import StatCard from './components/ui/StatCard';
 import { SystemStatus, ClinicalNotesOverview, RecentDocuments } from './components/dashboard';
 import { PatientCensusModal } from './components/modals';
 import DailyInfoEntryModal from './components/modals/DailyInfoEntryModal';
+import AccessibilityModal from './components/modals/AccessibilityModal';
 import TemplateEditor from './components/TemplateEditor';
 import TemplateLibrary from './components/templates/TemplateLibrary';
 import ClinicalWorkflowDashboard from './components/clinical/ClinicalWorkflowDashboard';
@@ -137,6 +138,8 @@ function App() {
       setActiveModal(modalType);
       console.log('Set activeModal to:', modalType);
     } else if (modalType === 'clinical-workflow') {
+      setActiveModal(modalType);
+    } else if (modalType === 'accessibility') {
       setActiveModal(modalType);
     } else {
       setActiveModal(modalType);
@@ -469,13 +472,20 @@ function App() {
         theme={theme}
       />
       
+      {/* Accessibility Modal */}
+      <AccessibilityModal
+        isOpen={activeModal === 'accessibility'}
+        onClose={handleModalClose}
+        theme={theme}
+      />
+      
       {/* Debug info */}
       {console.log('Current activeModal:', activeModal)}
       {console.log('Modal should be open:', activeModal === 'daily-info-entry')}
       {console.log('Patient list length:', patientList.length)}
       
       {/* Coming Soon Modal for other features */}
-      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && (
+      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && activeModal !== 'accessibility' && (
         <div className="modal-overlay" onClick={handleModalClose}>
           <div className="modal-content coming-soon" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={handleModalClose}>×</button>
