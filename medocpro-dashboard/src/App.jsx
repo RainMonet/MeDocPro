@@ -8,6 +8,7 @@ import { SystemStatus, ClinicalNotesOverview, RecentDocuments } from './componen
 import { PatientCensusModal } from './components/modals';
 import DailyInfoEntryModal from './components/modals/DailyInfoEntryModal';
 import AccessibilityModal from './components/modals/AccessibilityModal';
+import AIEnhancement from './components/templates/AIEnhancement';
 import TemplateEditor from './components/TemplateEditor';
 import TemplateLibrary from './components/templates/TemplateLibrary';
 import ClinicalWorkflowDashboard from './components/clinical/ClinicalWorkflowDashboard';
@@ -486,18 +487,28 @@ function App() {
       {console.log('Modal should be open:', activeModal === 'daily-info-entry')}
       {console.log('Patient list length:', patientList.length)}
       
-      {/* AI Assistant Settings Modal - Placeholder */}
+      {/* AI Assistant Settings Modal - Ollama AI Enhancement */}
       {activeModal === 'ai-assistant-settings' && (
         <div className="modal-overlay" onClick={handleModalClose}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{
-            backgroundColor: theme === 'dark' ? '#1e293b' : '#faf8f3',
-            border: `1px solid ${theme === 'dark' ? '#475569' : '#d4c4a8'}`,
-            maxWidth: '500px',
-            width: '90vw'
-          }}>
+          <div 
+            className="modal-content" 
+            onClick={e => e.stopPropagation()} 
+            style={{
+              backgroundColor: theme === 'dark' ? '#1e293b' : '#faf8f3',
+              border: `1px solid ${theme === 'dark' ? '#475569' : '#d4c4a8'}`,
+              maxWidth: '800px',
+              width: '90vw',
+              maxHeight: '80vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            {/* Header */}
             <div style={{
               padding: '24px 24px 20px 24px',
-              borderBottom: `1px solid ${theme === 'dark' ? '#475569' : '#d4c4a8'}`
+              borderBottom: `1px solid ${theme === 'dark' ? '#475569' : '#d4c4a8'}`,
+              flexShrink: 0
             }}>
               <div style={{
                 display: 'flex',
@@ -533,29 +544,21 @@ function App() {
                 fontSize: '14px',
                 color: theme === 'dark' ? '#cbd5e1' : '#5d4d3a'
               }}>
-                Configure your AI assistant preferences
+                Configure Ollama AI enhancement settings and text processing options
               </p>
             </div>
-            <div style={{ padding: '24px' }}>
-              <p style={{
-                color: theme === 'dark' ? '#f1f5f9' : '#2d1810',
-                fontSize: '14px',
-                lineHeight: '1.5'
-              }}>
-                AI Assistant settings will be available here, including:
-              </p>
-              <ul style={{
-                color: theme === 'dark' ? '#cbd5e1' : '#5d4d3a',
-                fontSize: '14px',
-                lineHeight: '1.6',
-                paddingLeft: '20px'
-              }}>
-                <li>Model selection and configuration</li>
-                <li>Response tone and style preferences</li>
-                <li>Clinical specialty customization</li>
-                <li>Template enhancement settings</li>
-                <li>Privacy and data handling options</li>
-              </ul>
+
+            {/* AI Enhancement Content */}
+            <div style={{ flex: 1, overflow: 'auto' }}>
+              <AIEnhancement
+                content=""
+                onEnhancedContent={(enhancedContent) => {
+                  // This is a settings modal, so we don't need to handle enhanced content
+                  console.log('AI Enhancement settings updated');
+                }}
+                isVisible={true}
+                theme={theme}
+              />
             </div>
           </div>
         </div>

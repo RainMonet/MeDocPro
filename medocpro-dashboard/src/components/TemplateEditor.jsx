@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import AIEnhancement from './templates/AIEnhancement';
 
 import TemplateLibrary from './templates/TemplateLibrary';
 
@@ -320,13 +319,6 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'da
     }, 0);
   }, []);
 
-  // Handle AI enhanced content
-  const handleAIEnhancedContent = useCallback((enhancedContent) => {
-    setTemplate(prev => ({ ...prev, content: enhancedContent }));
-    setActiveTab('content'); // Switch back to content tab to show result
-  }, []);
-
-
   // Validate and save template
   const handleSave = useCallback(() => {
     const errors = validateTemplateData(template);
@@ -521,7 +513,6 @@ Provider: {{provider_signature}}`
         }}>
           {[
             { id: 'content', label: 'Template Content' },
-            { id: 'ai', label: 'AI Enhancement' },
             { id: 'preview', label: 'Preview' }
           ].map((tab) => (
             <button
@@ -684,15 +675,6 @@ Provider: {{provider_signature}}`
             </>
           )}
 
-          {/* AI Enhancement Tab */}
-          {activeTab === 'ai' && (
-            <AIEnhancement
-              content={template.content}
-              onEnhancedContent={handleAIEnhancedContent}
-              isVisible={true}
-              theme={theme}
-            />
-          )}
 
           {/* Preview Tab */}
           {activeTab === 'preview' && (
