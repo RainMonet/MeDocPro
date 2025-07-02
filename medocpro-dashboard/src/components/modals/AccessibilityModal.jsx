@@ -292,6 +292,16 @@ const AccessibilityModal = ({ isOpen, onClose, theme = 'dark' }) => {
     
     // Set voice navigation flag for other components to use
     root.setAttribute('data-voice-navigation', newSettings.voiceNavigation);
+    
+    // Force a repaint to ensure changes are applied immediately
+    root.style.display = 'none';
+    root.offsetHeight; // Trigger reflow
+    root.style.display = '';
+    
+    // Also trigger a custom event that components can listen to
+    window.dispatchEvent(new CustomEvent('accessibilitySettingsChanged', { 
+      detail: newSettings 
+    }));
   };
 
   const updateSetting = (key, value) => {

@@ -1529,6 +1529,53 @@ body {
   font-family: var(--font-family);
 }
 
+/* Apply base font size scaling to all text elements */
+p, span, div, button, input, select, textarea, label {
+  font-size: inherit;
+}
+
+/* Scale headings relative to base font size */
+h1 { font-size: calc(var(--base-font-size) * 2.25); }
+h2 { font-size: calc(var(--base-font-size) * 1.875); }
+h3 { font-size: calc(var(--base-font-size) * 1.5); }
+h4 { font-size: calc(var(--base-font-size) * 1.25); }
+h5 { font-size: calc(var(--base-font-size) * 1.125); }
+h6 { font-size: calc(var(--base-font-size) * 1); }
+
+/* Scale common UI elements relative to base font size */
+.btn, button {
+  font-size: calc(var(--base-font-size) * 1);
+}
+
+.btn-sm {
+  font-size: calc(var(--base-font-size) * 0.875);
+}
+
+.btn-lg {
+  font-size: calc(var(--base-font-size) * 1.125);
+}
+
+/* Form elements */
+.form-input, input, select, textarea {
+  font-size: calc(var(--base-font-size) * 1);
+}
+
+/* Text size utilities */
+.text-sm { font-size: calc(var(--base-font-size) * 0.875); }
+.text-lg { font-size: calc(var(--base-font-size) * 1.125); }
+.text-xl { font-size: calc(var(--base-font-size) * 1.25); }
+.text-2xl { font-size: calc(var(--base-font-size) * 1.5); }
+.text-3xl { font-size: calc(var(--base-font-size) * 1.875); }
+
+/* Override any hardcoded font sizes in the application */
+.sidebar .nav-link { font-size: calc(var(--base-font-size) * 0.9) !important; }
+.header .logo-text { font-size: calc(var(--base-font-size) * 1.2) !important; }
+.modal-content h2 { font-size: calc(var(--base-font-size) * 1.5) !important; }
+.modal-content h3 { font-size: calc(var(--base-font-size) * 1.25) !important; }
+.modal-content p { font-size: calc(var(--base-font-size) * 1) !important; }
+.card h3 { font-size: calc(var(--base-font-size) * 1.25) !important; }
+.card p { font-size: calc(var(--base-font-size) * 0.9) !important; }
+
 /* Accessibility: Improved focus indicators */
 button:focus,
 input:focus,
