@@ -141,6 +141,8 @@ function App() {
       setActiveModal(modalType);
     } else if (modalType === 'accessibility') {
       setActiveModal(modalType);
+    } else if (modalType === 'ai-assistant-settings') {
+      setActiveModal(modalType);
     } else {
       setActiveModal(modalType);
     }
@@ -484,8 +486,83 @@ function App() {
       {console.log('Modal should be open:', activeModal === 'daily-info-entry')}
       {console.log('Patient list length:', patientList.length)}
       
+      {/* AI Assistant Settings Modal - Placeholder */}
+      {activeModal === 'ai-assistant-settings' && (
+        <div className="modal-overlay" onClick={handleModalClose}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{
+            backgroundColor: theme === 'dark' ? '#1e293b' : '#faf8f3',
+            border: `1px solid ${theme === 'dark' ? '#475569' : '#d4c4a8'}`,
+            maxWidth: '500px',
+            width: '90vw'
+          }}>
+            <div style={{
+              padding: '24px 24px 20px 24px',
+              borderBottom: `1px solid ${theme === 'dark' ? '#475569' : '#d4c4a8'}`
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '8px'
+              }}>
+                <h2 style={{
+                  margin: 0,
+                  fontSize: '20px',
+                  fontWeight: '600',
+                  color: theme === 'dark' ? '#f1f5f9' : '#2d1810'
+                }}>
+                  🤖 AI Assistant Settings
+                </h2>
+                <button
+                  onClick={handleModalClose}
+                  style={{
+                    padding: '8px 12px',
+                    backgroundColor: 'transparent',
+                    color: theme === 'dark' ? '#94a3b8' : '#8b7355',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ✕ Close
+                </button>
+              </div>
+              <p style={{
+                margin: 0,
+                fontSize: '14px',
+                color: theme === 'dark' ? '#cbd5e1' : '#5d4d3a'
+              }}>
+                Configure your AI assistant preferences
+              </p>
+            </div>
+            <div style={{ padding: '24px' }}>
+              <p style={{
+                color: theme === 'dark' ? '#f1f5f9' : '#2d1810',
+                fontSize: '14px',
+                lineHeight: '1.5'
+              }}>
+                AI Assistant settings will be available here, including:
+              </p>
+              <ul style={{
+                color: theme === 'dark' ? '#cbd5e1' : '#5d4d3a',
+                fontSize: '14px',
+                lineHeight: '1.6',
+                paddingLeft: '20px'
+              }}>
+                <li>Model selection and configuration</li>
+                <li>Response tone and style preferences</li>
+                <li>Clinical specialty customization</li>
+                <li>Template enhancement settings</li>
+                <li>Privacy and data handling options</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Coming Soon Modal for other features */}
-      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && activeModal !== 'accessibility' && (
+      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && activeModal !== 'accessibility' && activeModal !== 'ai-assistant-settings' && (
         <div className="modal-overlay" onClick={handleModalClose}>
           <div className="modal-content coming-soon" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={handleModalClose}>×</button>

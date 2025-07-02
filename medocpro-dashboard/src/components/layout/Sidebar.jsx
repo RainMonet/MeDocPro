@@ -16,18 +16,9 @@ const Sidebar = ({ onModalOpen, onViewChange, expanded, isMobile, onToggle, view
     }
   };
 
-  const mainMenuItems = [
-    { id: 'template-editor', label: 'Template Editor' },
-    { id: 'template-library', label: 'Template Library' },
-    { id: 'patients', label: 'Patient Census' },
-    { id: 'documents', label: 'Documents' },
-    { id: 'ai', label: 'AI Assistant' },
-    { id: 'reports', label: 'Reports' },
-    { id: 'settings', label: 'Settings' }
-  ];
-
   const settingsMenuItems = [
-    { id: 'accessibility', label: 'Accessibility' }
+    { id: 'accessibility', label: 'Accessibility' },
+    { id: 'ai-assistant-settings', label: 'AI Assistant' }
   ];
 
   return (
@@ -55,62 +46,9 @@ const Sidebar = ({ onModalOpen, onViewChange, expanded, isMobile, onToggle, view
           visibility: expanded ? 'visible' : 'hidden'
         }}
       >
-        {/* Main Navigation */}
-        <ul className="nav-list" style={{ 
-          listStyle: 'none', 
-          padding: 0, 
-          margin: '20px 0',
-          width: '250px'
-        }}>
-          {mainMenuItems.map((item) => {
-            const isActive = item.isView && viewMode === item.id;
-            
-            return (
-              <li key={item.id} className="nav-item" style={{ margin: '8px 16px' }}>
-                <button
-                  className="nav-link"
-                  onClick={() => handleItemClick(item.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '12px 16px',
-                    background: isActive ? 'var(--accent-color)' : 'none',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: isActive ? 'white' : 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    width: 'calc(250px - 64px)',
-                    textAlign: 'left',
-                    fontSize: '0.9rem',
-                    fontWeight: isActive ? '600' : '500',
-                    whiteSpace: 'nowrap'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.target.style.background = 'var(--bg-hover)';
-                      e.target.style.color = 'var(--text-primary)';
-                      e.target.style.transform = 'translateX(4px)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.target.style.background = 'none';
-                      e.target.style.color = 'var(--text-secondary)';
-                      e.target.style.transform = 'translateX(0)';
-                    }
-                  }}
-                >
-                  {item.label}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-
         {/* Settings Section */}
         <div style={{ 
-          margin: '32px 0 20px 0',
+          margin: '20px 0 20px 0',
           width: '250px'
         }}>
           {/* Settings Header */}
