@@ -481,7 +481,7 @@ function App() {
             <button className="modal-close" onClick={handleModalClose}>×</button>
             <div className="coming-soon-content">
               <h2>{getModalTitle(activeModal)}</h2>
-              <p>This feature is coming soon to MeDocPro!</p>
+              <p>This feature is coming soon to MDoc!</p>
               <p>We're working hard to bring you the best psychiatric documentation tools.</p>
             </div>
           </div>

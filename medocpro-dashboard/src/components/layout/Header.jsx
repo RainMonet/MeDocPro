@@ -55,7 +55,7 @@ const Header = ({ user, theme, onToggleTheme, viewMode, onViewChange, onLogout }
             <div className="logo-icon">
               <div className="logo-symbol">M</div>
             </div>
-            <span className="logo-text">MeDocPro</span>
+            <span className="logo-text">MDoc</span>
           </div>
           
           {/* Navigation Links */}

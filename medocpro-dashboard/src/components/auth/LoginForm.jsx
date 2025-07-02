@@ -42,7 +42,7 @@ const LoginForm = ({ onLogin, theme = 'dark' }) => {
   };
 
   const handleDemoLogin = () => {
-    setCredentials({ username: 'demo@medocpro.com', password: 'demo123' });
+    setCredentials({ username: 'demo@mdoc.com', password: 'demo123' });
     setTimeout(() => {
       localStorage.setItem('token', 'authenticated-token');
       onLogin();
@@ -94,7 +94,7 @@ const LoginForm = ({ onLogin, theme = 'dark' }) => {
             color: styles.textPrimary,
             marginBottom: '8px'
           }}>
-            MeDocPro
+            MDoc
           </h1>
           <p style={{
             margin: 0,
@@ -225,7 +225,7 @@ const LoginForm = ({ onLogin, theme = 'dark' }) => {
           color: styles.textSecondary,
           textAlign: 'center'
         }}>
-          Demo credentials: demo@medocpro.com / demo123
+          Demo credentials: demo@mdoc.com / demo123
         </p>
       </div>
     </div>
