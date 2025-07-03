@@ -1606,6 +1606,24 @@ input[type="reset"],
   color: var(--bg-primary) !important;
 }
 
+/* Reset button styles when high contrast is disabled - use more specific selectors */
+html:not([data-high-contrast="true"]) .sidebar button,
+html:not([data-high-contrast="true"]) .header button,
+html:not([data-high-contrast="true"]) .modal-content button,
+html:not([data-high-contrast="true"]) .btn,
+html:not([data-high-contrast="true"]) button.btn {
+  border: none !important;
+}
+
+html:not([data-high-contrast="true"]) .sidebar button:hover,
+html:not([data-high-contrast="true"]) .header button:hover,
+html:not([data-high-contrast="true"]) .modal-content button:hover,
+html:not([data-high-contrast="true"]) .btn:hover,
+html:not([data-high-contrast="true"]) button.btn:hover {
+  background-color: unset !important;
+  color: unset !important;
+}
+
 /* Accessibility: Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   * {
