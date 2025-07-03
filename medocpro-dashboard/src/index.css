@@ -1596,14 +1596,14 @@ input[type="reset"],
   min-width: 44px;
 }
 
-/* Accessibility: High contrast mode button styles - more specific targeting */
+/* Accessibility: High contrast mode button styles - without !important */
 html[data-high-contrast="true"] button {
-  border: 2px solid var(--text-primary) !important;
+  border: 2px solid var(--text-primary);
 }
 
 html[data-high-contrast="true"] button:hover {
-  background-color: var(--text-primary) !important;
-  color: var(--bg-primary) !important;
+  background-color: var(--text-primary);
+  color: var(--bg-primary);
 }
 
 /* Accessibility: Reduced motion support */
