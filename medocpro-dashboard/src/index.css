@@ -1597,21 +1597,13 @@ input[type="reset"],
 }
 
 /* Accessibility: High contrast mode button styles - selective targeting */
-html[data-high-contrast="true"] button:not(.nav-link):not([style*="background: none"]):not([style*="border: none"]) {
-  border: 2px solid var(--text-primary);
-}
-
-html[data-high-contrast="true"] button:not(.nav-link):not([style*="background: none"]):not([style*="border: none"]):hover {
-  background-color: var(--text-primary);
-  color: var(--bg-primary);
-}
-
-/* Specifically target actionable buttons that should have borders in high contrast */
+/* Exclude header navigation buttons specifically */
 html[data-high-contrast="true"] .sidebar button,
 html[data-high-contrast="true"] .modal-content button,
 html[data-high-contrast="true"] .btn,
 html[data-high-contrast="true"] button.theme-toggle,
-html[data-high-contrast="true"] .user-avatar {
+html[data-high-contrast="true"] .user-avatar,
+html[data-high-contrast="true"] .nav-button {
   border: 2px solid var(--text-primary) !important;
 }
 
@@ -1619,9 +1611,71 @@ html[data-high-contrast="true"] .sidebar button:hover,
 html[data-high-contrast="true"] .modal-content button:hover,
 html[data-high-contrast="true"] .btn:hover,
 html[data-high-contrast="true"] button.theme-toggle:hover,
-html[data-high-contrast="true"] .user-avatar:hover {
+html[data-high-contrast="true"] .user-avatar:hover,
+html[data-high-contrast="true"] .nav-button:hover {
   background-color: var(--text-primary) !important;
   color: var(--bg-primary) !important;
+}
+
+/* Force reset navigation buttons when high contrast is disabled */
+html:not([data-high-contrast="true"]) .header button,
+html:not([data-high-contrast="true"]) .header-left button {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
+html:not([data-high-contrast="true"]) .header button:hover,
+html:not([data-high-contrast="true"]) .header-left button:hover {
+  background: none !important;
+  box-shadow: none !important;
+}
+
+/* Additional nuclear option: force reset ALL navigation buttons */
+.header button[style*="background: none"],
+.header-left button[style*="background: none"] {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Very specific selector to override any high contrast styling on navigation buttons */
+.header-left > div > button,
+.header-left div[style*="display: flex"] button {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Ultimate override: target navigation buttons by specific class */
+.nav-button {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Nuclear option: Remove all borders from nav buttons always unless high contrast is on - v2025-07-03-15:57 */
+html:not([data-high-contrast="true"]) .nav-button {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+}
+
+/* Fallback: override by button position and styling */
+.header button[style*="border: none"],
+.header button[style*="background: none"] {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 /* Accessibility: Reduced motion support */
@@ -1631,4 +1685,25 @@ html[data-high-contrast="true"] .user-avatar:hover {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* FINAL OVERRIDE: Navigation button border reset - this should be at the end to override everything */
+.nav-button,
+button.nav-button,
+.header .nav-button,
+.header-left .nav-button {
+  border: 0px solid transparent !important;
+  border-width: 0 !important;
+  border-style: none !important;
+  border-color: transparent !important;
+}
+
+html:not([data-high-contrast="true"]) .nav-button,
+html:not([data-high-contrast="true"]) button.nav-button,
+html:not([data-high-contrast="true"]) .header .nav-button,
+html:not([data-high-contrast="true"]) .header-left .nav-button {
+  border: 0px solid transparent !important;
+  border-width: 0 !important;
+  border-style: none !important;
+  border-color: transparent !important;
 }

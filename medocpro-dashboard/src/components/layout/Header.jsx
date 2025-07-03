@@ -67,17 +67,17 @@ const Header = ({ user, theme, onToggleTheme, viewMode, onViewChange, onLogout, 
             marginLeft: '2rem'
           }}>
             <button
+              className="nav-button"
               onClick={() => handleViewChange('workspace')}
               style={{
                 background: 'none',
                 border: 'none',
                 padding: '0.5rem 1rem',
                 fontSize: '0.9rem',
-                fontWeight: '500',
+                fontWeight: viewMode === 'workspace' ? '600' : '500',
                 color: viewMode === 'workspace' ? 'var(--accent-color)' : 'var(--text-secondary)',
                 cursor: 'pointer',
-                transition: 'color 0.2s ease',
-                borderBottom: viewMode === 'workspace' ? '2px solid var(--accent-color)' : '2px solid transparent'
+                transition: 'color 0.2s ease, font-weight 0.2s ease'
               }}
             >
               Workspace
@@ -88,17 +88,17 @@ const Header = ({ user, theme, onToggleTheme, viewMode, onViewChange, onLogout, 
               fontSize: '0.9rem'
             }}>|</span>
             <button
+              className="nav-button"
               onClick={() => handleViewChange('dashboard')}
               style={{
                 background: 'none',
                 border: 'none',
                 padding: '0.5rem 1rem',
                 fontSize: '0.9rem',
-                fontWeight: '500',
+                fontWeight: viewMode === 'dashboard' ? '600' : '500',
                 color: viewMode === 'dashboard' ? 'var(--accent-color)' : 'var(--text-secondary)',
                 cursor: 'pointer',
-                transition: 'color 0.2s ease',
-                borderBottom: viewMode === 'dashboard' ? '2px solid var(--accent-color)' : '2px solid transparent'
+                transition: 'color 0.2s ease, font-weight 0.2s ease'
               }}
             >
               Analytics
