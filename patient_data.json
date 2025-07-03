@@ -1,42 +1,6 @@
 {
   "patients": [
     {
-      "id": 2,
-      "patient_name": "Jones, Mary",
-      "patient_id": "PT002",
-      "room_number": "102",
-      "status": "admission",
-      "workflow_type": "admission",
-      "data_fields": {
-        "chief_complaint": "Depression",
-        "assessment": "MDD"
-      }
-    },
-    {
-      "id": 3,
-      "patient_name": "Brown, David",
-      "patient_id": "PT003",
-      "room_number": "103",
-      "status": "discharge",
-      "workflow_type": "discharge",
-      "data_fields": {
-        "chief_complaint": "Bipolar",
-        "assessment": "Bipolar I"
-      }
-    },
-    {
-      "id": 4,
-      "patient_name": "Wilson, Sarah",
-      "patient_id": "PT004",
-      "room_number": "104",
-      "status": "follow-up",
-      "workflow_type": "follow-up",
-      "data_fields": {
-        "chief_complaint": "PTSD",
-        "assessment": "PTSD"
-      }
-    },
-    {
       "id": 5,
       "patient_name": "Anderson, Michael",
       "patient_id": "PSY001",
@@ -388,5 +352,5 @@
     }
   ],
   "next_id": 30,
-  "last_updated": "2025-06-30T09:17:00.740072"
+  "last_updated": "2025-07-03T01:20:50.356271"
 }

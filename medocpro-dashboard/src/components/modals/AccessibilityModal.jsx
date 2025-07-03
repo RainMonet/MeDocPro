@@ -288,6 +288,17 @@ const AccessibilityModal = ({ isOpen, onClose, theme = 'dark' }) => {
       root.setAttribute('data-high-contrast', 'true');
     } else {
       root.removeAttribute('data-high-contrast');
+      
+      // Manually reset button styles when high contrast is disabled
+      const buttons = document.querySelectorAll('button');
+      buttons.forEach(button => {
+        button.style.border = '';
+        button.style.removeProperty('border');
+        // Also reset any inline styles that might have been applied
+        if (button.style.border) {
+          button.style.border = '';
+        }
+      });
     }
     
     // Set voice navigation flag for other components to use
@@ -297,6 +308,18 @@ const AccessibilityModal = ({ isOpen, onClose, theme = 'dark' }) => {
     root.style.display = 'none';
     root.offsetHeight; // Trigger reflow
     root.style.display = '';
+    
+    // Force a second reflow for button styles
+    if (!newSettings.highContrast) {
+      setTimeout(() => {
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(button => {
+          button.style.removeProperty('border');
+          button.style.removeProperty('background-color');
+          button.style.removeProperty('color');
+        });
+      }, 50);
+    }
     
     // Also trigger a custom event that components can listen to
     window.dispatchEvent(new CustomEvent('accessibilitySettingsChanged', { 

@@ -1596,32 +1596,14 @@ input[type="reset"],
   min-width: 44px;
 }
 
-/* Accessibility: High contrast mode button styles */
-[data-high-contrast="true"] button {
+/* Accessibility: High contrast mode button styles - more specific targeting */
+html[data-high-contrast="true"] button {
   border: 2px solid var(--text-primary) !important;
 }
 
-[data-high-contrast="true"] button:hover {
+html[data-high-contrast="true"] button:hover {
   background-color: var(--text-primary) !important;
   color: var(--bg-primary) !important;
-}
-
-/* Reset button styles when high contrast is disabled - use more specific selectors */
-html:not([data-high-contrast="true"]) .sidebar button,
-html:not([data-high-contrast="true"]) .header button,
-html:not([data-high-contrast="true"]) .modal-content button,
-html:not([data-high-contrast="true"]) .btn,
-html:not([data-high-contrast="true"]) button.btn {
-  border: none !important;
-}
-
-html:not([data-high-contrast="true"]) .sidebar button:hover,
-html:not([data-high-contrast="true"]) .header button:hover,
-html:not([data-high-contrast="true"]) .modal-content button:hover,
-html:not([data-high-contrast="true"]) .btn:hover,
-html:not([data-high-contrast="true"]) button.btn:hover {
-  background-color: unset !important;
-  color: unset !important;
 }
 
 /* Accessibility: Reduced motion support */
