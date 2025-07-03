@@ -15,6 +15,7 @@ import ClinicalWorkflowDashboard from './components/clinical/ClinicalWorkflowDas
 import ClinicalWorkspace from './components/clinical/ClinicalWorkspace';
 import LoginForm from './components/auth/LoginForm';
 import apiService from './services/api';
+import quotesService from './services/quotesService';
 import './App.css';
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
   const [activeModal, setActiveModal] = useState(null);
   const [viewMode, setViewMode] = useState('workspace'); // 'workspace' or 'dashboard'
   const [workspaceRefreshKey, setWorkspaceRefreshKey] = useState(0);
+  const [isNewLogin, setIsNewLogin] = useState(false);
   
   // Template editor state
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
@@ -51,14 +53,19 @@ function App() {
   // Authentication handlers
   const handleLogin = () => {
     setIsAuthenticated(true);
+    setIsNewLogin(true);
+    // Reset the new login flag after a brief moment
+    setTimeout(() => setIsNewLogin(false), 1000);
   };
 
   const handleLogout = () => {
     console.log('App.jsx handleLogout called!');
     console.log('Current isAuthenticated:', isAuthenticated);
     localStorage.removeItem('token');
+    quotesService.reset(); // Reset quotes service for next login
     console.log('Token removed from localStorage');
     setIsAuthenticated(false);
+    setIsNewLogin(false);
     console.log('isAuthenticated set to false');
   };
 
@@ -224,6 +231,7 @@ function App() {
         viewMode={viewMode}
         onViewChange={setViewMode}
         onLogout={handleLogout}
+        isNewLogin={isNewLogin}
       />
 
       <div className="main-layout">

@@ -1,8 +1,9 @@
 // medocpro-dashboard/src/components/layout/Header.jsx
 import React, { useState, useRef, useEffect } from 'react';
+import QuoteDisplay from '../ui/QuoteDisplay';
 import './Header.css';
 
-const Header = ({ user, theme, onToggleTheme, viewMode, onViewChange, onLogout }) => {
+const Header = ({ user, theme, onToggleTheme, viewMode, onViewChange, onLogout, isNewLogin }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef(null);
 
@@ -103,6 +104,17 @@ const Header = ({ user, theme, onToggleTheme, viewMode, onViewChange, onLogout }
               Analytics
             </button>
           </div>
+        </div>
+        
+        {/* Quote Display */}
+        <div style={{ 
+          flex: 1, 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center',
+          padding: '0 20px'
+        }}>
+          <QuoteDisplay theme={theme} onLogin={isNewLogin} />
         </div>
         
         <div className="header-right">
