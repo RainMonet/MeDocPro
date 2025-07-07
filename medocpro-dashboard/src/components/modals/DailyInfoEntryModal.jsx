@@ -274,6 +274,34 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
     setTemplateParts(parseTemplate(DEFAULT_TEMPLATE));
   }, []);
 
+  // Load persisted data from localStorage on mount
+  useEffect(() => {
+    const savedData = localStorage.getItem('dailyInfoEntryData');
+    if (savedData) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        setFieldValues(parsedData.fieldValues || {});
+        setCompletionStatus(parsedData.completionStatus || {});
+        console.log('Loaded daily info data from localStorage:', parsedData);
+      } catch (error) {
+        console.error('Error loading daily info data from localStorage:', error);
+      }
+    }
+  }, []);
+
+  // Save data to localStorage whenever fieldValues or completionStatus changes
+  useEffect(() => {
+    if (Object.keys(fieldValues).length > 0 || Object.keys(completionStatus).length > 0) {
+      const dataToSave = {
+        fieldValues,
+        completionStatus,
+        timestamp: new Date().toISOString()
+      };
+      localStorage.setItem('dailyInfoEntryData', JSON.stringify(dataToSave));
+      console.log('Saved daily info data to localStorage');
+    }
+  }, [fieldValues, completionStatus]);
+
   // Auto-fill patient name fields when patient changes
   useEffect(() => {
     if (patients[currentPatientIndex]) {
@@ -338,11 +366,79 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
     }
   }, [isOpen, currentPatientIndex]);
 
+  // Clear localStorage data
+  const clearPersistedData = () => {
+    localStorage.removeItem('dailyInfoEntryData');
+    console.log('Cleared daily info data from localStorage');
+  };
+
   // Handle save
   const handleSave = async () => {
-    // TODO: Implement save to backend
-    console.log('Saving daily info:', fieldValues);
-    alert('Daily information saved successfully!');
+    try {
+      const currentPatient = patients[currentPatientIndex];
+      if (!currentPatient) return;
+
+      const currentPatientValues = fieldValues[currentPatient.id] || {};
+      
+      // Save to backend API
+      const response = await fetch('http://localhost:5001/api/daily-info', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          patient_id: currentPatient.id,
+          field_values: currentPatientValues
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Mark as completed
+          setCompletionStatus(prev => ({
+            ...prev,
+            [currentPatient.id]: true
+          }));
+          
+          // Show success message
+          alert(`✅ Daily information saved successfully for ${currentPatient.patient_name}!`);
+        } else {
+          throw new Error(result.message || 'Failed to save');
+        }
+      } else {
+        throw new Error('Network error');
+      }
+    } catch (error) {
+      console.error('Error saving daily info:', error);
+      alert('❌ Error saving daily information. Please try again.');
+    }
+  };
+
+  // Handle modal close
+  const handleClose = () => {
+    // Ask user if they want to clear unsaved data
+    const hasUnsavedData = Object.keys(fieldValues).some(patientId => 
+      Object.keys(fieldValues[patientId] || {}).some(field => 
+        field !== 'last name' && field !== 'first name' && fieldValues[patientId][field]
+      )
+    );
+
+    if (hasUnsavedData) {
+      const shouldClear = window.confirm(
+        'You have unsaved changes. Do you want to clear all data?\n\n' +
+        'Click "OK" to clear all data and close.\n' +
+        'Click "Cancel" to keep data for next time.'
+      );
+      
+      if (shouldClear) {
+        clearPersistedData();
+        setFieldValues({});
+        setCompletionStatus({});
+      }
+    }
+    
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -391,7 +487,7 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
             📝 Daily Information Entry
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             style={{
               background: 'none',
               border: 'none',
@@ -479,7 +575,7 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
             gap: '12px'
           }}>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               style={{
                 padding: '10px 20px',
                 backgroundColor: 'transparent',
@@ -491,6 +587,28 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
               }}
             >
               Cancel
+            </button>
+            <button
+              onClick={async () => {
+                await handleSave();
+                // Move to next patient if available
+                if (currentPatientIndex < patients.length - 1) {
+                  handleNavigate(currentPatientIndex + 1);
+                }
+              }}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: styles.successColor,
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                marginRight: '8px'
+              }}
+            >
+              💾 Save & Continue
             </button>
             <button
               onClick={handleSave}
@@ -505,7 +623,7 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
                 cursor: 'pointer'
               }}
             >
-              💾 Save All Changes
+              💾 Save Current
             </button>
           </div>
         </div>

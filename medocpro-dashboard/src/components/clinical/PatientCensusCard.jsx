@@ -19,10 +19,10 @@ const getThemeStyles = (theme = 'dark') => ({
 // Patient status indicators
 const getStatusDisplay = (status) => {
   const statusConfig = {
-    'follow-up': { icon: '🔄', label: 'Follow-up', color: '#3b82f6' },
-    'admission': { icon: '🏥', label: 'Admission', color: '#10b981' },
-    'discharge': { icon: '🏠', label: 'Discharge', color: '#ef4444' },
-    'active': { icon: '🟢', label: 'Active', color: '#10b981' }  // fallback for existing data
+    'follow-up': { label: 'Follow-up', color: '#3b82f6' },
+    'admission': { label: 'Admission', color: '#10b981' },
+    'discharge': { label: 'Discharge', color: '#ef4444' },
+    'active': { label: 'Active', color: '#10b981' }  // fallback for existing data
   };
   return statusConfig[status] || statusConfig['follow-up'];
 };
@@ -139,7 +139,6 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
           onStatusChange(patient.id);
         }}
       >
-        <span style={{ fontSize: '12px' }}>{statusDisplay.icon}</span>
         <span style={{
           fontSize: '11px',
           fontWeight: '500',
@@ -368,12 +367,14 @@ const PatientCensusCard = ({
   }
 
   return (
-    <div style={{
-      backgroundColor: styles.bgPrimary,
-      borderRadius: '8px',
-      border: `1px solid ${styles.borderColor}`,
-      overflow: 'hidden'
-    }}>
+    <div 
+      data-component="patient-census"
+      style={{
+        backgroundColor: styles.bgPrimary,
+        borderRadius: '8px',
+        border: `1px solid ${styles.borderColor}`,
+        overflow: 'hidden'
+      }}>
       {/* Header */}
       <div style={{
         padding: '20px 20px 16px 20px',
@@ -391,18 +392,29 @@ const PatientCensusCard = ({
             fontWeight: '600',
             color: styles.textPrimary
           }}>
-            👥 Patient Census
+            Patient Census
           </h3>
           <button
             onClick={onOpenCensusModal}
             style={{
-              padding: '6px 12px',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
+              padding: '8px 16px',
+              backgroundColor: 'transparent',
+              color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
+              border: `1px solid ${styles.borderColor}`,
               borderRadius: '6px',
               fontSize: '13px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontWeight: '500',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = styles.bgAccent;
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = 'transparent';
             }}
           >
             Manage
@@ -424,34 +436,36 @@ const PatientCensusCard = ({
           </div>
         )}
 
-        {/* Sort and Selection Controls */}
+        {/* Sort, Selection Controls and Status */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          fontSize: '13px',
-          marginBottom: '8px'
+          fontSize: '12px',
+          marginBottom: '4px'
         }}>
-          {/* Sort Controls */}
+          {/* Sort and Select Controls */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            gap: '6px'
           }}>
-            <span style={{ color: styles.textMuted, fontSize: '12px' }}>Sort:</span>
+            <span style={{ color: styles.textMuted, fontSize: '11px' }}>Sort:</span>
             <button
               onClick={() => handleSortChange('name')}
               style={{
-                padding: '4px 8px',
+                padding: '0 6px',
                 backgroundColor: sortBy === 'name' ? styles.primaryColor : 'transparent',
                 color: sortBy === 'name' ? '#ffffff' : styles.textSecondary,
-                border: `1px solid ${sortBy === 'name' ? styles.primaryColor : styles.borderColor}`,
-                borderRadius: '4px',
-                fontSize: '11px',
+                border: 'none',
+                borderRadius: '3px',
+                fontSize: '10px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px'
+                gap: '2px',
+                lineHeight: '1',
+                height: '14px'
               }}
             >
               Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
@@ -459,61 +473,55 @@ const PatientCensusCard = ({
             <button
               onClick={() => handleSortChange('workflow')}
               style={{
-                padding: '4px 8px',
+                padding: '0 6px',
                 backgroundColor: sortBy === 'workflow' ? styles.primaryColor : 'transparent',
                 color: sortBy === 'workflow' ? '#ffffff' : styles.textSecondary,
-                border: `1px solid ${sortBy === 'workflow' ? styles.primaryColor : styles.borderColor}`,
-                borderRadius: '4px',
-                fontSize: '11px',
+                border: 'none',
+                borderRadius: '3px',
+                fontSize: '10px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px'
+                gap: '2px',
+                lineHeight: '1',
+                height: '14px'
               }}
             >
               Type {sortBy === 'workflow' && (sortOrder === 'asc' ? '↑' : '↓')}
             </button>
-          </div>
-
-          <span style={{ color: styles.textMuted, fontSize: '11px' }}>
-            {patients.length} patients
-          </span>
-        </div>
-
-        {/* Selection Controls */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '13px'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
             <button
               onClick={handleSelectAll}
               style={{
-                padding: '4px 8px',
+                padding: '0 6px',
                 backgroundColor: 'transparent',
                 color: styles.textSecondary,
-                border: `1px solid ${styles.borderColor}`,
-                borderRadius: '4px',
-                fontSize: '12px',
-                cursor: 'pointer'
+                border: 'none',
+                borderRadius: '3px',
+                fontSize: '10px',
+                cursor: 'pointer',
+                lineHeight: '1',
+                height: '14px'
               }}
             >
               {selectedPatients.size === patients.length ? 'Deselect All' : 'Select All'}
             </button>
+          </div>
+
+          {/* Selection Status */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '10px'
+          }}>
             <span style={{ color: styles.textMuted }}>
               {selectedPatients.size} of {patients.length} selected
             </span>
+            <span style={{ color: styles.textMuted, fontSize: '9px' }}>|</span>
+            <span style={{ color: styles.textMuted, fontSize: '9px' }}>
+              Selection synced with batch generation
+            </span>
           </div>
-
-          <span style={{ color: styles.textMuted, fontSize: '11px' }}>
-            Selection synced with batch generation
-          </span>
         </div>
       </div>
 
@@ -530,7 +538,7 @@ const PatientCensusCard = ({
               isSelected={selectedPatients.has(patient.id)}
               onSelect={handlePatientSelect}
               onStatusChange={handleStatusChange}
-              theme={theme}
+              theme={currentTheme}
             />
           ))
         ) : (

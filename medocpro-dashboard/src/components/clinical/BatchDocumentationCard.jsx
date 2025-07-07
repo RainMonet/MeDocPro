@@ -180,12 +180,44 @@ const BatchDocumentationCard = ({
 
     setIsGenerating(true);
     try {
-      await onGenerate({
-        template: selectedTemplate,
-        patients: selectedPatients,
-        exportFormat,
-        aiEnhancement
+      // Call backend API for document generation
+      const response = await fetch('http://localhost:5001/api/generate-documents', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          template: selectedTemplate,
+          patients: selectedPatients,
+          exportFormat,
+          aiEnhancement
+        })
       });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Call parent handler with generated documents
+          if (onGenerate) {
+            onGenerate({
+              template: selectedTemplate,
+              patients: selectedPatients,
+              exportFormat,
+              aiEnhancement,
+              documents: result.documents,
+              batchId: result.batch_id,
+              totalCount: result.total_count
+            });
+          }
+        } else {
+          throw new Error(result.message || 'Failed to generate documents');
+        }
+      } else {
+        throw new Error('Network error');
+      }
+    } catch (error) {
+      console.error('Error generating documents:', error);
+      alert('❌ Error generating documents. Please try again.');
     } finally {
       setIsGenerating(false);
     }
@@ -236,7 +268,7 @@ const BatchDocumentationCard = ({
               cursor: 'pointer'
             }}
           >
-            ➕ New Template
+            New Template
           </button>
         </div>
         <p style={{

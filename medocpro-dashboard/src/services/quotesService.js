@@ -63,13 +63,14 @@ class QuotesService {
 
   /**
    * Get the current quote for the session
-   * @returns {Object|null} Current quote object or null if none selected
+   * @returns {Object} Current quote object - generates one if none exists
    */
   getCurrentQuote() {
     if (this.currentQuoteIndex !== null) {
       return this.quotes[this.currentQuoteIndex];
     }
-    return null;
+    // If no current quote exists, generate one
+    return this.getRandomQuote();
   }
 
   /**

@@ -830,6 +830,11 @@ p {
   animation: pulse 2s infinite;
 }
 
+/* Remove green dot from Patient Census header specifically */
+.system-status:has([data-component="patient-census"]) h3::before {
+  display: none;
+}
+
 .system-status p {
   font-size: 0.875rem;
   color: var(--text-secondary);
