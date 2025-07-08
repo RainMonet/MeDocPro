@@ -598,6 +598,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
             onGenerate={handleGenerateDocuments}
             theme={document.documentElement.getAttribute('data-theme') || 'dark'}
             onOpenTemplateEditor={() => onOpenTemplateEditor && onOpenTemplateEditor()}
+            onOpenTemplateLibrary={() => onOpenModal && onOpenModal('template-library')}
           />
         </div>
       </div>

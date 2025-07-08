@@ -835,6 +835,11 @@ p {
   display: none;
 }
 
+/* Remove green dot from Batch Documentation header specifically */
+.system-status:has([data-component="batch-documentation"]) h3::before {
+  display: none;
+}
+
 .system-status p {
   font-size: 0.875rem;
   color: var(--text-secondary);
