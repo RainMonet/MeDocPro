@@ -344,3 +344,39 @@ src/
 - **Authentication**: Check `isAuthenticated` state before rendering protected content
 - **Color Variables**: Use CSS custom properties for consistent theming
 - **Responsive Design**: Ensure mobile-first approach with proper breakpoints
+
+## Template Editor Enhancements
+
+### Placeholder Management System
+- **Dedicated Tab**: Placeholder management moved to separate tab in template editor
+- **Add New Placeholder**: Expandable card interface for creating new placeholders
+- **Edit Functionality**: Click-to-edit existing placeholders with form validation
+- **Field Validation**: Key and description required; example field optional
+- **Type Support**: Text, Date, Number, and Boolean placeholder types
+- **Consistent Styling**: Matching borders and button colors across all cards
+
+### Template Content Interface
+- **Streamlined Toolbar**: Removed sample template buttons (Progress, Assessment, Plan)
+- **Placeholder Dropdown**: Dynamic dropdown populated with all template placeholders
+- **Smart Insert Button**: Activates when placeholder selected, inserts `{{key}}` syntax
+- **Auto-Reset**: Dropdown clears after successful placeholder insertion
+- **Clean Interface**: Focused on placeholder insertion without clutter
+
+### Modal Footer Behavior
+- **Conditional Display**: Cancel/Create Template buttons hidden on placeholders tab
+- **Tab-Specific Actions**: Different action buttons for different tab contexts
+- **Clean Separation**: Placeholder management separate from template creation flow
+
+### Validation & User Experience
+- **Required Field Indicators**: Clear marking of required vs optional fields
+- **Duplicate Prevention**: Validation prevents duplicate placeholder keys
+- **Format Validation**: Placeholder keys restricted to alphanumeric and underscore
+- **User-Friendly Messages**: Clear error messages for validation failures
+- **Visual Feedback**: Button states change based on form completion
+
+### Technical Implementation
+- **State Management**: Separate states for editing vs adding placeholders
+- **Form Handling**: Proper form reset and validation patterns
+- **Theme Integration**: Full support for light/dark theme switching
+- **Component Isolation**: Placeholder management isolated from main template logic
+- **Consistent Styling**: All cards use `styles.primaryColor` for borders and buttons

@@ -249,6 +249,9 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
   const [previousValues, setPreviousValues] = useState({});
   const [completionStatus, setCompletionStatus] = useState({});
   const [templateParts, setTemplateParts] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [availableTemplates, setAvailableTemplates] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [currentTheme, setCurrentTheme] = useState(theme);
   const styles = getThemeStyles(currentTheme);
 
@@ -269,10 +272,81 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
     return () => observer.disconnect();
   }, []);
 
-  // Parse template on mount
+  // Load available templates on mount
   useEffect(() => {
-    setTemplateParts(parseTemplate(DEFAULT_TEMPLATE));
+    const loadTemplates = async () => {
+      try {
+        const response = await fetch('http://localhost:5001/api/templates/top-used', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setAvailableTemplates(data.templates || []);
+        } else {
+          console.error('Failed to load templates');
+          // Fallback to default templates
+          setAvailableTemplates([
+            { 
+              id: 1, 
+              name: 'Progress Note', 
+              category: 'progress',
+              placeholders: [
+                { key: 'patient_name', description: 'Patient full name', type: 'text', example: 'John Smith' },
+                { key: 'date_of_service', description: 'Date of service', type: 'date', example: '2024-07-08' },
+                { key: 'chief_complaint', description: 'Chief complaint', type: 'text', example: 'Feeling depressed' },
+                { key: 'assessment', description: 'Clinical assessment', type: 'text', example: 'Major depressive disorder, stable' },
+                { key: 'plan', description: 'Treatment plan', type: 'text', example: 'Continue current medications' }
+              ]
+            }
+          ]);
+        }
+      } catch (error) {
+        console.error('Error loading templates:', error);
+        // Fallback to default templates
+        setAvailableTemplates([
+          { 
+            id: 1, 
+            name: 'Progress Note', 
+            category: 'progress',
+            placeholders: [
+              { key: 'patient_name', description: 'Patient full name', type: 'text', example: 'John Smith' },
+              { key: 'date_of_service', description: 'Date of service', type: 'date', example: '2024-07-08' },
+              { key: 'chief_complaint', description: 'Chief complaint', type: 'text', example: 'Feeling depressed' },
+              { key: 'assessment', description: 'Clinical assessment', type: 'text', example: 'Major depressive disorder, stable' },
+              { key: 'plan', description: 'Treatment plan', type: 'text', example: 'Continue current medications' }
+            ]
+          }
+        ]);
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+    
+    loadTemplates();
   }, []);
+
+  // Parse selected template when it changes
+  useEffect(() => {
+    if (selectedTemplate && selectedTemplate.content) {
+      setTemplateParts(parseTemplate(selectedTemplate.content));
+    } else if (selectedTemplate && selectedTemplate.placeholders) {
+      // Use placeholders to create template parts
+      const parts = selectedTemplate.placeholders.map(placeholder => ({
+        type: 'placeholder',
+        name: placeholder.key,
+        description: placeholder.description,
+        example: placeholder.example,
+        dataType: placeholder.type
+      }));
+      setTemplateParts(parts);
+    } else {
+      setTemplateParts([]);
+    }
+  }, [selectedTemplate]);
 
   // Load persisted data from localStorage on mount
   useEffect(() => {
@@ -484,7 +558,7 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
             fontWeight: '600',
             color: styles.textPrimary
           }}>
-            📝 Daily Information Entry
+            Daily Information Entry
           </h2>
           <button
             onClick={handleClose}
@@ -527,30 +601,143 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
               No patients available for data entry.
             </div>
           ) : (
-            <div style={{
-              fontFamily: 'monospace',
-              fontSize: '14px',
-              lineHeight: '1.6',
-              whiteSpace: 'pre-wrap'
-            }}>
-              {templateParts.map((part, index) => (
-                <React.Fragment key={index}>
-                  {part.type === 'static' ? (
-                    <span style={{ color: styles.textMuted }}>
-                      {part.content}
-                    </span>
-                  ) : (
-                    <PlaceholderField
-                      placeholder={part}
-                      value={currentPatientValues[part.name]}
-                      onChange={handleFieldChange}
-                      previousValue={currentPatientPrevious[part.name]}
-                      theme={currentTheme}
-                    />
-                  )}
-                </React.Fragment>
-              ))}
-            </div>
+            <>
+              {/* Template Selection */}
+              <div style={{
+                marginBottom: '24px',
+                padding: '16px',
+                backgroundColor: styles.bgSecondary,
+                border: `1px solid ${styles.borderColor}`,
+                borderRadius: '8px'
+              }}>
+                <h4 style={{
+                  margin: 0,
+                  marginBottom: '12px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: styles.textPrimary
+                }}>
+                  Select Template
+                </h4>
+                {loadingTemplates ? (
+                  <div style={{
+                    color: styles.textMuted,
+                    fontSize: '14px'
+                  }}>
+                    Loading templates...
+                  </div>
+                ) : (
+                  <select
+                    value={selectedTemplate?.id || ''}
+                    onChange={(e) => {
+                      const templateId = parseInt(e.target.value);
+                      const template = availableTemplates.find(t => t.id === templateId);
+                      setSelectedTemplate(template || null);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: `1px solid ${styles.borderColor}`,
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      backgroundColor: styles.bgPrimary,
+                      color: styles.textPrimary,
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="">Select a template...</option>
+                    {availableTemplates.map(template => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} ({template.category})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Template Fields */}
+              {selectedTemplate ? (
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: styles.bgPrimary,
+                  border: `1px solid ${styles.borderColor}`,
+                  borderRadius: '8px'
+                }}>
+                  <h4 style={{
+                    margin: 0,
+                    marginBottom: '16px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: styles.textPrimary
+                  }}>
+                    {selectedTemplate.name} - Patient Information
+                  </h4>
+                  
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                    gap: '16px'
+                  }}>
+                    {templateParts.map((part, index) => (
+                      <div key={index}>
+                        <label style={{
+                          display: 'block',
+                          fontSize: '12px',
+                          fontWeight: '500',
+                          color: styles.textSecondary,
+                          marginBottom: '6px'
+                        }}>
+                          {part.description || part.name}
+                        </label>
+                        <input
+                          type={part.dataType === 'date' ? 'date' : part.dataType === 'number' ? 'number' : 'text'}
+                          value={currentPatientValues[part.name] || ''}
+                          onChange={(e) => handleFieldChange(part.name, e.target.value)}
+                          placeholder={part.example || `Enter ${part.name}`}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: `1px solid ${styles.borderColor}`,
+                            borderRadius: '4px',
+                            fontSize: '14px',
+                            backgroundColor: styles.bgSecondary,
+                            color: styles.textPrimary,
+                            outline: 'none'
+                          }}
+                        />
+                        {part.example && (
+                          <div style={{
+                            fontSize: '11px',
+                            color: styles.textMuted,
+                            marginTop: '4px',
+                            fontStyle: 'italic'
+                          }}>
+                            Example: {part.example}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px',
+                  color: styles.textMuted,
+                  border: `1px dashed ${styles.borderColor}`,
+                  borderRadius: '8px'
+                }}>
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
+                  <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '8px' }}>
+                    Select a Template
+                  </div>
+                  <div style={{ fontSize: '14px' }}>
+                    Choose a template above to begin entering patient information
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -604,26 +791,10 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
                 borderRadius: '6px',
                 fontSize: '14px',
                 fontWeight: '500',
-                cursor: 'pointer',
-                marginRight: '8px'
-              }}
-            >
-              💾 Save & Continue
-            </button>
-            <button
-              onClick={handleSave}
-              style={{
-                padding: '10px 20px',
-                backgroundColor: styles.primaryColor,
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: '500',
                 cursor: 'pointer'
               }}
             >
-              💾 Save Current
+              Save & Continue
             </button>
           </div>
         </div>

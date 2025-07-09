@@ -9,9 +9,21 @@
       "workflow_type": "follow-up",
       "data_fields": {
         "chief_complaint": "Depression with anxiety",
-        "assessment": "Major Depressive Disorder",
+        "assessment": "- Increase Zoloft to 25 mg po q daily for depression/anxiety",
         "treatment_plan": "Individualized therapy and medication management",
-        "progress_notes": "Initial assessment completed"
+        "progress_notes": "Initial assessment completed",
+        "last name": "Anderson",
+        "first name": "Michael",
+        "chief complaint": "suicidal ideations",
+        "observation": "sleeping in their room while on break in between groups",
+        "compliance": "compliant with medications reporting good response",
+        "side effects": "no significant side effects.",
+        "mood": "depressed/anxious mood",
+        "SI": "denying SI",
+        "HI": "HI or",
+        "perceptual disturbances": "any perceptual disturbances.",
+        "sleep": "poorly",
+        "energy": "restless/poorly motivated at the time of the assessment"
       }
     },
     {
@@ -23,9 +35,21 @@
       "workflow_type": "admission",
       "data_fields": {
         "chief_complaint": "Manic episode",
-        "assessment": "Bipolar I Disorder",
+        "assessment": "- Start Paxil 10 mg po q daily for depression/anxiety",
         "treatment_plan": "Individualized therapy and medication management",
-        "progress_notes": "Initial assessment completed"
+        "progress_notes": "Initial assessment completed",
+        "last name": "Barnes",
+        "first name": "Sarah",
+        "chief complaint": "Panic attacks",
+        "observation": "standing in the hallway near the nursing station",
+        "compliance": "compliant with medications reporting good response",
+        "side effects": "no significant side effects reported.",
+        "mood": "euthymic mood",
+        "SI": "denying SI,",
+        "HI": "HI",
+        "perceptual disturbances": "or any perceptual disturbances.",
+        "sleep": "well",
+        "energy": "rested/motivated at the time of the assessment"
       }
     },
     {
@@ -352,5 +376,5 @@
     }
   ],
   "next_id": 30,
-  "last_updated": "2025-07-03T01:20:50.356271"
+  "last_updated": "2025-07-08T16:46:03.780205"
 }

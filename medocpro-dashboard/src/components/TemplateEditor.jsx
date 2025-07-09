@@ -74,8 +74,8 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange, theme }) => {
   const addPlaceholder = () => {
     const { key, description, example, type } = newPlaceholder;
     
-    if (!key.trim() || !description.trim() || !example.trim()) {
-      alert('Please fill in all placeholder fields');
+    if (!key.trim() || !description.trim()) {
+      alert('Please fill in required placeholder fields (Key and Description)');
       return;
     }
 
@@ -147,49 +147,205 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange, theme }) => {
 
         {showAddForm && (
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr auto',
-            gap: '12px',
-            alignItems: 'end',
-            padding: '16px',
-            background: styles.bgTertiary,
+            backgroundColor: styles.bgSecondary,
+            border: `1px solid ${styles.primaryColor}`,
             borderRadius: '8px',
-            border: `2px dashed ${styles.borderColor}`,
-            marginBottom: '20px'
+            padding: '20px',
+            marginBottom: '24px'
           }}>
-            <div>
-              <label className="form-label">Key</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="patient_name"
-                value={newPlaceholder.key}
-                onChange={(e) => setNewPlaceholder(prev => ({ ...prev, key: e.target.value }))}
-              />
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <h4 style={{
+                margin: 0,
+                fontSize: '16px',
+                fontWeight: '600',
+                color: styles.textPrimary
+              }}>
+                Add New Placeholder
+              </h4>
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: styles.textMuted,
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                  padding: '4px'
+                }}
+                onClick={() => {
+                  setShowAddForm(false);
+                  setNewPlaceholder({ key: '', description: '', example: '', type: 'text' });
+                }}
+              >
+                ×
+              </button>
             </div>
-            <div>
-              <label className="form-label">Description</label>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '16px',
+              marginBottom: '16px'
+            }}>
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  color: styles.textSecondary,
+                  marginBottom: '6px'
+                }}>
+                  Placeholder Key
+                </label>
+                <input
+                  type="text"
+                  value={newPlaceholder.key}
+                  onChange={(e) => setNewPlaceholder(prev => ({ ...prev, key: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    backgroundColor: styles.inputBg,
+                    color: styles.textPrimary,
+                    outline: 'none'
+                  }}
+                  placeholder="e.g., patient_name"
+                />
+              </div>
+
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  color: styles.textSecondary,
+                  marginBottom: '6px'
+                }}>
+                  Type
+                </label>
+                <select
+                  value={newPlaceholder.type}
+                  onChange={(e) => setNewPlaceholder(prev => ({ ...prev, type: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    backgroundColor: styles.inputBg,
+                    color: styles.textPrimary,
+                    outline: 'none'
+                  }}
+                >
+                  <option value="text">Text</option>
+                  <option value="date">Date</option>
+                  <option value="number">Number</option>
+                  <option value="boolean">Boolean</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '12px',
+                fontWeight: '500',
+                color: styles.textSecondary,
+                marginBottom: '6px'
+              }}>
+                Description
+              </label>
               <input
                 type="text"
-                className="form-input"
-                placeholder="Patient's full name"
                 value={newPlaceholder.description}
                 onChange={(e) => setNewPlaceholder(prev => ({ ...prev, description: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: `1px solid ${styles.borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  backgroundColor: styles.inputBg,
+                  color: styles.textPrimary,
+                  outline: 'none'
+                }}
+                placeholder="Brief description of what this placeholder represents"
               />
             </div>
-            <div>
-              <label className="form-label">Example</label>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '12px',
+                fontWeight: '500',
+                color: styles.textSecondary,
+                marginBottom: '6px'
+              }}>
+                Example
+              </label>
               <input
                 type="text"
-                className="form-input"
-                placeholder="Doe, John"
                 value={newPlaceholder.example}
                 onChange={(e) => setNewPlaceholder(prev => ({ ...prev, example: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: `1px solid ${styles.borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  backgroundColor: styles.inputBg,
+                  color: styles.textPrimary,
+                  outline: 'none'
+                }}
+                placeholder="Example value (optional)"
               />
             </div>
-            <button className="btn btn-primary" onClick={addPlaceholder}>
-              Add
-            </button>
+
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'transparent',
+                  color: styles.textMuted,
+                  border: `1px solid ${styles.borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+                onClick={() => {
+                  setShowAddForm(false);
+                  setNewPlaceholder({ key: '', description: '', example: '', type: 'text' });
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  padding: '8px 16px',
+                  background: styles.primaryColor,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+                onClick={addPlaceholder}
+              >
+                Create Placeholder
+              </button>
+            </div>
           </div>
         )}
 
@@ -278,6 +434,14 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'da
   const [activeTab, setActiveTab] = useState('content'); // 'content', 'ai', 'preview'
   const [editingPlaceholder, setEditingPlaceholder] = useState(null);
   const [editingIndex, setEditingIndex] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedPlaceholder, setSelectedPlaceholder] = useState('');
+  const [newPlaceholder, setNewPlaceholder] = useState({
+    key: '',
+    description: '',
+    example: '',
+    type: 'text'
+  });
 
   const styles = getThemeStyles(theme);
 
@@ -616,35 +780,52 @@ Provider: {{provider_signature}}`
                   borderBottom: `1px solid ${styles.borderColor}`,
                   padding: '16px 20px'
                 }}>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '11px', fontWeight: '600', color: styles.textMuted, textTransform: 'uppercase' }}>
-                        Quick:
-                      </span>
-                      <button className="btn btn-sm btn-secondary" onClick={() => loadSampleTemplate('progress')}>
-                        Progress
-                      </button>
-                      <button className="btn btn-sm btn-secondary" onClick={() => loadSampleTemplate('assessment')}>
-                        Assessment
-                      </button>
-                      <button className="btn btn-sm btn-secondary" onClick={() => loadSampleTemplate('plan')}>
-                        Plan
-                      </button>
-                    </div>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '11px', fontWeight: '600', color: styles.textMuted, textTransform: 'uppercase' }}>
-                        Insert:
-                      </span>
-                      <button className="btn btn-sm btn-secondary" onClick={() => insertText('{{patient_name}}')}>
-                        Patient
-                      </button>
-                      <button className="btn btn-sm btn-secondary" onClick={() => insertText('{{date_of_service}}')}>
-                        Date
-                      </button>
-                      <button className="btn btn-sm btn-secondary" onClick={() => insertText('{{provider_name}}')}>
-                        Provider
-                      </button>
-                    </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '600', color: styles.textMuted, textTransform: 'uppercase' }}>
+                      Placeholders:
+                    </span>
+                    <select
+                      value={selectedPlaceholder}
+                      onChange={(e) => setSelectedPlaceholder(e.target.value)}
+                      style={{
+                        padding: '4px 8px',
+                        border: `1px solid ${styles.borderColor}`,
+                        borderRadius: '4px',
+                        backgroundColor: styles.inputBg,
+                        color: styles.textPrimary,
+                        fontSize: '13px',
+                        minWidth: '180px'
+                      }}
+                    >
+                      <option value="">Select a placeholder...</option>
+                      {template.placeholders && template.placeholders.map((placeholder, index) => (
+                        <option key={index} value={placeholder.key}>
+                          {placeholder.key} - {placeholder.description}
+                        </option>
+                      ))}
+                    </select>
+                    <button 
+                      className="btn btn-sm"
+                      style={{
+                        padding: '4px 12px',
+                        backgroundColor: selectedPlaceholder ? styles.primaryColor : styles.bgAccent,
+                        color: selectedPlaceholder ? 'white' : styles.textMuted,
+                        border: `1px solid ${selectedPlaceholder ? styles.primaryColor : styles.borderColor}`,
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        cursor: selectedPlaceholder ? 'pointer' : 'not-allowed',
+                        opacity: selectedPlaceholder ? 1 : 0.6
+                      }}
+                      disabled={!selectedPlaceholder}
+                      onClick={() => {
+                        if (selectedPlaceholder) {
+                          insertText(`{{${selectedPlaceholder}}}`);
+                          setSelectedPlaceholder('');
+                        }
+                      }}
+                    >
+                      Insert
+                    </button>
                   </div>
                 </div>
                 
@@ -722,8 +903,9 @@ Provider: {{provider_signature}}`
                     e.target.style.opacity = '1';
                   }}
                   onClick={() => {
-                    // Add new placeholder functionality
-                    console.log('Add new placeholder');
+                    setShowAddForm(true);
+                    setEditingPlaceholder(null);
+                    setEditingIndex(null);
                   }}
                 >
                   + Add New Placeholder
@@ -860,6 +1042,255 @@ Provider: {{provider_signature}}`
                   </div>
                 )}
               </div>
+
+              {/* Add New Placeholder Card */}
+              {showAddForm && (
+                <div style={{
+                  backgroundColor: styles.bgSecondary,
+                  border: `1px solid ${styles.primaryColor}`,
+                  borderRadius: '8px',
+                  padding: '20px',
+                  marginBottom: '24px'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '16px'
+                  }}>
+                    <h4 style={{
+                      margin: 0,
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      color: styles.textPrimary
+                    }}>
+                      Add New Placeholder
+                    </h4>
+                    <button
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: styles.textMuted,
+                        cursor: 'pointer',
+                        fontSize: '18px',
+                        padding: '4px'
+                      }}
+                      onClick={() => {
+                        setShowAddForm(false);
+                        setNewPlaceholder({
+                          key: '',
+                          description: '',
+                          example: '',
+                          type: 'text'
+                        });
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '16px',
+                    marginBottom: '16px'
+                  }}>
+                    <div>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        color: styles.textSecondary,
+                        marginBottom: '6px'
+                      }}>
+                        Placeholder Key
+                      </label>
+                      <input
+                        type="text"
+                        value={newPlaceholder.key}
+                        onChange={(e) => setNewPlaceholder(prev => ({ ...prev, key: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: `1px solid ${styles.borderColor}`,
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          backgroundColor: styles.inputBg,
+                          color: styles.textPrimary,
+                          outline: 'none'
+                        }}
+                        placeholder="e.g., patient_name"
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        color: styles.textSecondary,
+                        marginBottom: '6px'
+                      }}>
+                        Type
+                      </label>
+                      <select
+                        value={newPlaceholder.type}
+                        onChange={(e) => setNewPlaceholder(prev => ({ ...prev, type: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: `1px solid ${styles.borderColor}`,
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          backgroundColor: styles.inputBg,
+                          color: styles.textPrimary,
+                          outline: 'none'
+                        }}
+                      >
+                        <option value="text">Text</option>
+                        <option value="date">Date</option>
+                        <option value="number">Number</option>
+                        <option value="boolean">Boolean</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      color: styles.textSecondary,
+                      marginBottom: '6px'
+                    }}>
+                      Description
+                    </label>
+                    <input
+                      type="text"
+                      value={newPlaceholder.description}
+                      onChange={(e) => setNewPlaceholder(prev => ({ ...prev, description: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: `1px solid ${styles.borderColor}`,
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        backgroundColor: styles.inputBg,
+                        color: styles.textPrimary,
+                        outline: 'none'
+                      }}
+                      placeholder="Brief description of what this placeholder represents"
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      color: styles.textSecondary,
+                      marginBottom: '6px'
+                    }}>
+                      Example
+                    </label>
+                    <input
+                      type="text"
+                      value={newPlaceholder.example}
+                      onChange={(e) => setNewPlaceholder(prev => ({ ...prev, example: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: `1px solid ${styles.borderColor}`,
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        backgroundColor: styles.inputBg,
+                        color: styles.textPrimary,
+                        outline: 'none'
+                      }}
+                      placeholder="Example value (optional)"
+                    />
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    gap: '12px',
+                    justifyContent: 'flex-end'
+                  }}>
+                    <button
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: 'transparent',
+                        color: styles.textMuted,
+                        border: `1px solid ${styles.borderColor}`,
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        fontWeight: '500'
+                      }}
+                      onClick={() => {
+                        setShowAddForm(false);
+                        setNewPlaceholder({
+                          key: '',
+                          description: '',
+                          example: '',
+                          type: 'text'
+                        });
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: styles.primaryColor,
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        fontWeight: '500'
+                      }}
+                      onClick={() => {
+                        // Validate required fields
+                        if (!newPlaceholder.key.trim() || !newPlaceholder.description.trim()) {
+                          alert('Please fill in both the placeholder key and description fields.');
+                          return;
+                        }
+
+                        // Check for duplicate keys
+                        if (template.placeholders && template.placeholders.some(p => p.key === newPlaceholder.key.trim())) {
+                          alert('A placeholder with this key already exists.');
+                          return;
+                        }
+
+                        // Add the new placeholder
+                        const placeholder = {
+                          key: newPlaceholder.key.trim(),
+                          description: newPlaceholder.description.trim(),
+                          example: newPlaceholder.example.trim(),
+                          type: newPlaceholder.type
+                        };
+
+                        setTemplate(prev => ({
+                          ...prev,
+                          placeholders: [...(prev.placeholders || []), placeholder]
+                        }));
+
+                        // Reset form and close
+                        setNewPlaceholder({
+                          key: '',
+                          description: '',
+                          example: '',
+                          type: 'text'
+                        });
+                        setShowAddForm(false);
+                      }}
+                    >
+                      Create Placeholder
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Edit Placeholder Card */}
               {editingPlaceholder && (
@@ -1166,47 +1597,49 @@ Provider: {{provider_signature}}`
           )}
         </div>
 
-        {/* Modal Footer */}
-        <div style={{
-          padding: '20px 24px',
-          borderTop: `1px solid ${styles.borderColor}`,
-          background: styles.bgSecondary,
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: '12px',
-          flexShrink: 0
-        }}>
-          <button 
-            onClick={onCancel}
-            style={{
-              padding: '8px 16px',
-              background: 'transparent',
-              color: styles.textSecondary,
-              border: `1px solid ${styles.borderColor}`,
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer'
-            }}
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={handleSave}
-            style={{
-              padding: '8px 16px',
-              background: styles.primaryColor,
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer'
-            }}
-          >
-            {initialTemplate ? 'Update Template' : 'Create Template'}
-          </button>
-        </div>
+        {/* Modal Footer - Hidden on placeholders tab */}
+        {activeTab !== 'placeholders' && (
+          <div style={{
+            padding: '20px 24px',
+            borderTop: `1px solid ${styles.borderColor}`,
+            background: styles.bgSecondary,
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '12px',
+            flexShrink: 0
+          }}>
+            <button 
+              onClick={onCancel}
+              style={{
+                padding: '8px 16px',
+                background: 'transparent',
+                color: styles.textSecondary,
+                border: `1px solid ${styles.borderColor}`,
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer'
+              }}
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleSave}
+              style={{
+                padding: '8px 16px',
+                background: styles.primaryColor,
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer'
+              }}
+            >
+              {initialTemplate ? 'Update Template' : 'Create Template'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
