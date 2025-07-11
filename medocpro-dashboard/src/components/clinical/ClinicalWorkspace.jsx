@@ -300,7 +300,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
   const loadCensusData = useCallback(async () => {
     try {
       // Load today's census data (primary data - required)
-      const todayResponse = await fetch('http://localhost:5001/api/patient-census/today', {
+      const todayResponse = await fetch('http://localhost:5000/api/patient-census/today', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
@@ -316,7 +316,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
       // Try to load 7-day historical data (optional - for averages)
       let historicalData = [];
       try {
-        const historyResponse = await fetch('http://localhost:5001/api/patient-census/history?days=7', {
+        const historyResponse = await fetch('http://localhost:5000/api/patient-census/history?days=7', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json'
@@ -376,7 +376,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
   // Load scratch notes for integration
   const loadScratchNotes = useCallback(async () => {
     try {
-      const response = await fetch('http://localhost:5001/api/scratch-notes', {
+      const response = await fetch('http://localhost:5000/api/scratch-notes', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'

@@ -221,7 +221,7 @@ const PatientCensusCard = ({
       setLoading(true);
       setError('');
       
-      const response = await fetch('http://localhost:5001/api/patient-census/today', {
+      const response = await fetch('http://localhost:5000/api/patient-census/today', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
@@ -295,7 +295,7 @@ const PatientCensusCard = ({
 
     try {
       // Update in backend
-      const response = await fetch(`http://localhost:5001/api/patient-census/rows/${patientId}`, {
+      const response = await fetch(`http://localhost:5000/api/patient-census/rows/${patientId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,

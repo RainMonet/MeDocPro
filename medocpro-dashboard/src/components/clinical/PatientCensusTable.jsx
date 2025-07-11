@@ -477,7 +477,7 @@ const PatientCensusTable = ({
   const loadTodaysCensus = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5001/api/patient-census/today', {
+      const response = await fetch('http://localhost:5000/api/patient-census/today', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
@@ -503,7 +503,7 @@ const PatientCensusTable = ({
     if (!census) return;
 
     try {
-      const response = await fetch(`http://localhost:5001/api/patient-census/${census.id}/rows`, {
+      const response = await fetch(`http://localhost:5000/api/patient-census/${census.id}/rows`, {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -538,7 +538,7 @@ const PatientCensusTable = ({
   // Update patient row
   const updatePatientRow = async (rowId, updates) => {
     try {
-      const response = await fetch(`http://localhost:5001/api/patient-census/rows/${rowId}`, {
+      const response = await fetch(`http://localhost:5000/api/patient-census/rows/${rowId}`, {
         method: 'PUT',
         headers: { 
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -572,7 +572,7 @@ const PatientCensusTable = ({
   // Delete patient row
   const deletePatientRow = async (rowId) => {
     try {
-      const response = await fetch(`http://localhost:5001/api/patient-census/rows/${rowId}`, {
+      const response = await fetch(`http://localhost:5000/api/patient-census/rows/${rowId}`, {
         method: 'DELETE'
       });
 
@@ -592,7 +592,7 @@ const PatientCensusTable = ({
   // Populate row from scratch note
   const populateFromScratchNote = async (rowId, scratchNoteId) => {
     try {
-      const response = await fetch(`http://localhost:5001/api/patient-census/rows/${rowId}/populate-from-scratch`, {
+      const response = await fetch(`http://localhost:5000/api/patient-census/rows/${rowId}/populate-from-scratch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ scratch_note_id: scratchNoteId })

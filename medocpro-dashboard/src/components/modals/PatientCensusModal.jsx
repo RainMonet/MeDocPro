@@ -257,7 +257,7 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
       setLoading(true);
       setError('');
       
-      const response = await fetch('http://localhost:5001/api/patient-census/today', {
+      const response = await fetch('http://localhost:5000/api/patient-census/today', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
@@ -308,7 +308,7 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
     }
 
     try {
-      const response = await fetch('http://localhost:5001/api/patient-census/1/rows', {
+      const response = await fetch('http://localhost:5000/api/patient-census/1/rows', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -350,7 +350,7 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
   // Update patient
   const handleUpdatePatient = async (patientId, updates) => {
     try {
-      const response = await fetch(`http://localhost:5001/api/patient-census/rows/${patientId}`, {
+      const response = await fetch(`http://localhost:5000/api/patient-census/rows/${patientId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -388,7 +388,7 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
 
     if (window.confirm(`Are you sure you want to remove ${patient.patient_name} from the census?`)) {
       try {
-        const response = await fetch(`http://localhost:5001/api/patient-census/rows/${patientId}`, {
+        const response = await fetch(`http://localhost:5000/api/patient-census/rows/${patientId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
