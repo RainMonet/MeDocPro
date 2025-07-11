@@ -62,6 +62,42 @@
   
   /* Typography */
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  --base-font-size: 14px;
+}
+
+/* Light Theme Variables - Antique Book Inspired */
+[data-theme="light"] {
+  /* Warm, off-white backgrounds inspired by aged paper */
+  --bg-primary: #faf8f3;      /* Warm cream - like aged paper */
+  --bg-secondary: #f4f1eb;    /* Slightly warmer off-white */
+  --bg-tertiary: #ede8df;     /* Soft parchment tone */
+  
+  /* Rich, readable text colors */
+  --text-primary: #2d1810;    /* Dark coffee brown for readability */
+  --text-secondary: #5d4d3a;  /* Medium brown for secondary text */
+  --text-muted: #8b7355;      /* Muted earth tone */
+  
+  /* Subtle earth-tone borders */
+  --border-light: #d4c4a8;    /* Light sandy brown */
+  --border-medium: #c4b29a;   /* Medium warm brown */
+  --border-dark: #a69080;     /* Darker earth tone */
+  
+  /* Warm accent colors inspired by leather binding */
+  --color-primary: #8b4513;   /* Rich saddle brown */
+  --color-primary-light: #a0522d; /* Lighter sienna */
+  --color-primary-dark: #654321;  /* Dark chocolate brown */
+  
+  /* Additional earth tones for variety */
+  --color-success: #6b8e23;   /* Olive green */
+  --color-warning: #cd853f;   /* Peru/tan */
+  --color-danger: #a0522d;    /* Sienna for errors */
+  --color-info: #708090;      /* Slate gray */
+  
+  /* Warm shadows with brown undertones */
+  --shadow-sm: 0 1px 2px 0 rgba(45, 24, 16, 0.08);
+  --shadow-md: 0 4px 6px -1px rgba(45, 24, 16, 0.12), 0 2px 4px -1px rgba(45, 24, 16, 0.08);
+  --shadow-lg: 0 10px 15px -3px rgba(45, 24, 16, 0.12), 0 4px 6px -2px rgba(45, 24, 16, 0.06);
+  --shadow-xl: 0 20px 25px -5px rgba(45, 24, 16, 0.12), 0 10px 10px -5px rgba(45, 24, 16, 0.05);
 }
 
 /* Dark Theme Variables */
@@ -665,8 +701,8 @@ p {
 }
 
 [data-theme="light"] .toggle-icon {
-  color: #f59e0b;
-  text-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+  color: #cd853f;
+  text-shadow: 0 0 6px rgba(205, 133, 63, 0.4);
 }
 
 [data-theme="dark"] .toggle-icon {
@@ -792,6 +828,16 @@ p {
   border-radius: 50%;
   background-color: var(--color-success);
   animation: pulse 2s infinite;
+}
+
+/* Remove green dot from Patient Census header specifically */
+.system-status:has([data-component="patient-census"]) h3::before {
+  display: none;
+}
+
+/* Remove green dot from Batch Documentation header specifically */
+.system-status:has([data-component="batch-documentation"]) h3::before {
+  display: none;
 }
 
 .system-status p {
@@ -1459,4 +1505,215 @@ p {
   .countdown-timer {
     font-size: 0.75rem;
   }
+}
+
+/* Accessibility Features */
+
+/* High Contrast Mode */
+[data-high-contrast="true"] {
+  --bg-primary: #000000 !important;
+  --bg-secondary: #1a1a1a !important;
+  --bg-tertiary: #333333 !important;
+  
+  --text-primary: #ffffff !important;
+  --text-secondary: #e0e0e0 !important;
+  --text-muted: #cccccc !important;
+  
+  --border-light: #666666 !important;
+  --border-medium: #888888 !important;
+  --border-dark: #aaaaaa !important;
+  
+  --color-primary: #00aaff !important;
+  --color-primary-light: #33bbff !important;
+  --color-primary-dark: #0088cc !important;
+  
+  --color-success: #00ff00 !important;
+  --color-warning: #ffaa00 !important;
+  --color-danger: #ff0000 !important;
+  --color-info: #00aaff !important;
+}
+
+/* Dynamic Font Size and Family */
+body {
+  font-size: var(--base-font-size);
+  font-family: var(--font-family);
+}
+
+/* Apply base font size scaling to all text elements */
+p, span, div, button, input, select, textarea, label {
+  font-size: inherit;
+}
+
+/* Scale headings relative to base font size */
+h1 { font-size: calc(var(--base-font-size) * 2.25); }
+h2 { font-size: calc(var(--base-font-size) * 1.875); }
+h3 { font-size: calc(var(--base-font-size) * 1.5); }
+h4 { font-size: calc(var(--base-font-size) * 1.25); }
+h5 { font-size: calc(var(--base-font-size) * 1.125); }
+h6 { font-size: calc(var(--base-font-size) * 1); }
+
+/* Scale common UI elements relative to base font size */
+.btn, button {
+  font-size: calc(var(--base-font-size) * 1);
+}
+
+.btn-sm {
+  font-size: calc(var(--base-font-size) * 0.875);
+}
+
+.btn-lg {
+  font-size: calc(var(--base-font-size) * 1.125);
+}
+
+/* Form elements */
+.form-input, input, select, textarea {
+  font-size: calc(var(--base-font-size) * 1);
+}
+
+/* Text size utilities */
+.text-sm { font-size: calc(var(--base-font-size) * 0.875); }
+.text-lg { font-size: calc(var(--base-font-size) * 1.125); }
+.text-xl { font-size: calc(var(--base-font-size) * 1.25); }
+.text-2xl { font-size: calc(var(--base-font-size) * 1.5); }
+.text-3xl { font-size: calc(var(--base-font-size) * 1.875); }
+
+/* Override any hardcoded font sizes in the application */
+.sidebar .nav-link { font-size: calc(var(--base-font-size) * 0.9) !important; }
+.header .logo-text { font-size: calc(var(--base-font-size) * 1.2) !important; }
+.modal-content h2 { font-size: calc(var(--base-font-size) * 1.5) !important; }
+.modal-content h3 { font-size: calc(var(--base-font-size) * 1.25) !important; }
+.modal-content p { font-size: calc(var(--base-font-size) * 1) !important; }
+.card h3 { font-size: calc(var(--base-font-size) * 1.25) !important; }
+.card p { font-size: calc(var(--base-font-size) * 0.9) !important; }
+
+/* Accessibility: Improved focus indicators */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus,
+[tabindex]:focus {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Accessibility: Ensure minimum touch target size */
+button,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+[role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Accessibility: High contrast mode button styles - selective targeting */
+/* Exclude header navigation buttons specifically */
+html[data-high-contrast="true"] .sidebar button,
+html[data-high-contrast="true"] .modal-content button,
+html[data-high-contrast="true"] .btn,
+html[data-high-contrast="true"] button.theme-toggle,
+html[data-high-contrast="true"] .user-avatar,
+html[data-high-contrast="true"] .nav-button {
+  border: 2px solid var(--text-primary) !important;
+}
+
+html[data-high-contrast="true"] .sidebar button:hover,
+html[data-high-contrast="true"] .modal-content button:hover,
+html[data-high-contrast="true"] .btn:hover,
+html[data-high-contrast="true"] button.theme-toggle:hover,
+html[data-high-contrast="true"] .user-avatar:hover,
+html[data-high-contrast="true"] .nav-button:hover {
+  background-color: var(--text-primary) !important;
+  color: var(--bg-primary) !important;
+}
+
+/* Force reset navigation buttons when high contrast is disabled */
+html:not([data-high-contrast="true"]) .header button,
+html:not([data-high-contrast="true"]) .header-left button {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
+html:not([data-high-contrast="true"]) .header button:hover,
+html:not([data-high-contrast="true"]) .header-left button:hover {
+  background: none !important;
+  box-shadow: none !important;
+}
+
+/* Additional nuclear option: force reset ALL navigation buttons */
+.header button[style*="background: none"],
+.header-left button[style*="background: none"] {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Very specific selector to override any high contrast styling on navigation buttons */
+.header-left > div > button,
+.header-left div[style*="display: flex"] button {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Ultimate override: target navigation buttons by specific class */
+.nav-button {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Nuclear option: Remove all borders from nav buttons always unless high contrast is on - v2025-07-03-15:57 */
+html:not([data-high-contrast="true"]) .nav-button {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+}
+
+/* Fallback: override by button position and styling */
+.header button[style*="border: none"],
+.header button[style*="background: none"] {
+  border: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Accessibility: Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* FINAL OVERRIDE: Navigation button border reset - this should be at the end to override everything */
+.nav-button,
+button.nav-button,
+.header .nav-button,
+.header-left .nav-button {
+  border: 0px solid transparent !important;
+  border-width: 0 !important;
+  border-style: none !important;
+  border-color: transparent !important;
+}
+
+html:not([data-high-contrast="true"]) .nav-button,
+html:not([data-high-contrast="true"]) button.nav-button,
+html:not([data-high-contrast="true"]) .header .nav-button,
+html:not([data-high-contrast="true"]) .header-left .nav-button {
+  border: 0px solid transparent !important;
+  border-width: 0 !important;
+  border-style: none !important;
+  border-color: transparent !important;
 }

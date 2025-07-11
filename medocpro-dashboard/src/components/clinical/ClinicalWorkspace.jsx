@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import PatientCensusCard from './PatientCensusCard';
 import BatchDocumentationCard from './BatchDocumentationCard';
+import { RecentDocuments } from '../dashboard';
+import DailyInfoEntryModal from '../modals/DailyInfoEntryModal';
+import PreviewDocumentModal from '../modals/PreviewDocumentModal';
 
 // Use CSS variables to match dashboard styling
 const getThemeStyles = () => ({
@@ -18,13 +21,41 @@ const getThemeStyles = () => ({
 });
 
 // Header section with date and quick stats - exactly matches dashboard StatCard grid
-const WorkspaceHeader = ({ censusData }) => {
+const WorkspaceHeader = ({ censusData, userName, onOpenModal, onOpenDailyInfo }) => {
+  const [is24HourFormat, setIs24HourFormat] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, []);
+
   const today = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
     year: 'numeric', 
     month: 'long', 
     day: 'numeric' 
   });
+
+  const formatTime = (date) => {
+    if (is24HourFormat) {
+      return date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+      });
+    } else {
+      return date.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      });
+    }
+  };
 
   // Calculate 7-day average daily caseload
   const calculate7DayAverage = () => {
@@ -41,7 +72,7 @@ const WorkspaceHeader = ({ censusData }) => {
   const averageDailyCaseload = calculate7DayAverage();
 
   return (
-    <div style={{ marginBottom: '2rem' }}>
+    <div style={{ marginBottom: '1rem' }}>
       {/* Page Title */}
       <div style={{ marginBottom: '1.5rem' }}>
         <div style={{ 
@@ -54,43 +85,75 @@ const WorkspaceHeader = ({ censusData }) => {
               margin: 0,
               fontSize: '1.8rem',
               fontWeight: '700',
-              color: 'var(--text-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem'
+              color: 'var(--text-primary)'
             }}>
-              🏥 Clinical Workspace
+              {userName ? `${userName}'s Workspace` : 'Clinical Workspace'}
             </h1>
-            <p style={{
+            <div style={{
               margin: '0.25rem 0 0 0',
               fontSize: '1rem',
-              color: 'var(--text-secondary)'
-            }}>
-              {today}
-            </p>
-          </div>
-          
-          <button
-            onClick={() => {
-              console.log('Manual refresh triggered');
-              loadData();
-            }}
-            style={{
-              padding: '0.5rem 1rem',
-              background: 'var(--accent-color)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '0.9rem',
-              fontWeight: '500',
-              cursor: 'pointer',
+              color: 'var(--text-secondary)',
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem'
+            }}>
+              <span>{today}</span>
+              <span>•</span>
+              <button
+                onClick={() => setIs24HourFormat(!is24HourFormat)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  fontSize: '1rem',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  padding: '0'
+                }}
+                title={`Switch to ${is24HourFormat ? '12-hour' : '24-hour'} format`}
+              >
+                {formatTime(currentTime)}
+              </button>
+            </div>
+          </div>
+          
+          {/* Daily Info Button - positioned to the right of the header */}
+          <button
+            onClick={() => {
+              console.log('Daily Info Entry button clicked!');
+              if (onOpenDailyInfo) {
+                onOpenDailyInfo();
+              }
+            }}
+            style={{
+              padding: '8px 16px',
+              background: 'var(--color-success)',
+              color: 'white',
+              border: '1px solid var(--color-success)',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '13px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: 'var(--shadow-sm)',
+              letterSpacing: '0.025em'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translateY(-1px)';
+              e.target.style.boxShadow = 'var(--shadow-md)';
+              e.target.style.background = 'var(--color-success)';
+              e.target.style.filter = 'brightness(1.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = 'var(--shadow-sm)';
+              e.target.style.background = 'var(--color-success)';
+              e.target.style.filter = 'brightness(1)';
             }}
           >
-            🔄 Refresh Data
+            Daily Info Entry
           </button>
+          
         </div>
       </div>
 
@@ -103,7 +166,7 @@ const WorkspaceHeader = ({ censusData }) => {
         </div>
 
         <div className="stat-card">
-          <div className="stat-value" style={{ color: '#10b981' }}>
+          <div className="stat-value" style={{ color: 'var(--color-success)' }}>
             {censusData?.admission_count || 0}
           </div>
           <div className="stat-label">New Admissions</div>
@@ -111,7 +174,7 @@ const WorkspaceHeader = ({ censusData }) => {
         </div>
 
         <div className="stat-card">
-          <div className="stat-value" style={{ color: '#f59e0b' }}>
+          <div className="stat-value" style={{ color: 'var(--color-warning)' }}>
             {censusData?.discharge_count || 0}
           </div>
           <div className="stat-label">Discharges</div>
@@ -119,7 +182,7 @@ const WorkspaceHeader = ({ censusData }) => {
         </div>
 
         <div className="stat-card">
-          <div className="stat-value" style={{ color: '#8b5cf6' }}>
+          <div className="stat-value" style={{ color: 'var(--color-info)' }}>
             {((censusData?.current_census_count || 0) > 0 ? 
               Math.round(((censusData?.admission_count || 0) / (censusData?.current_census_count || 1)) * 100) : 0)}%
           </div>
@@ -287,13 +350,17 @@ const BatchDocumentationPanel = ({
 };
 
 // Main Clinical Workspace component - matches dashboard design
-const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
+const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
   const [censusData, setCensusData] = useState(null);
   const [scratchNotes, setScratchNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [censusRefreshKey, setCensusRefreshKey] = useState(0);
   const [selectedPatients, setSelectedPatients] = useState([]);
+  const [dailyInfoModalOpen, setDailyInfoModalOpen] = useState(false);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [generatedDocuments, setGeneratedDocuments] = useState([]);
+  const [batchInfo, setBatchInfo] = useState({});
   const styles = getThemeStyles();
 
   // Load today's census data with 7-day historical data
@@ -403,12 +470,30 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
   const handleGenerateDocuments = async (options) => {
     try {
       console.log('Generating documents:', options);
-      // TODO: Implement actual document generation with template population
-      alert(`Generating ${options.patients.length} ${options.template.name} documents in ${options.exportFormat} format${options.aiEnhancement ? ' with AI enhancement' : ''}`);
+      
+      // Set generated documents and batch info from the BatchDocumentationCard
+      if (options.documents && options.batchId) {
+        setGeneratedDocuments(options.documents);
+        setBatchInfo({
+          batchId: options.batchId,
+          totalCount: options.totalCount,
+          template: options.template,
+          exportFormat: options.exportFormat,
+          aiEnhanced: options.aiEnhancement
+        });
+        
+        // Open preview modal
+        setPreviewModalOpen(true);
+      }
     } catch (err) {
       console.error('Failed to generate documents:', err);
       alert('Failed to generate documents. Please try again.');
     }
+  };
+
+  // Handle daily info entry
+  const handleOpenDailyInfo = () => {
+    setDailyInfoModalOpen(true);
   };
 
   // Handle selected patients change from census card
@@ -427,13 +512,25 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
 
   useEffect(() => {
     loadData();
-    // Auto-refresh every 5 minutes
-    const interval = setInterval(loadData, 5 * 60 * 1000);
     
-    // Refresh data when window gains focus (when switching from modal back to workspace)
+    // Auto-refresh every 5 minutes, but only if no modals are open
+    const interval = setInterval(() => {
+      if (!dailyInfoModalOpen && !previewModalOpen) {
+        console.log('Auto-refreshing data (no modals open)');
+        loadData();
+      } else {
+        console.log('Skipping auto-refresh (modal is open)');
+      }
+    }, 5 * 60 * 1000);
+    
+    // Refresh data when window gains focus, but only if no modals are open
     const handleFocus = () => {
-      console.log('Window focused - refreshing census data');
-      loadData();
+      if (!dailyInfoModalOpen && !previewModalOpen) {
+        console.log('Window focused - refreshing census data');
+        loadData();
+      } else {
+        console.log('Window focused but skipping refresh (modal is open)');
+      }
     };
     
     window.addEventListener('focus', handleFocus);
@@ -442,7 +539,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [loadData]);
+  }, [loadData, dailyInfoModalOpen, previewModalOpen]);
 
   if (loading) {
     return (
@@ -479,7 +576,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
       )}
 
       {/* Workspace Header with Stats */}
-      <WorkspaceHeader censusData={censusData} />
+      <WorkspaceHeader censusData={censusData} userName={user?.firstName} onOpenModal={onOpenModal} onOpenDailyInfo={handleOpenDailyInfo} />
 
       {/* Main Content Row - like dashboard-row */}
       <div className="dashboard-row">
@@ -501,9 +598,30 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal }) => {
             onGenerate={handleGenerateDocuments}
             theme={document.documentElement.getAttribute('data-theme') || 'dark'}
             onOpenTemplateEditor={() => onOpenTemplateEditor && onOpenTemplateEditor()}
+            onOpenTemplateLibrary={() => onOpenModal && onOpenModal('template-library')}
           />
         </div>
       </div>
+
+      {/* Recent Documents */}
+      <RecentDocuments theme={document.documentElement.getAttribute('data-theme') || 'dark'} />
+
+      {/* Daily Information Entry Modal */}
+      <DailyInfoEntryModal
+        isOpen={dailyInfoModalOpen}
+        onClose={() => setDailyInfoModalOpen(false)}
+        patients={censusData?.rows || []}
+        theme={document.documentElement.getAttribute('data-theme') || 'dark'}
+      />
+
+      {/* Preview Document Modal */}
+      <PreviewDocumentModal
+        isOpen={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        documents={generatedDocuments}
+        batchInfo={batchInfo}
+        theme={document.documentElement.getAttribute('data-theme') || 'dark'}
+      />
     </div>
   );
 };

@@ -65,37 +65,37 @@ const FilterIcon = () => (
 const TEMPLATE_CATEGORIES = {
   'progress': { 
     name: 'Progress Notes', 
-    color: '#10b981', 
+    color: '#6b8e23', 
     icon: FileTextIcon,
     description: 'Session notes and treatment progress documentation'
   },
   'assessment': { 
     name: 'Psychiatric Assessment', 
-    color: '#0066cc', 
+    color: '#8b4513', 
     icon: ClipboardIcon,
     description: 'Initial evaluations and diagnostic assessments'
   },
   'treatment': { 
     name: 'Treatment Plans', 
-    color: '#8b5cf6', 
+    color: '#708090', 
     icon: TargetIcon,
     description: 'Structured treatment planning and goal setting'
   },
   'intake': { 
     name: 'Intake Forms', 
-    color: '#f59e0b', 
+    color: '#cd853f', 
     icon: UserPlusIcon,
     description: 'Patient intake and initial screening forms'
   },
   'discharge': { 
     name: 'Discharge Summaries', 
-    color: '#ef4444', 
+    color: '#a0522d', 
     icon: LogOutIcon,
     description: 'Discharge planning and summary documentation'
   },
   'custom': { 
     name: 'Custom Documentation', 
-    color: '#64748b', 
+    color: '#8b7355', 
     icon: EditIcon,
     description: 'Custom clinical documentation templates'
   }
@@ -154,8 +154,8 @@ const TemplateCard = ({ template, onEdit, onUse, onView, theme = 'dark' }) => {
                   borderRadius: '12px',
                   fontSize: '11px',
                   fontWeight: '500',
-                  backgroundColor: '#fee2e2',
-                  color: '#dc2626'
+                  backgroundColor: '#f4f1eb',
+                  color: '#8b7355'
                 }}>
                   INACTIVE
                 </span>
@@ -272,13 +272,13 @@ const CategoryFilter = ({ selectedCategory, onCategoryChange, templateCounts, th
 
 // Theme-aware style helpers
 const getThemeStyles = (theme) => ({
-  textPrimary: theme === 'dark' ? '#f1f5f9' : '#1f2937',
-  textSecondary: theme === 'dark' ? '#cbd5e1' : '#6b7280',
-  textMuted: theme === 'dark' ? '#94a3b8' : '#9ca3af',
-  bgPrimary: theme === 'dark' ? '#1e293b' : 'white',
-  bgSecondary: theme === 'dark' ? '#0f172a' : '#f8fafc',
-  borderColor: theme === 'dark' ? '#334155' : '#e2e8f0',
-  cardBg: theme === 'dark' ? '#1e293b' : 'white'
+  textPrimary: theme === 'dark' ? '#f1f5f9' : '#2d1810',
+  textSecondary: theme === 'dark' ? '#cbd5e1' : '#5d4d3a',
+  textMuted: theme === 'dark' ? '#94a3b8' : '#8b7355',
+  bgPrimary: theme === 'dark' ? '#1e293b' : '#faf8f3',
+  bgSecondary: theme === 'dark' ? '#0f172a' : '#f4f1eb',
+  borderColor: theme === 'dark' ? '#334155' : '#d4c4a8',
+  cardBg: theme === 'dark' ? '#1e293b' : '#faf8f3'
 });
 
 // Main Template Library Component
@@ -394,55 +394,200 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew, theme = '
 
   if (isLoading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        height: '400px',
+      <div style={{
+        display: 'flex',
         flexDirection: 'column',
-        gap: '16px'
+        height: '100%',
+        backgroundColor: styles.bgPrimary
       }}>
-        <div className="loading-spinner" style={{ width: '32px', height: '32px' }}></div>
-        <div style={{ color: styles.textMuted }}>Loading template library...</div>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          flex: 1,
+          flexDirection: 'column',
+          gap: '16px'
+        }}>
+          <div className="loading-spinner" style={{ width: '32px', height: '32px' }}></div>
+          <div style={{ color: styles.textMuted, fontSize: '14px' }}>Loading template library...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="template-library">
-      {/* Header Section */}
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100%',
+      backgroundColor: styles.bgPrimary
+    }}>
+      {/* Header Section - Similar to PatientCensusModal */}
+      <div style={{
+        padding: '24px 24px 20px 24px',
+        borderBottom: `1px solid ${styles.borderColor}`,
+        flexShrink: 0,
+        backgroundColor: styles.bgPrimary
+      }}>
+        {/* Title and Description */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: '20px'
+        }}>
           <div>
-            <h1 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px', color: styles.textPrimary }}>
-              Clinical Template Library
-            </h1>
-            <p style={{ color: styles.textSecondary, fontSize: '14px' }}>
-              Manage your clinical documentation templates with AI enhancement capabilities
+            <h2 style={{
+              margin: 0,
+              fontSize: '20px',
+              fontWeight: '600',
+              color: styles.textPrimary,
+              marginBottom: '4px'
+            }}>
+              📚 Template Library
+            </h2>
+            <p style={{
+              margin: 0,
+              fontSize: '14px',
+              color: styles.textSecondary
+            }}>
+              Manage clinical documentation templates
             </p>
           </div>
-          <button 
-            className="btn btn-primary"
-            onClick={onCreateNew}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-          >
-            <span style={{ fontSize: '18px' }}>+</span>
-            New Template
-          </button>
+        </div>
+
+        {/* Statistics Cards Row - Similar to Patient Census */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+          gap: '16px',
+          marginBottom: '20px'
+        }}>
+          <div style={{
+            padding: '12px 16px',
+            backgroundColor: styles.bgSecondary,
+            borderRadius: '8px',
+            border: `1px solid ${styles.borderColor}`,
+            textAlign: 'center'
+          }}>
+            <div style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              color: styles.textPrimary,
+              marginBottom: '4px'
+            }}>
+              {templates.length}
+            </div>
+            <div style={{
+              fontSize: '12px',
+              color: styles.textMuted,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              Total Templates
+            </div>
+          </div>
+          
+          <div style={{
+            padding: '12px 16px',
+            backgroundColor: styles.bgSecondary,
+            borderRadius: '8px',
+            border: `1px solid ${styles.borderColor}`,
+            textAlign: 'center'
+          }}>
+            <div style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              color: '#6b8e23',
+              marginBottom: '4px'
+            }}>
+              {templateCounts['progress'] || 0}
+            </div>
+            <div style={{
+              fontSize: '12px',
+              color: styles.textMuted,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              Progress Notes
+            </div>
+          </div>
+
+          <div style={{
+            padding: '12px 16px',
+            backgroundColor: styles.bgSecondary,
+            borderRadius: '8px',
+            border: `1px solid ${styles.borderColor}`,
+            textAlign: 'center'
+          }}>
+            <div style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              color: '#8b4513',
+              marginBottom: '4px'
+            }}>
+              {templateCounts['assessment'] || 0}
+            </div>
+            <div style={{
+              fontSize: '12px',
+              color: styles.textMuted,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              Assessments
+            </div>
+          </div>
+
+          <div style={{
+            padding: '12px 16px',
+            backgroundColor: styles.bgSecondary,
+            borderRadius: '8px',
+            border: `1px solid ${styles.borderColor}`,
+            textAlign: 'center'
+          }}>
+            <div style={{
+              fontSize: '20px',
+              fontWeight: '600',
+              color: '#cd853f',
+              marginBottom: '4px'
+            }}>
+              {filteredTemplates.length}
+            </div>
+            <div style={{
+              fontSize: '12px',
+              color: styles.textMuted,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              Filtered Results
+            </div>
+          </div>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="alert alert-warning" style={{ marginBottom: '16px' }}>
-            <strong>Connection Issue:</strong> {error}
-            <br />
-            <small>Displaying cached templates for demonstration.</small>
+          <div style={{
+            padding: '12px 16px',
+            backgroundColor: 'rgba(205, 133, 63, 0.1)',
+            borderLeft: `4px solid #cd853f`,
+            color: '#cd853f',
+            borderRadius: '4px',
+            fontSize: '13px',
+            marginBottom: '16px'
+          }}>
+            <strong>Connection Issue:</strong> {error} - Displaying cached templates for demonstration.
           </div>
         )}
 
-        {/* Search Bar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
-          <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+        {/* Controls Row - Search, Filter, and New Button */}
+        <div style={{
+          display: 'flex',
+          gap: '12px',
+          alignItems: 'center',
+          flexWrap: 'wrap'
+        }}>
+          {/* Search Input */}
+          <div style={{ position: 'relative', flex: '1 1 250px', minWidth: '200px' }}>
             <SearchIcon style={{
               position: 'absolute',
               left: '12px',
@@ -470,35 +615,78 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew, theme = '
               Clear
             </button>
           )}
+          {/* Category Filter */}
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '6px',
+              border: `1px solid ${styles.borderColor}`,
+              backgroundColor: styles.bgPrimary,
+              color: styles.textPrimary,
+              fontSize: '14px',
+              minWidth: '150px'
+            }}
+          >
+            <option value="all">All Categories</option>
+            {Object.entries(TEMPLATE_CATEGORIES).map(([key, category]) => (
+              <option key={key} value={key}>
+                {category.name} ({templateCounts[key] || 0})
+              </option>
+            ))}
+          </select>
+
+          {/* New Template Button */}
+          <button
+            onClick={onCreateNew}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#6b8e23',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <span style={{ fontSize: '16px' }}>+</span>
+            New Template
+          </button>
         </div>
       </div>
 
-      {/* Category Filter */}
-      <CategoryFilter
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
-        templateCounts={templateCounts}
-        theme={theme}
-      />
+      {/* Content Area - Scrollable like PatientCensusModal */}
+      <div style={{
+        flex: 1,
+        overflow: 'auto',
+        padding: '20px 24px'
+      }}>
+        {/* Results Summary */}
+        <div style={{ marginBottom: '16px' }}>
+          <p style={{ 
+            color: styles.textSecondary, 
+            fontSize: '13px',
+            margin: 0
+          }}>
+            Showing {filteredTemplates.length} of {templates.length} templates
+            {selectedCategory !== 'all' && ` in ${TEMPLATE_CATEGORIES[selectedCategory]?.name}`}
+            {searchQuery && ` matching "${searchQuery}"`}
+          </p>
+        </div>
 
-      {/* Results Summary */}
-      <div style={{ marginBottom: '20px' }}>
-        <p style={{ color: styles.textSecondary, fontSize: '14px' }}>
-          Showing {filteredTemplates.length} of {templates.length} templates
-          {selectedCategory !== 'all' && ` in ${TEMPLATE_CATEGORIES[selectedCategory]?.name}`}
-          {searchQuery && ` matching "${searchQuery}"`}
-        </p>
-      </div>
-
-      {/* Template Grid */}
-      <div style={{ display: 'grid', gap: '16px' }}>
+        {/* Template Grid/List */}
         {filteredTemplates.length === 0 ? (
           <div style={{ 
             textAlign: 'center', 
             padding: '60px 20px',
             color: styles.textMuted
           }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>📄</div>
+            <div style={{ fontSize: '32px', marginBottom: '16px' }}>📄</div>
             <h3 style={{ fontSize: '18px', marginBottom: '8px', color: styles.textPrimary }}>No templates found</h3>
             <p style={{ fontSize: '14px', marginBottom: '20px', color: styles.textSecondary }}>
               {searchQuery || selectedCategory !== 'all' 
@@ -513,15 +701,21 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew, theme = '
             )}
           </div>
         ) : (
-          filteredTemplates.map(template => (
-            <TemplateCard
-              key={template.id}
-              template={template}
-              onEdit={handleEditTemplate}
-              onUse={handleUseTemplate}
-              theme={theme}
-            />
-          ))
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+            gap: '16px'
+          }}>
+            {filteredTemplates.map(template => (
+              <TemplateCard
+                key={template.id}
+                template={template}
+                onEdit={handleEditTemplate}
+                onUse={handleUseTemplate}
+                theme={theme}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>

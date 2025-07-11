@@ -4,24 +4,25 @@ import './PatientCensusModal.css';
 
 // Helper function for theme-aware styling
 const getThemeStyles = (theme = 'dark') => ({
-  textPrimary: theme === 'dark' ? '#f1f5f9' : '#1f2937',
-  textSecondary: theme === 'dark' ? '#cbd5e1' : '#6b7280',
-  textMuted: theme === 'dark' ? '#94a3b8' : '#9ca3af',
-  bgPrimary: theme === 'dark' ? '#1e293b' : 'white',
-  bgSecondary: theme === 'dark' ? '#0f172a' : '#f8fafc',
-  bgAccent: theme === 'dark' ? '#374151' : '#f3f4f6',
-  borderColor: theme === 'dark' ? '#475569' : '#e5e7eb',
-  successColor: '#10b981',
-  warningColor: '#f59e0b',
-  errorColor: '#ef4444'
+  textPrimary: theme === 'dark' ? '#f1f5f9' : '#2d1810',
+  textSecondary: theme === 'dark' ? '#cbd5e1' : '#5d4d3a',
+  textMuted: theme === 'dark' ? '#94a3b8' : '#8b7355',
+  bgPrimary: theme === 'dark' ? '#1e293b' : '#faf8f3',
+  bgSecondary: theme === 'dark' ? '#0f172a' : '#f4f1eb',
+  bgAccent: theme === 'dark' ? '#374151' : '#ede8df',
+  borderColor: theme === 'dark' ? '#475569' : '#d4c4a8',
+  primaryColor: theme === 'dark' ? '#3b82f6' : '#8b4513',
+  successColor: theme === 'dark' ? '#10b981' : '#6b8e23',
+  warningColor: theme === 'dark' ? '#f59e0b' : '#cd853f',
+  errorColor: theme === 'dark' ? '#ef4444' : '#a0522d'
 });
 
 // Patient workflow type configuration
 const getWorkflowDisplay = (workflowType) => {
   const workflowConfig = {
-    'follow-up': { icon: '🔄', label: 'Follow-up', color: '#3b82f6' },
-    'admission': { icon: '🏥', label: 'Admission', color: '#10b981' },
-    'discharge': { icon: '🏠', label: 'Discharge', color: '#ef4444' }
+    'follow-up': { icon: '', label: 'Follow-up', color: '#3b82f6' },
+    'admission': { icon: '', label: 'Admission', color: '#10b981' },
+    'discharge': { icon: '', label: 'Discharge', color: '#ef4444' }
   };
   return workflowConfig[workflowType] || workflowConfig['follow-up'];
 };
@@ -194,7 +195,7 @@ const EditablePatientRow = ({ patient, onUpdate, onDelete, theme }) => {
                   cursor: 'pointer'
                 }}
               >
-                ✕ Cancel
+                Cancel
               </button>
             </>
           ) : (
@@ -211,7 +212,7 @@ const EditablePatientRow = ({ patient, onUpdate, onDelete, theme }) => {
                   cursor: 'pointer'
                 }}
               >
-                ✏️ Edit
+                Edit
               </button>
               <button
                 onClick={() => onDelete(patient.id)}
@@ -225,7 +226,7 @@ const EditablePatientRow = ({ patient, onUpdate, onDelete, theme }) => {
                   cursor: 'pointer'
                 }}
               >
-                🗑️ Remove
+                Remove
               </button>
             </>
           )}
@@ -243,6 +244,13 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
   const [notification, setNotification] = useState(null);
   const [stats, setStats] = useState({ total: 0, followUp: 0, admission: 0, discharge: 0 });
   
+  // Sorting states
+  const [sortBy, setSortBy] = useState('name'); // 'name' or 'type'
+  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
+  
+  // Add patient form visibility
+  const [showAddForm, setShowAddForm] = useState(false);
+  
   // Form states for adding new patients
   const [newPatientName, setNewPatientName] = useState('');
   const [newPatientId, setNewPatientId] = useState('');
@@ -250,6 +258,23 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
   const [newWorkflowType, setNewWorkflowType] = useState('follow-up');
   
   const styles = getThemeStyles(theme);
+
+  // Calculate stats from current patients
+  const calculateStats = useCallback((patientList) => {
+    const total = patientList.length;
+    const workflowCounts = patientList.reduce((acc, patient) => {
+      const workflowType = patient.workflow_type || patient.status || 'follow-up';
+      acc[workflowType] = (acc[workflowType] || 0) + 1;
+      return acc;
+    }, {});
+    
+    return {
+      total,
+      followUp: workflowCounts['follow-up'] || 0,
+      admission: workflowCounts['admission'] || 0,
+      discharge: workflowCounts['discharge'] || 0
+    };
+  }, []);
 
   // Load patient census data
   const loadCensusData = useCallback(async () => {
@@ -267,22 +292,9 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
       const data = await response.json();
       
       if (data.success && data.census) {
-        setPatients(data.census.rows || []);
-        
-        // Calculate stats
-        const total = data.census.rows?.length || 0;
-        const workflowCounts = (data.census.rows || []).reduce((acc, patient) => {
-          const workflowType = patient.workflow_type || patient.status || 'follow-up';
-          acc[workflowType] = (acc[workflowType] || 0) + 1;
-          return acc;
-        }, {});
-        
-        setStats({
-          total,
-          followUp: workflowCounts['follow-up'] || 0,
-          admission: workflowCounts['admission'] || 0,
-          discharge: workflowCounts['discharge'] || 0
-        });
+        const patientList = data.census.rows || [];
+        setPatients(patientList);
+        setStats(calculateStats(patientList));
       } else {
         setError('Failed to load patient census');
       }
@@ -292,7 +304,7 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [calculateStats]);
 
   // Show notification helper
   const showNotification = (message, type = 'success') => {
@@ -327,12 +339,26 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
       const data = await response.json();
       
       if (data.success) {
+        // Add the new patient to local state and update stats
+        const newPatient = {
+          id: data.patient_id || Date.now(), // Use returned ID or fallback
+          patient_name: newPatientName.trim(),
+          patient_id: newPatientId.trim(),
+          room_number: newRoomNumber.trim() || null,
+          workflow_type: newWorkflowType,
+          status: newWorkflowType
+        };
+        
+        const updatedPatients = [...patients, newPatient];
+        setPatients(updatedPatients);
+        setStats(calculateStats(updatedPatients));
+        
         setNewPatientName('');
         setNewPatientId('');
         setNewRoomNumber('');
         setNewWorkflowType('follow-up');
+        setShowAddForm(false);
         showNotification('Patient added successfully!', 'success');
-        loadCensusData(); // Refresh the list
         
         // Notify parent component of data change
         if (onDataChange) {
@@ -362,10 +388,12 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
       const data = await response.json();
       
       if (data.success) {
-        // Update local state
-        setPatients(prev => prev.map(patient => 
+        // Update local state and recalculate stats
+        const updatedPatients = patients.map(patient => 
           patient.id === patientId ? { ...patient, ...updates } : patient
-        ));
+        );
+        setPatients(updatedPatients);
+        setStats(calculateStats(updatedPatients));
         showNotification('Patient updated successfully!', 'success');
         
         // Notify parent component of data change
@@ -399,8 +427,10 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
         const data = await response.json();
         
         if (data.success) {
-          // Update local state
-          setPatients(prev => prev.filter(p => p.id !== patientId));
+          // Update local state and recalculate stats
+          const updatedPatients = patients.filter(p => p.id !== patientId);
+          setPatients(updatedPatients);
+          setStats(calculateStats(updatedPatients));
           showNotification('Patient removed from census', 'success');
           
           // Notify parent component of data change
@@ -417,6 +447,41 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
     }
   };
 
+  // Sort patients function
+  const sortPatients = (patientsToSort) => {
+    return [...patientsToSort].sort((a, b) => {
+      let aValue, bValue;
+      
+      if (sortBy === 'name') {
+        // Extract last name for sorting (assumes "Last, First" format)
+        aValue = (a.patient_name || '').split(',')[0].trim().toLowerCase();
+        bValue = (b.patient_name || '').split(',')[0].trim().toLowerCase();
+      } else if (sortBy === 'type') {
+        aValue = a.workflow_type || a.status || 'follow-up';
+        bValue = b.workflow_type || b.status || 'follow-up';
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+  };
+
+  // Handle sorting
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // Get sorted patients
+  const sortedPatients = sortPatients(patients);
+
   useEffect(() => {
     if (isOpen) {
       loadCensusData();
@@ -431,20 +496,23 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
         className="modal-content patient-census-modal"
         onClick={(e) => e.stopPropagation()}
         style={{
-          backgroundColor: styles.bgPrimary,
+          backgroundColor: styles.modalBackground,
           border: `1px solid ${styles.borderColor}`,
+          borderRadius: '8px',
           maxWidth: '900px',
           width: '90vw',
-          maxHeight: '80vh',
+          maxHeight: '90vh',
           overflow: 'hidden',
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          boxShadow: theme === 'dark' ? '0 25px 50px -12px rgba(0, 0, 0, 0.25)' : '0 25px 50px -12px rgba(0, 0, 0, 0.15)'
         }}
       >
         {/* Header */}
         <div style={{
-          padding: '24px 24px 20px 24px',
+          padding: '20px 24px',
           borderBottom: `1px solid ${styles.borderColor}`,
+          backgroundColor: styles.bgSecondary,
           flexShrink: 0
         }}>
           <div style={{
@@ -455,34 +523,39 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
           }}>
             <h2 style={{
               margin: 0,
-              fontSize: '20px',
+              fontSize: '18px',
               fontWeight: '600',
               color: styles.textPrimary
             }}>
-              👥 Patient Census Management
+              Patient Census Management
             </h2>
             <button
               onClick={onClose}
               style={{
-                padding: '8px 12px',
-                backgroundColor: 'transparent',
-                color: styles.textMuted,
+                background: 'none',
                 border: 'none',
-                borderRadius: '6px',
-                fontSize: '14px',
-                cursor: 'pointer'
+                fontSize: '24px',
+                cursor: 'pointer',
+                color: styles.textMuted,
+                padding: '4px',
+                borderRadius: '4px'
               }}
             >
-              ✕ Close
+              ×
             </button>
           </div>
 
-          {/* Stats */}
+          {/* Stats and Sort Controls */}
           <div style={{
             display: 'flex',
-            gap: '20px',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
             marginBottom: '20px'
           }}>
+            <div style={{
+              display: 'flex',
+              gap: '20px'
+            }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '24px', fontWeight: 'bold', color: styles.textPrimary }}>
                 {stats.total}
@@ -507,147 +580,241 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
               </div>
               <div style={{ fontSize: '12px', color: styles.textMuted }}>Discharge</div>
             </div>
-          </div>
-
-          {/* Add Patient Form */}
-          <div style={{
-            padding: '16px',
-            backgroundColor: styles.bgSecondary,
-            borderRadius: '8px',
-            border: `1px solid ${styles.borderColor}`
-          }}>
-            <h4 style={{
-              margin: '0 0 12px 0',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: styles.textPrimary
-            }}>
-              Add New Patient
-            </h4>
+            </div>
+            
+            {/* Sort Controls and Add Patient Button */}
             <div style={{
               display: 'flex',
-              gap: '12px',
-              alignItems: 'flex-end'
+              alignItems: 'center',
+              gap: '12px'
             }}>
-              <div style={{ flex: 2 }}>
-                <label style={{
-                  display: 'block',
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span style={{
                   fontSize: '12px',
-                  color: styles.textSecondary,
-                  marginBottom: '4px'
+                  color: styles.textMuted,
+                  fontWeight: '500'
                 }}>
-                  Patient Name
-                </label>
-                <input
-                  type="text"
-                  value={newPatientName}
-                  onChange={(e) => setNewPatientName(e.target.value)}
-                  placeholder="Last, First M."
+                  Sort by:
+                </span>
+                <button
+                  onClick={() => handleSort('name')}
                   style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: `1px solid ${styles.borderColor}`,
-                    borderRadius: '6px',
-                    backgroundColor: styles.bgPrimary,
-                    color: styles.textPrimary,
-                    fontSize: '13px'
-                  }}
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '12px',
-                  color: styles.textSecondary,
-                  marginBottom: '4px'
-                }}>
-                  Patient ID
-                </label>
-                <input
-                  type="text"
-                  value={newPatientId}
-                  onChange={(e) => setNewPatientId(e.target.value)}
-                  placeholder="PT001"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: `1px solid ${styles.borderColor}`,
-                    borderRadius: '6px',
-                    backgroundColor: styles.bgPrimary,
-                    color: styles.textPrimary,
-                    fontSize: '13px'
-                  }}
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '12px',
-                  color: styles.textSecondary,
-                  marginBottom: '4px'
-                }}>
-                  Room #
-                </label>
-                <input
-                  type="text"
-                  value={newRoomNumber}
-                  onChange={(e) => setNewRoomNumber(e.target.value)}
-                  placeholder="101"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: `1px solid ${styles.borderColor}`,
-                    borderRadius: '6px',
-                    backgroundColor: styles.bgPrimary,
-                    color: styles.textPrimary,
-                    fontSize: '13px'
-                  }}
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '12px',
-                  color: styles.textSecondary,
-                  marginBottom: '4px'
-                }}>
-                  Workflow
-                </label>
-                <select
-                  value={newWorkflowType}
-                  onChange={(e) => setNewWorkflowType(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: `1px solid ${styles.borderColor}`,
-                    borderRadius: '6px',
-                    backgroundColor: styles.bgPrimary,
-                    color: styles.textPrimary,
-                    fontSize: '13px'
+                    padding: '4px 8px',
+                    backgroundColor: sortBy === 'name' ? styles.primaryColor : 'transparent',
+                    color: sortBy === 'name' ? 'white' : styles.textSecondary,
+                    border: `1px solid ${sortBy === 'name' ? styles.primaryColor : styles.borderColor}`,
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    fontWeight: '500'
                   }}
                 >
-                  <option value="follow-up">Follow-up</option>
-                  <option value="admission">Admission</option>
-                  <option value="discharge">Discharge</option>
-                </select>
+                  Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
+                <button
+                  onClick={() => handleSort('type')}
+                  style={{
+                    padding: '4px 8px',
+                    backgroundColor: sortBy === 'type' ? styles.primaryColor : 'transparent',
+                    color: sortBy === 'type' ? 'white' : styles.textSecondary,
+                    border: `1px solid ${sortBy === 'type' ? styles.primaryColor : styles.borderColor}`,
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                  }}
+                >
+                  Type {sortBy === 'type' && (sortOrder === 'asc' ? '↑' : '↓')}
+                </button>
               </div>
+              
+              {/* Add Patient Button */}
               <button
-                onClick={handleAddPatient}
+                onClick={() => setShowAddForm(true)}
                 style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#3b82f6',
+                  padding: '6px 12px',
+                  backgroundColor: styles.primaryColor,
                   color: 'white',
                   border: 'none',
                   borderRadius: '6px',
-                  fontSize: '13px',
+                  fontSize: '12px',
                   fontWeight: '500',
                   cursor: 'pointer'
                 }}
               >
-                ➕ Add
+                Add Patient
               </button>
             </div>
           </div>
+          
+          {/* Add Patient Form */}
+          {showAddForm && (
+            <div style={{
+              padding: '16px',
+              backgroundColor: styles.bgSecondary,
+              borderRadius: '8px',
+              border: `1px solid ${styles.borderColor}`,
+              marginTop: '20px'
+            }}>
+              <h4 style={{
+                margin: '0 0 12px 0',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: styles.textPrimary
+              }}>
+                Add New Patient
+              </h4>
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'flex-end'
+              }}>
+                <div style={{ flex: 2 }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    color: styles.textSecondary,
+                    marginBottom: '4px'
+                  }}>
+                    Patient Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newPatientName}
+                    onChange={(e) => setNewPatientName(e.target.value)}
+                    placeholder="Last, First M."
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: `1px solid ${styles.borderColor}`,
+                      borderRadius: '6px',
+                      backgroundColor: styles.bgPrimary,
+                      color: styles.textPrimary,
+                      fontSize: '13px'
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    color: styles.textSecondary,
+                    marginBottom: '4px'
+                  }}>
+                    Patient ID
+                  </label>
+                  <input
+                    type="text"
+                    value={newPatientId}
+                    onChange={(e) => setNewPatientId(e.target.value)}
+                    placeholder="PT001"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: `1px solid ${styles.borderColor}`,
+                      borderRadius: '6px',
+                      backgroundColor: styles.bgPrimary,
+                      color: styles.textPrimary,
+                      fontSize: '13px'
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    color: styles.textSecondary,
+                    marginBottom: '4px'
+                  }}>
+                    Room #
+                  </label>
+                  <input
+                    type="text"
+                    value={newRoomNumber}
+                    onChange={(e) => setNewRoomNumber(e.target.value)}
+                    placeholder="101"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: `1px solid ${styles.borderColor}`,
+                      borderRadius: '6px',
+                      backgroundColor: styles.bgPrimary,
+                      color: styles.textPrimary,
+                      fontSize: '13px'
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '12px',
+                    color: styles.textSecondary,
+                    marginBottom: '4px'
+                  }}>
+                    Workflow
+                  </label>
+                  <select
+                    value={newWorkflowType}
+                    onChange={(e) => setNewWorkflowType(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: `1px solid ${styles.borderColor}`,
+                      borderRadius: '6px',
+                      backgroundColor: styles.bgPrimary,
+                      color: styles.textPrimary,
+                      fontSize: '13px'
+                    }}
+                  >
+                    <option value="follow-up">Follow-up</option>
+                    <option value="admission">Admission</option>
+                    <option value="discharge">Discharge</option>
+                  </select>
+                </div>
+                <button
+                  onClick={handleAddPatient}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: styles.primaryColor,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setNewPatientName('');
+                    setNewPatientId('');
+                    setNewRoomNumber('');
+                    setNewWorkflowType('follow-up');
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: 'transparent',
+                    color: styles.textSecondary,
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Notification */}
@@ -702,23 +869,51 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
                   backgroundColor: styles.bgSecondary,
                   borderBottom: `2px solid ${styles.borderColor}`
                 }}>
-                  <th style={{
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    color: styles.textPrimary
-                  }}>
-                    Workflow Type
+                  <th 
+                    style={{
+                      padding: '12px 16px',
+                      textAlign: 'left',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: styles.textPrimary,
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      position: 'relative'
+                    }}
+                    onClick={() => handleSort('type')}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      Workflow Type
+                      <span style={{ 
+                        opacity: sortBy === 'type' ? 1 : 0.3,
+                        fontSize: '10px'
+                      }}>
+                        {sortBy === 'type' && sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    </div>
                   </th>
-                  <th style={{
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    color: styles.textPrimary
-                  }}>
-                    Patient Name
+                  <th 
+                    style={{
+                      padding: '12px 16px',
+                      textAlign: 'left',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: styles.textPrimary,
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      position: 'relative'
+                    }}
+                    onClick={() => handleSort('name')}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      Patient Name
+                      <span style={{ 
+                        opacity: sortBy === 'name' ? 1 : 0.3,
+                        fontSize: '10px'
+                      }}>
+                        {sortBy === 'name' && sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    </div>
                   </th>
                   <th style={{
                     padding: '12px 16px',
@@ -750,8 +945,8 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
                 </tr>
               </thead>
               <tbody>
-                {patients.length > 0 ? (
-                  patients.map(patient => (
+                {sortedPatients.length > 0 ? (
+                  sortedPatients.map(patient => (
                     <EditablePatientRow
                       key={patient.id}
                       patient={patient}
@@ -770,7 +965,7 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
                         color: styles.textMuted
                       }}
                     >
-                      <div style={{ fontSize: '32px', marginBottom: '12px' }}>📋</div>
+                      <div style={{ fontSize: '16px', marginBottom: '12px', fontWeight: '500', color: styles.textMuted }}>No Data</div>
                       <div>No patients in census</div>
                       <div style={{ fontSize: '12px', marginTop: '4px' }}>
                         Add patients using the form above

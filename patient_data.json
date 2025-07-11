@@ -1,0 +1,361 @@
+{
+  "patients": [
+    {
+      "id": 5,
+      "patient_name": "Anderson, Michael",
+      "patient_id": "PSY001",
+      "room_number": "201",
+      "status": "follow-up",
+      "workflow_type": "follow-up",
+      "data_fields": {
+        "chief_complaint": "Depression with anxiety",
+        "assessment": "- Increase Zoloft to 25 mg po q daily for depression/anxiety",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed",
+        "last name": "Anderson",
+        "first name": "Michael",
+        "chief complaint": "suicidal ideations",
+        "observation": "sleeping in their room while on break in between groups",
+        "compliance": "compliant with medications reporting good response",
+        "side effects": "no significant side effects.",
+        "mood": "depressed/anxious mood",
+        "SI": "denying SI",
+        "HI": "HI or",
+        "perceptual disturbances": "any perceptual disturbances.",
+        "sleep": "poorly",
+        "energy": "restless/poorly motivated at the time of the assessment"
+      }
+    },
+    {
+      "id": 6,
+      "patient_name": "Barnes, Sarah",
+      "patient_id": "PSY002",
+      "room_number": "202",
+      "status": "follow-up",
+      "workflow_type": "follow-up",
+      "data_fields": {
+        "chief_complaint": "Manic episode",
+        "assessment": "- Start Paxil 10 mg po q daily for depression/anxiety",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed",
+        "last name": "Barnes",
+        "first name": "Sarah",
+        "chief complaint": "Panic attacks",
+        "observation": "standing in the hallway near the nursing station",
+        "compliance": "compliant with medications reporting good response",
+        "side effects": "no significant side effects reported.",
+        "mood": "euthymic mood",
+        "SI": "denying SI,",
+        "HI": "HI",
+        "perceptual disturbances": "or any perceptual disturbances.",
+        "sleep": "well",
+        "energy": "rested/motivated at the time of the assessment"
+      }
+    },
+    {
+      "id": 7,
+      "patient_name": "Chen, David",
+      "patient_id": "PSY003",
+      "room_number": "203",
+      "status": "follow-up",
+      "workflow_type": "follow-up",
+      "data_fields": {
+        "chief_complaint": "Auditory hallucinations",
+        "assessment": "Schizophrenia",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 8,
+      "patient_name": "Davis, Emily",
+      "patient_id": "PSY004",
+      "room_number": "204",
+      "status": "follow-up",
+      "workflow_type": "follow-up",
+      "data_fields": {
+        "chief_complaint": "Trauma-related nightmares",
+        "assessment": "PTSD",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 9,
+      "patient_name": "Evans, Robert",
+      "patient_id": "PSY005",
+      "room_number": "205",
+      "status": "admission",
+      "workflow_type": "admission",
+      "data_fields": {
+        "chief_complaint": "Severe anxiety",
+        "assessment": "Generalized Anxiety Disorder",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 10,
+      "patient_name": "Foster, Lisa",
+      "patient_id": "PSY006",
+      "room_number": "206",
+      "status": "follow-up",
+      "workflow_type": "follow-up",
+      "data_fields": {
+        "chief_complaint": "Self-harm behaviors",
+        "assessment": "Borderline Personality Disorder",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 11,
+      "patient_name": "Garcia, Carlos",
+      "patient_id": "PSY007",
+      "room_number": "207",
+      "status": "admission",
+      "workflow_type": "admission",
+      "data_fields": {
+        "chief_complaint": "Alcohol withdrawal",
+        "assessment": "Substance Use Disorder",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 12,
+      "patient_name": "Harris, Jennifer",
+      "patient_id": "PSY008",
+      "room_number": "208",
+      "status": "follow-up",
+      "workflow_type": "follow-up",
+      "data_fields": {
+        "chief_complaint": "Intrusive thoughts",
+        "assessment": "Obsessive-Compulsive Disorder",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 13,
+      "patient_name": "Johnson, Kevin",
+      "patient_id": "PSY009",
+      "room_number": "209",
+      "status": "discharge",
+      "workflow_type": "discharge",
+      "data_fields": {
+        "chief_complaint": "Depressive episode",
+        "assessment": "Bipolar II Disorder",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 14,
+      "patient_name": "Kim, Michelle",
+      "patient_id": "PSY010",
+      "room_number": "210",
+      "status": "follow-up",
+      "workflow_type": "follow-up",
+      "data_fields": {
+        "chief_complaint": "Recurrent panic attacks",
+        "assessment": "Panic Disorder",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 15,
+      "patient_name": "Lee, Thomas",
+      "patient_id": "PSY011",
+      "room_number": "211",
+      "status": "admission",
+      "workflow_type": "admission",
+      "data_fields": {
+        "chief_complaint": "Mixed mood and psychotic symptoms",
+        "assessment": "Schizoaffective Disorder",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 16,
+      "patient_name": "Martinez, Anna",
+      "patient_id": "PSY012",
+      "room_number": "212",
+      "status": "follow-up",
+      "workflow_type": "follow-up",
+      "data_fields": {
+        "chief_complaint": "Restrictive eating",
+        "assessment": "Anorexia Nervosa",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 18,
+      "patient_name": "O'Connor, Kelly",
+      "patient_id": "PSY014",
+      "room_number": "214",
+      "status": "admission",
+      "workflow_type": "admission",
+      "data_fields": {
+        "chief_complaint": "Suicidal ideation",
+        "assessment": "Major Depressive Disorder",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 19,
+      "patient_name": "Patel, Raj",
+      "patient_id": "PSY015",
+      "room_number": "215",
+      "status": "follow-up",
+      "workflow_type": "follow-up",
+      "data_fields": {
+        "chief_complaint": "Social phobia",
+        "assessment": "Social Anxiety Disorder",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 20,
+      "patient_name": "Quinn, Rebecca",
+      "patient_id": "PSY016",
+      "room_number": "216",
+      "status": "follow-up",
+      "workflow_type": "follow-up",
+      "data_fields": {
+        "chief_complaint": "Rapid cycling",
+        "assessment": "Bipolar I Disorder",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 21,
+      "patient_name": "Rodriguez, Maria",
+      "patient_id": "PSY017",
+      "room_number": "217",
+      "status": "discharge",
+      "workflow_type": "discharge",
+      "data_fields": {
+        "chief_complaint": "Attention difficulties",
+        "assessment": "ADHD",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 22,
+      "patient_name": "Smith, Daniel",
+      "patient_id": "PSY018",
+      "room_number": "218",
+      "status": "follow-up",
+      "workflow_type": "follow-up",
+      "data_fields": {
+        "chief_complaint": "Chronic depression",
+        "assessment": "Dysthymia",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 23,
+      "patient_name": "Taylor, Jessica",
+      "patient_id": "PSY019",
+      "room_number": "219",
+      "status": "discharge",
+      "workflow_type": "discharge",
+      "data_fields": {
+        "chief_complaint": "Life stressor reaction",
+        "assessment": "Adjustment Disorder",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 24,
+      "patient_name": "Thompson, Mark",
+      "patient_id": "PSY020",
+      "room_number": "220",
+      "status": "admission",
+      "workflow_type": "admission",
+      "data_fields": {
+        "chief_complaint": "Suspicious thoughts",
+        "assessment": "Paranoid Personality Disorder",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 25,
+      "patient_name": "Williams, Ashley",
+      "patient_id": "PSY021",
+      "room_number": "221",
+      "status": "follow-up",
+      "workflow_type": "follow-up",
+      "data_fields": {
+        "chief_complaint": "Binge-purge cycle",
+        "assessment": "Bulimia Nervosa",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 26,
+      "patient_name": "Wilson, Christopher",
+      "patient_id": "PSY022",
+      "room_number": "222",
+      "status": "follow-up",
+      "workflow_type": "follow-up",
+      "data_fields": {
+        "chief_complaint": "Memory gaps",
+        "assessment": "Dissociative Identity Disorder",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 27,
+      "patient_name": "Young, Stephanie",
+      "patient_id": "PSY023",
+      "room_number": "223",
+      "status": "discharge",
+      "workflow_type": "discharge",
+      "data_fields": {
+        "chief_complaint": "Hair pulling urges",
+        "assessment": "Trichotillomania",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 28,
+      "patient_name": "Zhang, William",
+      "patient_id": "PSY024",
+      "room_number": "224",
+      "status": "admission",
+      "workflow_type": "admission",
+      "data_fields": {
+        "chief_complaint": "Anger outbursts",
+        "assessment": "Intermittent Explosive Disorder",
+        "treatment_plan": "Individualized therapy and medication management",
+        "progress_notes": "Initial assessment completed"
+      }
+    },
+    {
+      "id": 30,
+      "patient_name": "Miller, John",
+      "patient_id": "PT001",
+      "room_number": "101",
+      "status": "admission",
+      "workflow_type": "admission",
+      "data_fields": {}
+    }
+  ],
+  "next_id": 31,
+  "last_updated": "2025-07-11T11:33:40.867714"
+}

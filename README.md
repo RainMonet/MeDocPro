@@ -1,4 +1,4 @@
-# MeDocPro Backend API
+# MDoc Backend API
 
 A secure, HIPAA-compliant medical documentation API built with Flask and PostgreSQL, designed specifically for psychiatric practice management with AI-assisted text enhancement.
 

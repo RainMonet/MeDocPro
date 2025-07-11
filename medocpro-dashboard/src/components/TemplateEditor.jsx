@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import AIEnhancement from './templates/AIEnhancement';
 
 import TemplateLibrary from './templates/TemplateLibrary';
 
@@ -46,17 +45,18 @@ const CloseIcon = () => (
   </svg>
 );
 
-// Theme-aware style helpers
+// Theme-aware style helpers - consistent with other modals
 const getThemeStyles = (theme) => ({
-  modalBackground: theme === 'dark' ? '#1e293b' : 'white',
-  textPrimary: theme === 'dark' ? '#f1f5f9' : '#1f2937',
-  textSecondary: theme === 'dark' ? '#cbd5e1' : '#6b7280',
-  textMuted: theme === 'dark' ? '#94a3b8' : '#9ca3af',
-  borderColor: theme === 'dark' ? '#334155' : '#e2e8f0',
-  bgSecondary: theme === 'dark' ? '#0f172a' : '#f8fafc',
-  bgTertiary: theme === 'dark' ? '#334155' : '#f1f5f9',
-  inputBg: theme === 'dark' ? '#0f172a' : 'white',
-  cardBg: theme === 'dark' ? '#1e293b' : 'white'
+  textPrimary: theme === 'dark' ? '#f1f5f9' : '#2d1810',
+  textSecondary: theme === 'dark' ? '#cbd5e1' : '#5d4d3a',
+  textMuted: theme === 'dark' ? '#94a3b8' : '#8b7355',
+  bgPrimary: theme === 'dark' ? '#1e293b' : '#faf8f3',
+  bgSecondary: theme === 'dark' ? '#0f172a' : '#f4f1eb',
+  bgAccent: theme === 'dark' ? '#374151' : '#ede8df',
+  borderColor: theme === 'dark' ? '#475569' : '#d4c4a8',
+  primaryColor: theme === 'dark' ? '#3b82f6' : '#8b4513',
+  inputBg: theme === 'dark' ? '#0f172a' : '#faf8f3',
+  modalBackground: theme === 'dark' ? '#1e293b' : '#faf8f3'
 });
 
 // Placeholder Management Component
@@ -74,8 +74,8 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange, theme }) => {
   const addPlaceholder = () => {
     const { key, description, example, type } = newPlaceholder;
     
-    if (!key.trim() || !description.trim() || !example.trim()) {
-      alert('Please fill in all placeholder fields');
+    if (!key.trim() || !description.trim()) {
+      alert('Please fill in required placeholder fields (Key and Description)');
       return;
     }
 
@@ -110,18 +110,31 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange, theme }) => {
   };
 
   return (
-    <div className="card" style={{ marginBottom: '20px' }}>
+    <div className="card" style={{ 
+      marginBottom: '20px',
+      backgroundColor: styles.bgPrimary,
+      border: `1px solid ${styles.borderColor}`
+    }}>
       <div className="card-header" style={{ 
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-        color: 'white',
+        background: styles.bgSecondary,
+        color: styles.textPrimary,
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center'
+        alignItems: 'center',
+        borderBottom: `1px solid ${styles.borderColor}`,
+        padding: '16px 20px'
       }}>
         <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Placeholder Management</h3>
         <button 
           className="btn btn-sm"
-          style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', border: '1px solid rgba(255, 255, 255, 0.3)' }}
+          style={{ 
+            background: styles.primaryColor, 
+            color: 'white', 
+            border: 'none',
+            padding: '6px 12px',
+            borderRadius: '4px',
+            fontSize: '13px'
+          }}
           onClick={() => setShowAddForm(!showAddForm)}
         >
           + Add Placeholder
@@ -134,49 +147,205 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange, theme }) => {
 
         {showAddForm && (
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr auto',
-            gap: '12px',
-            alignItems: 'end',
-            padding: '16px',
-            background: styles.bgTertiary,
+            backgroundColor: styles.bgSecondary,
+            border: `1px solid ${styles.primaryColor}`,
             borderRadius: '8px',
-            border: `2px dashed ${styles.borderColor}`,
-            marginBottom: '20px'
+            padding: '20px',
+            marginBottom: '24px'
           }}>
-            <div>
-              <label className="form-label">Key</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="patient_name"
-                value={newPlaceholder.key}
-                onChange={(e) => setNewPlaceholder(prev => ({ ...prev, key: e.target.value }))}
-              />
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <h4 style={{
+                margin: 0,
+                fontSize: '16px',
+                fontWeight: '600',
+                color: styles.textPrimary
+              }}>
+                Add New Placeholder
+              </h4>
+              <button
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: styles.textMuted,
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                  padding: '4px'
+                }}
+                onClick={() => {
+                  setShowAddForm(false);
+                  setNewPlaceholder({ key: '', description: '', example: '', type: 'text' });
+                }}
+              >
+                ×
+              </button>
             </div>
-            <div>
-              <label className="form-label">Description</label>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '16px',
+              marginBottom: '16px'
+            }}>
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  color: styles.textSecondary,
+                  marginBottom: '6px'
+                }}>
+                  Placeholder Key
+                </label>
+                <input
+                  type="text"
+                  value={newPlaceholder.key}
+                  onChange={(e) => setNewPlaceholder(prev => ({ ...prev, key: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    backgroundColor: styles.inputBg,
+                    color: styles.textPrimary,
+                    outline: 'none'
+                  }}
+                  placeholder="e.g., patient_name"
+                />
+              </div>
+
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  color: styles.textSecondary,
+                  marginBottom: '6px'
+                }}>
+                  Type
+                </label>
+                <select
+                  value={newPlaceholder.type}
+                  onChange={(e) => setNewPlaceholder(prev => ({ ...prev, type: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    backgroundColor: styles.inputBg,
+                    color: styles.textPrimary,
+                    outline: 'none'
+                  }}
+                >
+                  <option value="text">Text</option>
+                  <option value="date">Date</option>
+                  <option value="number">Number</option>
+                  <option value="boolean">Boolean</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '12px',
+                fontWeight: '500',
+                color: styles.textSecondary,
+                marginBottom: '6px'
+              }}>
+                Description
+              </label>
               <input
                 type="text"
-                className="form-input"
-                placeholder="Patient's full name"
                 value={newPlaceholder.description}
                 onChange={(e) => setNewPlaceholder(prev => ({ ...prev, description: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: `1px solid ${styles.borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  backgroundColor: styles.inputBg,
+                  color: styles.textPrimary,
+                  outline: 'none'
+                }}
+                placeholder="Brief description of what this placeholder represents"
               />
             </div>
-            <div>
-              <label className="form-label">Example</label>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '12px',
+                fontWeight: '500',
+                color: styles.textSecondary,
+                marginBottom: '6px'
+              }}>
+                Example
+              </label>
               <input
                 type="text"
-                className="form-input"
-                placeholder="Doe, John"
                 value={newPlaceholder.example}
                 onChange={(e) => setNewPlaceholder(prev => ({ ...prev, example: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: `1px solid ${styles.borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  backgroundColor: styles.inputBg,
+                  color: styles.textPrimary,
+                  outline: 'none'
+                }}
+                placeholder="Example value (optional)"
               />
             </div>
-            <button className="btn btn-primary" onClick={addPlaceholder}>
-              Add
-            </button>
+
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'transparent',
+                  color: styles.textMuted,
+                  border: `1px solid ${styles.borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+                onClick={() => {
+                  setShowAddForm(false);
+                  setNewPlaceholder({ key: '', description: '', example: '', type: 'text' });
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                style={{
+                  padding: '8px 16px',
+                  background: styles.primaryColor,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+                onClick={addPlaceholder}
+              >
+                Create Placeholder
+              </button>
+            </div>
           </div>
         )}
 
@@ -263,6 +432,16 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'da
 
   const [validationErrors, setValidationErrors] = useState([]);
   const [activeTab, setActiveTab] = useState('content'); // 'content', 'ai', 'preview'
+  const [editingPlaceholder, setEditingPlaceholder] = useState(null);
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedPlaceholder, setSelectedPlaceholder] = useState('');
+  const [newPlaceholder, setNewPlaceholder] = useState({
+    key: '',
+    description: '',
+    example: '',
+    type: 'text'
+  });
 
   const styles = getThemeStyles(theme);
 
@@ -305,13 +484,6 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'da
       textarea.setSelectionRange(start + text.length, start + text.length);
     }, 0);
   }, []);
-
-  // Handle AI enhanced content
-  const handleAIEnhancedContent = useCallback((enhancedContent) => {
-    setTemplate(prev => ({ ...prev, content: enhancedContent }));
-    setActiveTab('content'); // Switch back to content tab to show result
-  }, []);
-
 
   // Validate and save template
   const handleSave = useCallback(() => {
@@ -446,94 +618,69 @@ Provider: {{provider_signature}}`
   if (!isOpen) return null;
 
   return (
-    <div 
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '20px'
-      }}
-      onClick={handleBackdropClick}
-    >
+    <div className="modal-overlay" onClick={handleBackdropClick}>
       <div 
+        className="modal-content"
+        onClick={(e) => e.stopPropagation()}
         style={{
-          backgroundColor: styles.modalBackground,
+          width: '95vw',
+          height: '90vh',
+          maxWidth: '1200px',
+          padding: '0',
+          backgroundColor: styles.bgPrimary,
           borderRadius: '12px',
-          maxWidth: '1000px',
-          maxHeight: '90vh',
-          width: '100%',
           overflow: 'hidden',
-          boxShadow: '0 20px 25px rgba(0, 0, 0, 0.15)',
           display: 'flex',
           flexDirection: 'column'
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Header */}
+        {/* Header Section - Consistent with other modals */}
         <div style={{
-          padding: '24px 32px',
-          borderBottom: `1px solid ${styles.borderColor}`,
-          background: 'linear-gradient(135deg, #0066cc 0%, #004499 100%)',
-          color: 'white',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center'
+          alignItems: 'center',
+          padding: '16px 24px',
+          borderBottom: `1px solid ${styles.borderColor}`,
+          backgroundColor: styles.bgSecondary,
+          flexShrink: 0
         }}>
-          <div>
-            <h2 style={{ 
-              fontSize: '20px', 
-              fontWeight: '600', 
-              marginBottom: '4px',
-              color: 'white'
-            }}>
-              {initialTemplate ? 'Edit Template' : 'Create New Template'}
-            </h2>
-            <p style={{ 
-              fontSize: '14px', 
-              opacity: 0.9,
-              color: 'white',
-              margin: 0
-            }}>
-              Create comprehensive psychiatric documentation template
-            </p>
-          </div>
-          <button
+          <h2 style={{ 
+            margin: 0, 
+            fontSize: '18px', 
+            fontWeight: '600',
+            color: styles.textPrimary
+          }}>
+            {initialTemplate ? 'Edit Template' : 'Create New Template'}
+          </h2>
+          <button 
+            className="modal-close" 
             onClick={onCancel}
             style={{
-              background: 'rgba(255, 255, 255, 0.2)',
+              background: 'none',
               border: 'none',
-              borderRadius: '6px',
-              padding: '8px',
+              fontSize: '24px',
               cursor: 'pointer',
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
+              color: styles.textMuted,
+              padding: '4px',
+              borderRadius: '4px'
             }}
           >
-            <CloseIcon />
+            ×
           </button>
         </div>
 
         {/* Tab Navigation */}
         <div style={{
           borderBottom: `1px solid ${styles.borderColor}`,
-          padding: '0 32px',
+          padding: '0 24px',
           display: 'flex',
           gap: '0',
           background: styles.bgSecondary
         }}>
           {[
-            { id: 'content', label: 'Template Content', icon: '📝' },
-            { id: 'ai', label: 'AI Enhancement', icon: '🤖' },
-            { id: 'preview', label: 'Preview', icon: '👁️' }
+            { id: 'content', label: 'Template Content' },
+            { id: 'placeholders', label: 'Placeholders Management' },
+            { id: 'preview', label: 'Preview' }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -541,19 +688,17 @@ Provider: {{provider_signature}}`
               style={{
                 borderRadius: '8px 8px 0 0',
                 border: 'none',
-                borderBottom: activeTab === tab.id ? '2px solid #0066cc' : '2px solid transparent',
-                background: activeTab === tab.id ? styles.modalBackground : 'transparent',
-                color: activeTab === tab.id ? '#0066cc' : styles.textSecondary,
+                borderBottom: activeTab === tab.id ? `2px solid ${styles.primaryColor}` : '2px solid transparent',
+                background: activeTab === tab.id ? styles.bgPrimary : 'transparent',
+                color: activeTab === tab.id ? styles.primaryColor : styles.textSecondary,
                 padding: '12px 16px',
                 fontWeight: '500',
                 fontSize: '14px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
                 cursor: 'pointer'
               }}
             >
-              <span>{tab.icon}</span>
               {tab.label}
             </button>
           ))}
@@ -563,8 +708,8 @@ Provider: {{provider_signature}}`
         <div style={{
           flex: 1,
           overflow: 'auto',
-          padding: '24px 32px',
-          background: styles.modalBackground,
+          padding: '24px',
+          background: styles.bgPrimary,
           color: styles.textPrimary
         }}>
           {/* Validation Errors */}
@@ -583,9 +728,18 @@ Provider: {{provider_signature}}`
           {activeTab === 'content' && (
             <>
               {/* Template Information */}
-              <div className="card" style={{ marginBottom: '20px' }}>
-                <div className="card-header">
-                  <h3 style={{ fontSize: '16px', fontWeight: '600', color: styles.textPrimary }}>Template Information</h3>
+              <div className="card" style={{ 
+                marginBottom: '20px',
+                backgroundColor: styles.bgPrimary,
+                border: `1px solid ${styles.borderColor}`
+              }}>
+                <div className="card-header" style={{ 
+                  background: styles.bgSecondary,
+                  color: styles.textPrimary,
+                  borderBottom: `1px solid ${styles.borderColor}`,
+                  padding: '16px 20px'
+                }}>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Template Information</h3>
                 </div>
                 <div className="card-content">
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -615,45 +769,63 @@ Provider: {{provider_signature}}`
                 </div>
               </div>
 
-              {/* Placeholder Manager */}
-              <PlaceholderManager
-                placeholders={template.placeholders}
-                onPlaceholdersChange={(placeholders) => setTemplate(prev => ({ ...prev, placeholders }))}
-                theme={theme}
-              />
-
               {/* Template Content Editor */}
-              <div className="card" style={{ marginBottom: '20px' }}>
-                <div className="card-header" style={{ background: styles.bgSecondary, borderBottom: `1px solid ${styles.borderColor}` }}>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '11px', fontWeight: '600', color: styles.textMuted, textTransform: 'uppercase' }}>
-                        Quick:
-                      </span>
-                      <button className="btn btn-sm btn-secondary" onClick={() => loadSampleTemplate('progress')}>
-                        Progress
-                      </button>
-                      <button className="btn btn-sm btn-secondary" onClick={() => loadSampleTemplate('assessment')}>
-                        Assessment
-                      </button>
-                      <button className="btn btn-sm btn-secondary" onClick={() => loadSampleTemplate('plan')}>
-                        Plan
-                      </button>
-                    </div>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '11px', fontWeight: '600', color: styles.textMuted, textTransform: 'uppercase' }}>
-                        Insert:
-                      </span>
-                      <button className="btn btn-sm btn-secondary" onClick={() => insertText('{{patient_name}}')}>
-                        Patient
-                      </button>
-                      <button className="btn btn-sm btn-secondary" onClick={() => insertText('{{date_of_service}}')}>
-                        Date
-                      </button>
-                      <button className="btn btn-sm btn-secondary" onClick={() => insertText('{{provider_name}}')}>
-                        Provider
-                      </button>
-                    </div>
+              <div className="card" style={{ 
+                marginBottom: '20px',
+                backgroundColor: styles.bgPrimary,
+                border: `1px solid ${styles.borderColor}`
+              }}>
+                <div className="card-header" style={{ 
+                  background: styles.bgSecondary, 
+                  borderBottom: `1px solid ${styles.borderColor}`,
+                  padding: '16px 20px'
+                }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '600', color: styles.textMuted, textTransform: 'uppercase' }}>
+                      Placeholders:
+                    </span>
+                    <select
+                      value={selectedPlaceholder}
+                      onChange={(e) => setSelectedPlaceholder(e.target.value)}
+                      style={{
+                        padding: '4px 8px',
+                        border: `1px solid ${styles.borderColor}`,
+                        borderRadius: '4px',
+                        backgroundColor: styles.inputBg,
+                        color: styles.textPrimary,
+                        fontSize: '13px',
+                        minWidth: '180px'
+                      }}
+                    >
+                      <option value="">Select a placeholder...</option>
+                      {template.placeholders && template.placeholders.map((placeholder, index) => (
+                        <option key={index} value={placeholder.key}>
+                          {placeholder.key} - {placeholder.description}
+                        </option>
+                      ))}
+                    </select>
+                    <button 
+                      className="btn btn-sm"
+                      style={{
+                        padding: '4px 12px',
+                        backgroundColor: selectedPlaceholder ? styles.primaryColor : styles.bgAccent,
+                        color: selectedPlaceholder ? 'white' : styles.textMuted,
+                        border: `1px solid ${selectedPlaceholder ? styles.primaryColor : styles.borderColor}`,
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        cursor: selectedPlaceholder ? 'pointer' : 'not-allowed',
+                        opacity: selectedPlaceholder ? 1 : 0.6
+                      }}
+                      disabled={!selectedPlaceholder}
+                      onClick={() => {
+                        if (selectedPlaceholder) {
+                          insertText(`{{${selectedPlaceholder}}}`);
+                          setSelectedPlaceholder('');
+                        }
+                      }}
+                    >
+                      Insert
+                    </button>
                   </div>
                 </div>
                 
@@ -680,20 +852,676 @@ Provider: {{provider_signature}}`
             </>
           )}
 
-          {/* AI Enhancement Tab */}
-          {activeTab === 'ai' && (
-            <AIEnhancement
-              content={template.content}
-              onEnhancedContent={handleAIEnhancedContent}
-              isVisible={true}
-            />
+          {/* Placeholders Management Tab */}
+          {activeTab === 'placeholders' && (
+            <div>
+              {/* Header */}
+              <div style={{
+                marginBottom: '24px',
+                paddingBottom: '16px',
+                borderBottom: `1px solid ${styles.borderColor}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start'
+              }}>
+                <div>
+                  <h3 style={{ 
+                    margin: 0, 
+                    fontSize: '18px', 
+                    fontWeight: '600',
+                    color: styles.textPrimary,
+                    marginBottom: '6px'
+                  }}>
+                    Saved Placeholders
+                  </h3>
+                  <p style={{ 
+                    fontSize: '14px', 
+                    color: styles.textSecondary, 
+                    margin: 0 
+                  }}>
+                    Manage your template placeholders and dynamic fields
+                  </p>
+                </div>
+                <button
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: styles.primaryColor,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    flexShrink: 0,
+                    alignSelf: 'flex-start'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.opacity = '0.9';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.opacity = '1';
+                  }}
+                  onClick={() => {
+                    setShowAddForm(true);
+                    setEditingPlaceholder(null);
+                    setEditingIndex(null);
+                  }}
+                >
+                  + Add New Placeholder
+                </button>
+              </div>
+
+              {/* Placeholders Grid */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                gap: '16px',
+                marginBottom: '24px'
+              }}>
+                {template.placeholders && template.placeholders.length > 0 ? (
+                  template.placeholders.map((placeholder, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        backgroundColor: styles.bgSecondary,
+                        border: `1px solid ${styles.borderColor}`,
+                        borderRadius: '6px',
+                        padding: '12px',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = styles.primaryColor;
+                        e.currentTarget.style.backgroundColor = styles.bgAccent;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = styles.borderColor;
+                        e.currentTarget.style.backgroundColor = styles.bgSecondary;
+                      }}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        justifyContent: 'space-between',
+                        gap: '8px'
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ marginBottom: '4px' }}>
+                            <code style={{
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              color: styles.primaryColor,
+                              backgroundColor: `${styles.primaryColor}15`,
+                              padding: '1px 4px',
+                              borderRadius: '3px',
+                              fontFamily: 'monospace'
+                            }}>
+                              {`{{${placeholder.key}}}`}
+                            </code>
+                          </div>
+                          <div style={{
+                            fontSize: '12px',
+                            color: styles.textPrimary,
+                            marginBottom: '4px',
+                            fontWeight: '500',
+                            lineHeight: '1.3'
+                          }}>
+                            {placeholder.description}
+                          </div>
+                          {placeholder.example && (
+                            <div style={{
+                              fontSize: '11px',
+                              color: styles.textMuted,
+                              fontStyle: 'italic',
+                              lineHeight: '1.2'
+                            }}>
+                              Example: {placeholder.example}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{
+                          display: 'flex',
+                          gap: '6px',
+                          flexShrink: 0
+                        }}>
+                          <button
+                            style={{
+                              padding: '2px 6px',
+                              fontSize: '10px',
+                              backgroundColor: 'transparent',
+                              color: styles.primaryColor,
+                              border: `1px solid ${styles.primaryColor}`,
+                              borderRadius: '3px',
+                              cursor: 'pointer',
+                              fontWeight: '500'
+                            }}
+                            onClick={() => {
+                              setEditingPlaceholder({ ...placeholder });
+                              setEditingIndex(index);
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            style={{
+                              padding: '2px 6px',
+                              fontSize: '10px',
+                              backgroundColor: 'transparent',
+                              color: styles.textMuted,
+                              border: `1px solid ${styles.borderColor}`,
+                              borderRadius: '3px',
+                              cursor: 'pointer',
+                              fontWeight: '500'
+                            }}
+                            onClick={() => {
+                              // Delete placeholder functionality
+                              const updatedPlaceholders = template.placeholders.filter((_, i) => i !== index);
+                              setTemplate(prev => ({ ...prev, placeholders: updatedPlaceholders }));
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{
+                    gridColumn: '1 / -1',
+                    textAlign: 'center',
+                    padding: '48px 24px',
+                    color: styles.textMuted
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
+                    <div style={{ fontSize: '16px', fontWeight: '500', marginBottom: '8px' }}>
+                      No Placeholders Yet
+                    </div>
+                    <div style={{ fontSize: '14px' }}>
+                      Create your first placeholder to get started
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Add New Placeholder Card */}
+              {showAddForm && (
+                <div style={{
+                  backgroundColor: styles.bgSecondary,
+                  border: `1px solid ${styles.primaryColor}`,
+                  borderRadius: '8px',
+                  padding: '20px',
+                  marginBottom: '24px'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '16px'
+                  }}>
+                    <h4 style={{
+                      margin: 0,
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      color: styles.textPrimary
+                    }}>
+                      Add New Placeholder
+                    </h4>
+                    <button
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: styles.textMuted,
+                        cursor: 'pointer',
+                        fontSize: '18px',
+                        padding: '4px'
+                      }}
+                      onClick={() => {
+                        setShowAddForm(false);
+                        setNewPlaceholder({
+                          key: '',
+                          description: '',
+                          example: '',
+                          type: 'text'
+                        });
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '16px',
+                    marginBottom: '16px'
+                  }}>
+                    <div>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        color: styles.textSecondary,
+                        marginBottom: '6px'
+                      }}>
+                        Placeholder Key
+                      </label>
+                      <input
+                        type="text"
+                        value={newPlaceholder.key}
+                        onChange={(e) => setNewPlaceholder(prev => ({ ...prev, key: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: `1px solid ${styles.borderColor}`,
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          backgroundColor: styles.inputBg,
+                          color: styles.textPrimary,
+                          outline: 'none'
+                        }}
+                        placeholder="e.g., patient_name"
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        color: styles.textSecondary,
+                        marginBottom: '6px'
+                      }}>
+                        Type
+                      </label>
+                      <select
+                        value={newPlaceholder.type}
+                        onChange={(e) => setNewPlaceholder(prev => ({ ...prev, type: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: `1px solid ${styles.borderColor}`,
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          backgroundColor: styles.inputBg,
+                          color: styles.textPrimary,
+                          outline: 'none'
+                        }}
+                      >
+                        <option value="text">Text</option>
+                        <option value="date">Date</option>
+                        <option value="number">Number</option>
+                        <option value="boolean">Boolean</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      color: styles.textSecondary,
+                      marginBottom: '6px'
+                    }}>
+                      Description
+                    </label>
+                    <input
+                      type="text"
+                      value={newPlaceholder.description}
+                      onChange={(e) => setNewPlaceholder(prev => ({ ...prev, description: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: `1px solid ${styles.borderColor}`,
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        backgroundColor: styles.inputBg,
+                        color: styles.textPrimary,
+                        outline: 'none'
+                      }}
+                      placeholder="Brief description of what this placeholder represents"
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      color: styles.textSecondary,
+                      marginBottom: '6px'
+                    }}>
+                      Example
+                    </label>
+                    <input
+                      type="text"
+                      value={newPlaceholder.example}
+                      onChange={(e) => setNewPlaceholder(prev => ({ ...prev, example: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: `1px solid ${styles.borderColor}`,
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        backgroundColor: styles.inputBg,
+                        color: styles.textPrimary,
+                        outline: 'none'
+                      }}
+                      placeholder="Example value (optional)"
+                    />
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    gap: '12px',
+                    justifyContent: 'flex-end'
+                  }}>
+                    <button
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: 'transparent',
+                        color: styles.textMuted,
+                        border: `1px solid ${styles.borderColor}`,
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        fontWeight: '500'
+                      }}
+                      onClick={() => {
+                        setShowAddForm(false);
+                        setNewPlaceholder({
+                          key: '',
+                          description: '',
+                          example: '',
+                          type: 'text'
+                        });
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: styles.primaryColor,
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        fontWeight: '500'
+                      }}
+                      onClick={() => {
+                        // Validate required fields
+                        if (!newPlaceholder.key.trim() || !newPlaceholder.description.trim()) {
+                          alert('Please fill in both the placeholder key and description fields.');
+                          return;
+                        }
+
+                        // Check for duplicate keys
+                        if (template.placeholders && template.placeholders.some(p => p.key === newPlaceholder.key.trim())) {
+                          alert('A placeholder with this key already exists.');
+                          return;
+                        }
+
+                        // Add the new placeholder
+                        const placeholder = {
+                          key: newPlaceholder.key.trim(),
+                          description: newPlaceholder.description.trim(),
+                          example: newPlaceholder.example.trim(),
+                          type: newPlaceholder.type
+                        };
+
+                        setTemplate(prev => ({
+                          ...prev,
+                          placeholders: [...(prev.placeholders || []), placeholder]
+                        }));
+
+                        // Reset form and close
+                        setNewPlaceholder({
+                          key: '',
+                          description: '',
+                          example: '',
+                          type: 'text'
+                        });
+                        setShowAddForm(false);
+                      }}
+                    >
+                      Create Placeholder
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Edit Placeholder Card */}
+              {editingPlaceholder && (
+                <div style={{
+                  backgroundColor: styles.bgSecondary,
+                  border: `1px solid ${styles.primaryColor}`,
+                  borderRadius: '8px',
+                  padding: '20px',
+                  marginBottom: '24px'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '16px'
+                  }}>
+                    <h4 style={{
+                      margin: 0,
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      color: styles.textPrimary
+                    }}>
+                      Edit Placeholder
+                    </h4>
+                    <button
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: styles.textMuted,
+                        cursor: 'pointer',
+                        fontSize: '18px',
+                        padding: '4px'
+                      }}
+                      onClick={() => {
+                        setEditingPlaceholder(null);
+                        setEditingIndex(null);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '16px',
+                    marginBottom: '16px'
+                  }}>
+                    <div>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        color: styles.textSecondary,
+                        marginBottom: '6px'
+                      }}>
+                        Placeholder Key
+                      </label>
+                      <input
+                        type="text"
+                        value={editingPlaceholder.key}
+                        onChange={(e) => setEditingPlaceholder(prev => ({ ...prev, key: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: `1px solid ${styles.borderColor}`,
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          backgroundColor: styles.inputBg,
+                          color: styles.textPrimary,
+                          outline: 'none'
+                        }}
+                        placeholder="e.g., patient_name"
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        color: styles.textSecondary,
+                        marginBottom: '6px'
+                      }}>
+                        Type
+                      </label>
+                      <select
+                        value={editingPlaceholder.type || 'text'}
+                        onChange={(e) => setEditingPlaceholder(prev => ({ ...prev, type: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: `1px solid ${styles.borderColor}`,
+                          borderRadius: '4px',
+                          fontSize: '14px',
+                          backgroundColor: styles.inputBg,
+                          color: styles.textPrimary,
+                          outline: 'none'
+                        }}
+                      >
+                        <option value="text">Text</option>
+                        <option value="date">Date</option>
+                        <option value="number">Number</option>
+                        <option value="boolean">Boolean</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      color: styles.textSecondary,
+                      marginBottom: '6px'
+                    }}>
+                      Description
+                    </label>
+                    <input
+                      type="text"
+                      value={editingPlaceholder.description}
+                      onChange={(e) => setEditingPlaceholder(prev => ({ ...prev, description: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: `1px solid ${styles.borderColor}`,
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        backgroundColor: styles.inputBg,
+                        color: styles.textPrimary,
+                        outline: 'none'
+                      }}
+                      placeholder="Brief description of what this placeholder represents"
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{
+                      display: 'block',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      color: styles.textSecondary,
+                      marginBottom: '6px'
+                    }}>
+                      Example
+                    </label>
+                    <input
+                      type="text"
+                      value={editingPlaceholder.example || ''}
+                      onChange={(e) => setEditingPlaceholder(prev => ({ ...prev, example: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: `1px solid ${styles.borderColor}`,
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        backgroundColor: styles.inputBg,
+                        color: styles.textPrimary,
+                        outline: 'none'
+                      }}
+                      placeholder="Example value (optional)"
+                    />
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    gap: '12px',
+                    justifyContent: 'flex-end'
+                  }}>
+                    <button
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: 'transparent',
+                        color: styles.textMuted,
+                        border: `1px solid ${styles.borderColor}`,
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        fontWeight: '500'
+                      }}
+                      onClick={() => {
+                        setEditingPlaceholder(null);
+                        setEditingIndex(null);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: styles.primaryColor,
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        fontWeight: '500'
+                      }}
+                      onClick={() => {
+                        // Update the placeholder in the template
+                        const updatedPlaceholders = [...template.placeholders];
+                        updatedPlaceholders[editingIndex] = editingPlaceholder;
+                        setTemplate(prev => ({ ...prev, placeholders: updatedPlaceholders }));
+                        
+                        // Clear editing state
+                        setEditingPlaceholder(null);
+                        setEditingIndex(null);
+                      }}
+                    >
+                      Save Changes
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
           )}
 
           {/* Preview Tab */}
           {activeTab === 'preview' && (
-            <div className="card">
-              <div className="card-header">
-                <h3 style={{ fontSize: '16px', fontWeight: '600', color: styles.textPrimary }}>Template Preview</h3>
+            <div className="card" style={{ 
+              backgroundColor: styles.bgPrimary,
+              border: `1px solid ${styles.borderColor}`
+            }}>
+              <div className="card-header" style={{ 
+                background: styles.bgSecondary,
+                color: styles.textPrimary,
+                borderBottom: `1px solid ${styles.borderColor}`,
+                padding: '16px 20px'
+              }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Template Preview</h3>
                 <p style={{ fontSize: '13px', color: styles.textSecondary, margin: '4px 0 0 0' }}>
                   Preview how your template will appear when populated
                 </p>
@@ -722,17 +1550,42 @@ Provider: {{provider_signature}}`
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
                       {template.placeholders.map((placeholder, index) => (
                         <div key={index} style={{
-                          padding: '8px 12px',
-                          background: theme === 'dark' ? 'rgba(59, 130, 246, 0.1)' : '#f0f9ff',
-                          border: `1px solid ${theme === 'dark' ? 'rgba(59, 130, 246, 0.2)' : '#bae6fd'}`,
+                          padding: '12px',
+                          background: styles.bgAccent,
+                          border: `1px solid ${styles.borderColor}`,
                           borderRadius: '6px',
-                          fontSize: '12px'
+                          fontSize: '12px',
+                          borderLeft: `3px solid ${placeholder.type === 'phi' ? styles.errorColor : styles.primaryColor}`
                         }}>
-                          <div style={{ fontWeight: '600', color: '#0369a1' }}>
+                          <div style={{ 
+                            fontWeight: '600', 
+                            color: styles.primaryColor,
+                            fontFamily: 'monospace',
+                            marginBottom: '4px'
+                          }}>
                             {`{{${placeholder.key}}}`}
                           </div>
-                          <div style={{ color: styles.textSecondary }}>
+                          <div style={{ 
+                            color: styles.textSecondary,
+                            fontSize: '11px',
+                            marginBottom: '4px'
+                          }}>
                             {placeholder.description}
+                          </div>
+                          <div style={{ 
+                            fontSize: '10px',
+                            padding: '2px 6px',
+                            borderRadius: '10px',
+                            background: placeholder.type === 'phi' 
+                              ? (theme === 'dark' ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2') 
+                              : (theme === 'dark' ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe'),
+                            color: placeholder.type === 'phi' ? styles.errorColor : styles.primaryColor,
+                            textAlign: 'center',
+                            fontWeight: '600',
+                            textTransform: 'uppercase',
+                            display: 'inline-block'
+                          }}>
+                            {placeholder.type}
                           </div>
                         </div>
                       ))}
@@ -744,22 +1597,49 @@ Provider: {{provider_signature}}`
           )}
         </div>
 
-        {/* Modal Footer */}
-        <div style={{
-          padding: '20px 32px',
-          borderTop: `1px solid ${styles.borderColor}`,
-          background: styles.bgSecondary,
-          display: 'flex',
-          justifyContent: 'flex-end',
-          gap: '12px'
-        }}>
-          <button className="btn btn-secondary" onClick={onCancel}>
-            Cancel
-          </button>
-          <button className="btn btn-primary" onClick={handleSave}>
-            {initialTemplate ? 'Update Template' : 'Create Template'}
-          </button>
-        </div>
+        {/* Modal Footer - Hidden on placeholders tab */}
+        {activeTab !== 'placeholders' && (
+          <div style={{
+            padding: '20px 24px',
+            borderTop: `1px solid ${styles.borderColor}`,
+            background: styles.bgSecondary,
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '12px',
+            flexShrink: 0
+          }}>
+            <button 
+              onClick={onCancel}
+              style={{
+                padding: '8px 16px',
+                background: 'transparent',
+                color: styles.textSecondary,
+                border: `1px solid ${styles.borderColor}`,
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer'
+              }}
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleSave}
+              style={{
+                padding: '8px 16px',
+                background: styles.primaryColor,
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer'
+              }}
+            >
+              {initialTemplate ? 'Update Template' : 'Create Template'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

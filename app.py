@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MeDocPro - HIPAA-compliant medical documentation system
+MDoc - HIPAA-compliant medical documentation system
 Main Flask application entry point
 """
 

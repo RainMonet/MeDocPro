@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template Editor Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .sidebar-test {
+            background: #333;
+            color: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .menu-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #555;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            width: 100%;
+            text-align: left;
+        }
+        .menu-item:hover {
+            background: #666;
+        }
+        .template-editor {
+            border: 2px solid #007bff;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 Template Editor Test</h1>
+        
+        <div class="sidebar-test">
+            <h3>Sidebar Test</h3>
+            <button class="menu-item" onclick="openTemplateEditor()">🔥 TEMPLATE EDITOR 🔥</button>
+            <button class="menu-item" onclick="alert('Patient Census clicked')">Patient Census</button>
+            <button class="menu-item" onclick="alert('AI Assistant clicked')">AI Assistant</button>
+        </div>
+
+        <div id="templateEditor" class="template-editor" style="display: none;">
+            <h3>Template Editor</h3>
+            <p><strong>This would be the Template Editor component!</strong></p>
+            
+            <div style="margin: 20px 0;">
+                <label><strong>Template Name:</strong></label><br>
+                <input type="text" placeholder="e.g., Progress Note - Psychiatric Evaluation" style="width: 100%; padding: 8px; margin: 5px 0;">
+            </div>
+
+            <div style="margin: 20px 0;">
+                <label><strong>Template Content:</strong></label><br>
+                <textarea placeholder="Begin creating your clinical template here. Use {{placeholder_name}} syntax to insert dynamic fields...
+
+PROGRESS NOTE
+
+Date: {{date_of_service}}
+Patient: {{patient_name}}
+Provider: {{provider_name}}
+
+CHIEF COMPLAINT:
+{{chief_complaint}}
+
+PRESENT ILLNESS:
+{{present_illness}}
+
+MENTAL STATUS EXAMINATION:
+- Appearance: {{appearance}}
+- Mood: {{mood}}
+- Affect: {{affect}}
+
+ASSESSMENT:
+{{assessment}}
+
+PLAN:
+{{treatment_plan}}
+
+Provider: {{provider_signature}}"></textarea>
+            </div>
+
+            <div style="margin: 20px 0;">
+                <button onclick="alert('Template saved!')">💾 Save Template</button>
+                <button onclick="alert('AI Enhancement would work here!')">🤖 Enhance with AI</button>
+                <button onclick="closeTemplateEditor()">❌ Cancel</button>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px; padding: 20px; background: #e7f3ff; border-radius: 4px;">
+            <h4>🎯 Template Editor Features:</h4>
+            <ul>
+                <li>✅ Create clinical templates with dynamic placeholders</li>
+                <li>✅ Sample templates (Progress Notes, Assessments, Treatment Plans)</li>
+                <li>✅ AI-powered content enhancement via Ollama</li>
+                <li>✅ Template library with search and categorization</li>
+                <li>✅ Professional psychiatric documentation tools</li>
+            </ul>
+        </div>
+
+        <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 4px;">
+            <p><strong>📍 Status:</strong> The Template Editor has been successfully integrated into the MeDocPro dashboard. Open this file in your browser to see what the template editor functionality looks like!</p>
+        </div>
+    </div>
+
+    <script>
+        function openTemplateEditor() {
+            document.getElementById('templateEditor').style.display = 'block';
+            alert('Template Editor opened! This demonstrates the functionality that has been added to your MeDocPro dashboard.');
+        }
+        
+        function closeTemplateEditor() {
+            document.getElementById('templateEditor').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

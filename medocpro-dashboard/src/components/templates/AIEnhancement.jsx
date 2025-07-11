@@ -35,15 +35,6 @@ const SettingsIcon = () => (
   </svg>
 );
 
-const SparklesIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-    <path d="M5 3v4"/>
-    <path d="M19 17v4"/>
-    <path d="M3 5h4"/>
-    <path d="M17 19h4"/>
-  </svg>
-);
 
 // Clinical Writing Style Options
 const CLINICAL_STYLES = {
@@ -88,44 +79,47 @@ const ENHANCEMENT_LEVELS = {
   }
 };
 
+// Theme-aware style helpers - consistent with other modals
+const getThemeStyles = (theme) => ({
+  textPrimary: theme === 'dark' ? '#f1f5f9' : '#2d1810',
+  textSecondary: theme === 'dark' ? '#cbd5e1' : '#5d4d3a',
+  textMuted: theme === 'dark' ? '#94a3b8' : '#8b7355',
+  bgPrimary: theme === 'dark' ? '#1e293b' : '#faf8f3',
+  bgSecondary: theme === 'dark' ? '#0f172a' : '#f4f1eb',
+  bgAccent: theme === 'dark' ? '#374151' : '#ede8df',
+  borderColor: theme === 'dark' ? '#475569' : '#d4c4a8',
+  primaryColor: theme === 'dark' ? '#3b82f6' : '#8b4513',
+  successColor: theme === 'dark' ? '#10b981' : '#6b8e23',
+  warningColor: theme === 'dark' ? '#f59e0b' : '#cd853f',
+  errorColor: theme === 'dark' ? '#ef4444' : '#a0522d'
+});
+
 // AI Enhancement Settings Component
-const AISettings = ({ settings, onSettingsChange, isVisible, onToggle }) => {
-  if (!isVisible) {
-    return (
-      <button 
-        className="btn btn-sm btn-secondary"
-        onClick={onToggle}
-        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-      >
-        <SettingsIcon />
-        AI Settings
-      </button>
-    );
-  }
+const AISettings = ({ settings, onSettingsChange, theme = 'dark' }) => {
+  const styles = getThemeStyles(theme);
 
   return (
-    <div className="card" style={{ marginBottom: '16px', border: '2px solid #e2e8f0' }}>
+    <div className="card" style={{ 
+      marginBottom: '16px', 
+      border: `2px solid ${styles.borderColor}`,
+      backgroundColor: styles.bgPrimary
+    }}>
       <div className="card-header" style={{ 
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-        color: 'white',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
+        background: styles.bgSecondary,
+        color: styles.textPrimary,
+        borderBottom: `1px solid ${styles.borderColor}`
       }}>
-        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>
-          <BrainIcon style={{ marginRight: '8px' }} />
+        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <BrainIcon />
           Ollama AI Enhancement Settings
         </h4>
-        <button 
-          className="btn btn-sm"
-          style={{ background: 'rgba(255, 255, 255, 0.2)', border: 'none', color: 'white' }}
-          onClick={onToggle}
-        >
-          ×
-        </button>
       </div>
       
-      <div className="card-content" style={{ padding: '20px' }}>
+      <div className="card-content" style={{ 
+        padding: '20px', 
+        backgroundColor: styles.bgPrimary,
+        color: styles.textPrimary
+      }}>
         {/* Compute Mode Selection */}
         <div style={{ marginBottom: '20px' }}>
           <label className="form-label" style={{ fontWeight: '600', marginBottom: '8px' }}>
@@ -254,8 +248,8 @@ const AISettings = ({ settings, onSettingsChange, isVisible, onToggle }) => {
                 <div style={{ 
                   fontSize: '11px', 
                   fontStyle: 'italic',
-                  color: '#64748b',
-                  background: 'rgba(0,0,0,0.05)',
+                  color: styles.textMuted,
+                  background: styles.bgAccent,
                   padding: '4px 8px',
                   borderRadius: '4px'
                 }}>
@@ -304,7 +298,8 @@ const AISettings = ({ settings, onSettingsChange, isVisible, onToggle }) => {
 };
 
 // Main AI Enhancement Component
-const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
+const AIEnhancement = ({ content, onEnhancedContent, isVisible, theme = 'dark' }) => {
+  const styles = getThemeStyles(theme);
   const [settings, setSettings] = useState({
     computeMode: 'cpu',
     model: 'mistral:latest',
@@ -315,10 +310,6 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
     generateSuggestions: false
   });
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [enhancementHistory, setEnhancementHistory] = useState([]);
-  const [showSettings, setShowSettings] = useState(false);
   const [ollamaStatus, setOllamaStatus] = useState('checking');
 
   // Check Ollama service status
@@ -333,49 +324,6 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
     }
   };
 
-  // Enhance content using Ollama
-  const enhanceContent = async () => {
-    if (!content.trim()) {
-      setError('Please provide content to enhance');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const enhancementRequest = {
-        content: content,
-        settings: settings,
-        enhancementLevel: ENHANCEMENT_LEVELS[settings.enhancementLevel].percentage,
-        clinicalStyle: settings.clinicalStyle
-      };
-
-      const response = await apiService.enhanceContentWithOllama(enhancementRequest);
-      
-      if (response.enhanced_content) {
-        const enhancement = {
-          id: Date.now(),
-          original: content,
-          enhanced: response.enhanced_content,
-          settings: { ...settings },
-          timestamp: new Date().toISOString(),
-          processingTime: response.processing_time || 0
-        };
-
-        setEnhancementHistory(prev => [enhancement, ...prev.slice(0, 4)]); // Keep last 5
-        onEnhancedContent(response.enhanced_content);
-      } else {
-        throw new Error('No enhanced content received from AI service');
-      }
-
-    } catch (err) {
-      console.error('AI Enhancement failed:', err);
-      setError(err.message || 'AI enhancement failed. Please check Ollama service.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Load saved settings from localStorage
   useEffect(() => {
@@ -410,8 +358,10 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
         alignItems: 'center',
         marginBottom: '16px',
         padding: '12px 16px',
-        background: ollamaStatus === 'online' ? '#f0f9ff' : '#fef2f2',
-        border: `1px solid ${ollamaStatus === 'online' ? '#bae6fd' : '#fecaca'}`,
+        background: ollamaStatus === 'online' ? 
+          (theme === 'dark' ? 'rgba(16, 185, 129, 0.1)' : '#f0f9ff') : 
+          (theme === 'dark' ? 'rgba(239, 68, 68, 0.1)' : '#fef2f2'),
+        border: `1px solid ${ollamaStatus === 'online' ? styles.successColor : styles.errorColor}`,
         borderRadius: '8px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -421,21 +371,15 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
             borderRadius: '50%',
             backgroundColor: ollamaStatus === 'online' ? '#10b981' : ollamaStatus === 'offline' ? '#ef4444' : '#f59e0b'
           }} />
-          <span style={{ fontSize: '13px', fontWeight: '500' }}>
+          <span style={{ fontSize: '13px', fontWeight: '500', color: styles.textPrimary }}>
             Ollama {settings.computeMode.toUpperCase()}: {ollamaStatus === 'online' ? 'Connected' : ollamaStatus === 'offline' ? 'Disconnected' : 'Checking...'}
           </span>
-          <span style={{ fontSize: '11px', color: '#64748b' }}>
+          <span style={{ fontSize: '11px', color: styles.textMuted }}>
             Model: {settings.model}
           </span>
         </div>
         
         <div style={{ display: 'flex', gap: '8px' }}>
-          <AISettings
-            settings={settings}
-            onSettingsChange={setSettings}
-            isVisible={showSettings}
-            onToggle={() => setShowSettings(!showSettings)}
-          />
           <button
             className="btn btn-sm btn-secondary"
             onClick={checkOllamaStatus}
@@ -449,128 +393,43 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible }) => {
       <AISettings
         settings={settings}
         onSettingsChange={setSettings}
-        isVisible={showSettings}
-        onToggle={() => setShowSettings(!showSettings)}
+        theme={theme}
       />
 
-      {/* Enhancement Controls */}
-      <div className="card">
-        <div className="card-header" style={{ background: '#f8fafc' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <SparklesIcon />
-            AI-Powered Clinical Enhancement
-          </h3>
-          <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>
-            Transform your notes with {ENHANCEMENT_LEVELS[settings.enhancementLevel].name.toLowerCase()} using {settings.model}
-          </p>
+      {/* Ollama Setup Instructions */}
+      {ollamaStatus === 'offline' && (
+        <div className="alert alert-info" style={{ 
+          marginTop: '16px',
+          backgroundColor: theme === 'dark' ? 'rgba(59, 130, 246, 0.1)' : '#f0f9ff',
+          border: `1px solid ${styles.primaryColor}`,
+          color: styles.textPrimary,
+          padding: '16px',
+          borderRadius: '8px'
+        }}>
+          <strong>Ollama Setup Required:</strong>
+          <ol style={{ margin: '8px 0 0 20px', fontSize: '13px', color: styles.textSecondary }}>
+            <li>Install Ollama: <code style={{ 
+              backgroundColor: styles.bgAccent, 
+              padding: '2px 4px', 
+              borderRadius: '3px',
+              color: styles.textPrimary
+            }}>curl -fsSL https://ollama.ai/install.sh | sh</code></li>
+            <li>Pull Mistral model: <code style={{ 
+              backgroundColor: styles.bgAccent, 
+              padding: '2px 4px', 
+              borderRadius: '3px',
+              color: styles.textPrimary
+            }}>ollama pull mistral:latest</code></li>
+            <li>Start Ollama service: <code style={{ 
+              backgroundColor: styles.bgAccent, 
+              padding: '2px 4px', 
+              borderRadius: '3px',
+              color: styles.textPrimary
+            }}>ollama serve</code></li>
+            <li>For GPU: Ensure CUDA/ROCm drivers are installed</li>
+          </ol>
         </div>
-
-        <div className="card-content">
-          {/* Error Display */}
-          {error && (
-            <div className="alert alert-danger" style={{ marginBottom: '16px' }}>
-              <strong>Enhancement Error:</strong> {error}
-            </div>
-          )}
-
-          {/* Enhancement Button */}
-          <div style={{ marginBottom: '20px' }}>
-            <button
-              className="btn btn-primary"
-              onClick={enhanceContent}
-              disabled={isLoading || ollamaStatus !== 'online' || !content.trim()}
-              style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px',
-                width: '100%',
-                justifyContent: 'center',
-                padding: '12px'
-              }}
-            >
-              <BrainIcon />
-              {isLoading ? 'Enhancing with AI...' : `Enhance with ${settings.model} (${settings.computeMode.toUpperCase()})`}
-            </button>
-            
-            {isLoading && (
-              <div style={{ 
-                textAlign: 'center', 
-                marginTop: '8px', 
-                fontSize: '12px', 
-                color: '#64748b' 
-              }}>
-                Processing on {settings.computeMode.toUpperCase()}... This may take 30-60 seconds
-              </div>
-            )}
-          </div>
-
-          {/* Enhancement History */}
-          {enhancementHistory.length > 0 && (
-            <div>
-              <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>
-                Recent Enhancements
-              </h4>
-              <div style={{ display: 'grid', gap: '8px', maxHeight: '200px', overflow: 'auto' }}>
-                {enhancementHistory.map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      padding: '8px 12px',
-                      background: '#f8fafc',
-                      borderRadius: '6px',
-                      border: '1px solid #e2e8f0',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onClick={() => onEnhancedContent(item.enhanced)}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = '#f1f5f9';
-                      e.target.style.borderColor = '#cbd5e0';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = '#f8fafc';
-                      e.target.style.borderColor = '#e2e8f0';
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: '12px', color: '#4a5568' }}>
-                        {CLINICAL_STYLES[item.settings.clinicalStyle].name} • {ENHANCEMENT_LEVELS[item.settings.enhancementLevel].name}
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>
-                        {new Date(item.timestamp).toLocaleTimeString()}
-                        {item.processingTime && ` • ${item.processingTime}s`}
-                      </div>
-                    </div>
-                    <div style={{ 
-                      fontSize: '11px', 
-                      color: '#64748b', 
-                      marginTop: '4px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      {item.enhanced.substring(0, 100)}...
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Ollama Setup Instructions */}
-          {ollamaStatus === 'offline' && (
-            <div className="alert alert-info" style={{ marginTop: '16px' }}>
-              <strong>Ollama Setup Required:</strong>
-              <ol style={{ margin: '8px 0 0 20px', fontSize: '13px' }}>
-                <li>Install Ollama: <code>curl -fsSL https://ollama.ai/install.sh | sh</code></li>
-                <li>Pull Mistral model: <code>ollama pull mistral:latest</code></li>
-                <li>Start Ollama service: <code>ollama serve</code></li>
-                <li>For GPU: Ensure CUDA/ROCm drivers are installed</li>
-              </ol>
-            </div>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 };
