@@ -31,8 +31,8 @@
       "patient_name": "Barnes, Sarah",
       "patient_id": "PSY002",
       "room_number": "202",
-      "status": "admission",
-      "workflow_type": "admission",
+      "status": "follow-up",
+      "workflow_type": "follow-up",
       "data_fields": {
         "chief_complaint": "Manic episode",
         "assessment": "- Start Paxil 10 mg po q daily for depression/anxiety",
@@ -193,20 +193,6 @@
       }
     },
     {
-      "id": 17,
-      "patient_name": "Nelson, Brian",
-      "patient_id": "PSY013",
-      "room_number": "213",
-      "status": "discharge",
-      "workflow_type": "discharge",
-      "data_fields": {
-        "chief_complaint": "Behavioral concerns",
-        "assessment": "Autism Spectrum Disorder",
-        "treatment_plan": "Individualized therapy and medication management",
-        "progress_notes": "Initial assessment completed"
-      }
-    },
-    {
       "id": 18,
       "patient_name": "O'Connor, Kelly",
       "patient_id": "PSY014",
@@ -361,20 +347,15 @@
       }
     },
     {
-      "id": 29,
-      "patient_name": "Adams, Nicole",
-      "patient_id": "PSY025",
-      "room_number": "225",
-      "status": "follow-up",
-      "workflow_type": "follow-up",
-      "data_fields": {
-        "chief_complaint": "Communication difficulties",
-        "assessment": "Selective Mutism",
-        "treatment_plan": "Individualized therapy and medication management",
-        "progress_notes": "Initial assessment completed"
-      }
+      "id": 30,
+      "patient_name": "Miller, John",
+      "patient_id": "PT001",
+      "room_number": "101",
+      "status": "admission",
+      "workflow_type": "admission",
+      "data_fields": {}
     }
   ],
-  "next_id": 30,
-  "last_updated": "2025-07-08T16:46:03.780205"
+  "next_id": 31,
+  "last_updated": "2025-07-11T11:33:40.867714"
 }
