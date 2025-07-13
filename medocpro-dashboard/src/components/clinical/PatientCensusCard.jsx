@@ -216,13 +216,20 @@ const PatientCensusCard = ({
 
   // Load patient census data
   const loadPatients = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.log('No authentication token available, skipping patient load');
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       setError('');
       
       const response = await fetch('http://localhost:5000/api/patient-census/today', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });

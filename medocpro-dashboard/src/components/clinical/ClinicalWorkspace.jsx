@@ -365,11 +365,42 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
 
   // Load today's census data with 7-day historical data
   const loadCensusData = useCallback(async () => {
+    console.log('🔍 ClinicalWorkspace: loadCensusData called');
+    const token = localStorage.getItem('token');
+    console.log('🔍 Token check:', token ? `Token exists (${token.substring(0, 20)}...)` : 'No token');
+    
+    // Force clear any invalid tokens that keep appearing
+    if (token && (token.startsWith('authenticated-token') || token === 'null' || token === 'undefined' || !token.includes('.'))) {
+      console.log('❌ Force clearing invalid/persistent token:', token.substring(0, 30));
+      localStorage.removeItem('token');
+      // Also clear all other possible auth keys
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('accessToken');
+      console.log('🧹 Cleared all possible auth tokens');
+      return;
+    }
+    
+    if (!token) {
+      console.log('❌ No authentication token available, skipping census data load');
+      return;
+    }
+    
+    // Check if token looks like a JWT (has 3 parts separated by dots)
+    if (!token.includes('.') || token.split('.').length !== 3) {
+      console.log('❌ Invalid token format, clearing and skipping load');
+      localStorage.removeItem('token');
+      return;
+    }
+    
+    console.log('✅ Valid token found, proceeding with API call');
+    
     try {
       // Load today's census data (primary data - required)
       const todayResponse = await fetch('http://localhost:5000/api/patient-census/today', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -442,10 +473,16 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
 
   // Load scratch notes for integration
   const loadScratchNotes = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.log('No authentication token available, skipping scratch notes load');
+      return;
+    }
+    
     try {
       const response = await fetch('http://localhost:5000/api/scratch-notes', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });

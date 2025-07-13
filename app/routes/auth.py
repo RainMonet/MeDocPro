@@ -2,6 +2,8 @@
 
 from flask import Blueprint, request, jsonify
 from werkzeug.security import check_password_hash
+from flask_jwt_extended import create_access_token, create_refresh_token
+from datetime import timedelta
 from ..extensions import db
 from ..models import User
 
@@ -79,11 +81,23 @@ def login():
         user.reset_failed_login()
         db.session.commit()
         
-        # For now, return a simple success response
-        # TODO: Generate JWT tokens
+        # Generate JWT tokens
+        additional_claims = {
+            'username': user.username,
+            'email': user.email,
+            'role': user.role
+        }
+        
+        access_token = create_access_token(
+            identity=str(user.id),
+            additional_claims=additional_claims
+        )
+        refresh_token = create_refresh_token(identity=str(user.id))
+        
         return jsonify({
             'message': 'Login successful',
-            'access_token': 'mock-token-for-development',
+            'access_token': access_token,
+            'refresh_token': refresh_token,
             'user': {
                 'id': str(user.id),
                 'username': user.username,

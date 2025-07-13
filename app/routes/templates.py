@@ -170,3 +170,37 @@ def get_template_statistics():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@templates_bp.route('/templates/top-used', methods=['GET'])
+def get_top_used_templates():
+    """Get user's most frequently used templates (frontend compatibility endpoint)"""
+    try:
+        # Get user's top 4 most used templates (mock data for now)
+        # In a real system, this would query usage statistics for the authenticated user
+        templates = Template.query.limit(4).all()
+        
+        user_templates = []
+        usage_counts = [47, 34, 29, 18]  # Mock usage data
+        
+        for i, template in enumerate(templates):
+            user_templates.append({
+                'id': template.id,
+                'name': template.name,
+                'category': 'progress',  # Mock category
+                'usage_count': usage_counts[i] if i < len(usage_counts) else 10,
+                'last_used': '2024-07-07T14:30:00Z',  # Mock last used date
+                'created_by': 'Dr. Jane Smith'  # Mock creator
+            })
+        
+        return jsonify({
+            'success': True,
+            'templates': user_templates,
+            'total_templates': len(user_templates)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'templates': []
+        }), 500

@@ -1,5 +1,5 @@
 @echo off
-echo Starting MeDocPro Application...
+echo Starting MeDocPro Application with Stable Backend...
 echo.
 
 REM Check if virtual environment exists
@@ -9,16 +9,17 @@ if not exist "venv-windows" (
     echo Installing dependencies...
     venv-windows\Scripts\python.exe -m pip install --upgrade pip
     venv-windows\Scripts\python.exe -m pip install -r requirements.txt
+    venv-windows\Scripts\python.exe -m pip install requests  
 )
 
 echo Initializing database...
 venv-windows\Scripts\python.exe manage.py init-database
 
-echo Starting main Flask backend on port 5000...
-start "MeDocPro Backend" cmd /k "venv-windows\Scripts\python.exe app.py"
+echo Starting stable backend manager with auto-restart capabilities...
+start "MeDocPro Stable Backend" cmd /k "echo Starting Stable Backend Manager... && venv-windows\Scripts\python.exe start-stable-backend.py"
 
 echo Waiting for backend to start...
-timeout /t 5 /nobreak > nul
+timeout /t 10 /nobreak > nul
 
 echo Starting React frontend on port 5173...
 cd medocpro-dashboard
@@ -28,8 +29,14 @@ echo.
 echo ================================================
 echo MeDocPro Application Starting...
 echo ================================================
-echo Backend:  http://localhost:5000 (PostgreSQL + AI Integration)
-echo Frontend: http://localhost:5173
+echo Stable Backend: http://localhost:5000 (with auto-restart)
+echo Frontend:       http://localhost:5173
+echo Backend Logs:   backend-manager.log
+echo.
+echo The stable backend manager will automatically:
+echo - Monitor backend health every 30 seconds
+echo - Restart backend if it crashes or becomes unresponsive
+echo - Log all activities to backend-manager.log
 echo.
 echo All services are starting in separate windows.
 echo Wait a moment, then open http://localhost:5173 in your browser.

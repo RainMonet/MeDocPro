@@ -276,9 +276,16 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
   useEffect(() => {
     const loadTemplates = async () => {
       try {
-        const response = await fetch('http://localhost:5001/api/templates/top-used', {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.log('No authentication token available, skipping templates load');
+          return;
+        }
+        
+        const response = await fetch('http://localhost:5000/api/templates/top-used', {
           method: 'GET',
           headers: {
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           }
         });
@@ -455,7 +462,7 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
       const currentPatientValues = fieldValues[currentPatient.id] || {};
       
       // Save to backend API
-      const response = await fetch('http://localhost:5001/api/daily-info', {
+      const response = await fetch('http://localhost:5000/api/daily-info', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -278,13 +278,20 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
 
   // Load patient census data
   const loadCensusData = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token || token === 'null' || token === 'undefined') {
+      console.log('No authentication token available, skipping census load in modal');
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       setError('');
       
       const response = await fetch('http://localhost:5000/api/patient-census/today', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });

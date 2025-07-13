@@ -24,29 +24,66 @@ const LoginForm = ({ onLogin, theme = 'dark' }) => {
     setError('');
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // For demo purposes, accept any non-empty credentials
-      if (credentials.username.trim() && credentials.password.trim()) {
-        localStorage.setItem('token', 'authenticated-token');
+      // Make real API call to backend
+      const response = await fetch('http://localhost:5000/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: credentials.username.trim(),
+          password: credentials.password.trim()
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.access_token) {
+        // Store the real JWT token
+        localStorage.setItem('token', data.access_token);
         onLogin();
       } else {
-        setError('Please enter both username and password');
+        setError(data.error || 'Invalid credentials');
       }
     } catch (err) {
-      setError('Login failed. Please try again.');
+      setError('Login failed. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDemoLogin = () => {
-    setCredentials({ username: 'demo@mdoc.com', password: 'demo123' });
-    setTimeout(() => {
-      localStorage.setItem('token', 'authenticated-token');
-      onLogin();
-    }, 500);
+  const handleDemoLogin = async () => {
+    setCredentials({ username: 'demo@medocpro.com', password: 'demo123' });
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      // Make real API call with demo credentials
+      const response = await fetch('http://localhost:5000/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: 'demo@medocpro.com',
+          password: 'demo123'
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.access_token) {
+        // Store the real JWT token
+        localStorage.setItem('token', data.access_token);
+        onLogin();
+      } else {
+        setError(data.error || 'Demo login failed');
+      }
+    } catch (err) {
+      setError('Demo login failed. Please check your connection.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -225,7 +262,7 @@ const LoginForm = ({ onLogin, theme = 'dark' }) => {
           color: styles.textSecondary,
           textAlign: 'center'
         }}>
-          Demo credentials: demo@mdoc.com / demo123
+          Demo credentials: demo@medocpro.com / demo123
         </p>
       </div>
     </div>

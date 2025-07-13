@@ -48,9 +48,16 @@ const TemplateSelector = ({ onSelect, theme }) => {
   useEffect(() => {
     const loadUserTemplates = async () => {
       try {
-        const response = await fetch('http://localhost:5001/api/templates/top-used', {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.log('No authentication token available, skipping templates load');
+          return;
+        }
+        
+        const response = await fetch('http://localhost:5000/api/templates/top-used', {
           method: 'GET',
           headers: {
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           }
         });
@@ -316,7 +323,7 @@ const BatchDocumentationCard = ({
     setIsGenerating(true);
     try {
       // Call backend API for document generation
-      const response = await fetch('http://localhost:5001/api/generate-documents', {
+      const response = await fetch('http://localhost:5000/api/generate-documents', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

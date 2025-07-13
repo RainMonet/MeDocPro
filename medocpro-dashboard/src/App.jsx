@@ -113,10 +113,16 @@ function App() {
 
   // Load patient data for daily info entry
   const loadPatientData = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.log('No authentication token available, skipping patient data load');
+      return;
+    }
+    
     try {
-      const response = await fetch('http://localhost:5001/api/patient-census/today', {
+      const response = await fetch('http://localhost:5000/api/patient-census/today', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
