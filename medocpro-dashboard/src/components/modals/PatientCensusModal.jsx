@@ -326,8 +326,24 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
       return;
     }
 
+    // First get today's census to get the correct census ID
     try {
-      const response = await fetch('http://localhost:5000/api/patient-census/1/rows', {
+      const censusResponse = await fetch('http://localhost:5000/api/patient-census/today', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const censusData = await censusResponse.json();
+      if (!censusData.success || !censusData.census) {
+        showNotification('Failed to get census information', 'error');
+        return;
+      }
+
+      const censusId = censusData.census.id;
+
+      const response = await fetch(`http://localhost:5000/api/patient-census/${censusId}/rows`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,

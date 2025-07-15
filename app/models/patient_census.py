@@ -34,18 +34,18 @@ class PatientCensus(db.Model):
     
     @property
     def current_census_count(self):
-        """Count of active patients in census"""
-        return len([row for row in self.rows if row.status == 'active'])
+        """Count of active patients in census (active + follow-up)"""
+        return len([row for row in self.rows if row.status in ['active', 'follow-up']])
     
     @property
     def admission_count(self):
         """Count of patients admitted today"""
-        return len([row for row in self.rows if row.status == 'admitted'])
+        return len([row for row in self.rows if row.status == 'admission'])
     
     @property
     def discharge_count(self):
         """Count of patients discharged today"""
-        return len([row for row in self.rows if row.status == 'discharged'])
+        return len([row for row in self.rows if row.status == 'discharge'])
     
     @property
     def is_today(self):
@@ -101,6 +101,106 @@ class PatientCensus(db.Model):
             data['rows'] = [row.to_dict() for row in self.rows]
         
         return data
+    
+    @classmethod
+    def create_daily_rollover(cls, target_date, user_id, source_date=None):
+        """
+        Create a new census for target_date by rolling over from the most recent previous census.
+        Carries forward active patients and their daily information.
+        """
+        from datetime import timedelta
+        from .daily_information import DailyInformation
+        
+        # Find source census (most recent census before target_date)
+        if source_date:
+            source_census = cls.query.filter_by(census_date=source_date).first()
+        else:
+            source_census = cls.query.filter(
+                cls.census_date < target_date
+            ).order_by(cls.census_date.desc()).first()
+        
+        if not source_census:
+            # No previous census, create empty census
+            new_census = cls(
+                user_id=user_id,
+                census_date=target_date,
+                facility_name=None,
+                unit_name=None,
+                total_capacity=None
+            )
+            db.session.add(new_census)
+            db.session.commit()
+            return new_census, 0, 0
+        
+        # Check if target census already exists
+        existing_census = cls.query.filter_by(census_date=target_date).first()
+        if existing_census:
+            return existing_census, 0, 0  # Already exists, no rollover needed
+        
+        # Create new census with same metadata
+        new_census = cls(
+            user_id=user_id,
+            census_date=target_date,
+            facility_name=source_census.facility_name,
+            unit_name=source_census.unit_name,
+            total_capacity=source_census.total_capacity
+        )
+        db.session.add(new_census)
+        db.session.flush()  # Get the ID
+        
+        patients_carried_over = 0
+        daily_info_carried_over = 0
+        
+        # Copy active patients from source census
+        for source_row in source_census.rows:
+            if source_row.status == 'active':  # Only carry over active patients
+                # Create new patient row
+                new_row = PatientCensusRow(
+                    census_id=new_census.id,
+                    room_number=source_row.room_number,
+                    patient_name=source_row.patient_name,
+                    patient_id=source_row.patient_id,
+                    status='active',
+                    data_fields=source_row.data_fields  # Carry over any existing data
+                )
+                db.session.add(new_row)
+                db.session.flush()  # Get the new row ID
+                patients_carried_over += 1
+                
+                # Find and carry over the most recent daily information
+                latest_daily_info = DailyInformation.get_latest_for_patient(
+                    source_row.id, 
+                    source_census.census_date
+                )
+                
+                if latest_daily_info:
+                    # Create new daily information entry for the new day
+                    new_daily_info = DailyInformation(
+                        patient_census_row_id=new_row.id,
+                        template_id=latest_daily_info.template_id,
+                        user_id=user_id,
+                        entry_date=target_date,
+                        field_values=latest_daily_info.field_values,  # Carry over previous values
+                        status='draft',  # Reset to draft for new day
+                        notes=f"Carried over from {source_census.census_date}"
+                    )
+                    db.session.add(new_daily_info)
+                    daily_info_carried_over += 1
+        
+        db.session.commit()
+        return new_census, patients_carried_over, daily_info_carried_over
+    
+    @classmethod
+    def get_or_create_today(cls, user_id):
+        """Get today's census, creating it via rollover if it doesn't exist"""
+        today = date.today()
+        today_census = cls.query.filter_by(census_date=today).first()
+        
+        if not today_census:
+            today_census, patients, daily_info = cls.create_daily_rollover(today, user_id)
+            return today_census, True, patients, daily_info  # True = created via rollover
+        
+        return today_census, False, 0, 0  # False = already existed
     
     def __repr__(self):
         return f'<PatientCensus {self.census_date} - {self.current_census_count} patients>'
@@ -203,21 +303,73 @@ class PatientCensusRow(db.Model):
         self.data_fields = fields
         self.updated_at = datetime.utcnow()
     
-    def discharge(self):
-        """Mark patient as discharged"""
+    def discharge(self, discharge_date=None, notes=None):
+        """Mark patient as discharged and record discharge information"""
         self.status = 'discharged'
         self.updated_at = datetime.utcnow()
+        
+        # Add discharge information to data fields
+        fields = self.data_fields
+        fields['discharge_date'] = (discharge_date or datetime.utcnow().date()).isoformat()
+        if notes:
+            fields['discharge_notes'] = notes
+        self.data_fields = fields
     
-    def admit(self):
+    def admit(self, admission_date=None, admission_type='routine'):
         """Mark patient as newly admitted"""
-        self.status = 'admitted'
+        self.status = 'active'  # New admissions become active
         self.updated_at = datetime.utcnow()
+        
+        # Add admission information to data fields
+        fields = self.data_fields
+        fields['admission_date'] = (admission_date or datetime.utcnow().date()).isoformat()
+        fields['admission_type'] = admission_type
+        self.data_fields = fields
     
-    def transfer(self, new_room):
+    def transfer(self, new_room, transfer_reason=None):
         """Transfer patient to new room"""
+        old_room = self.room_number
         self.room_number = new_room
-        self.status = 'transferred'
         self.updated_at = datetime.utcnow()
+        
+        # Add transfer information to data fields
+        fields = self.data_fields
+        fields['last_transfer_date'] = datetime.utcnow().date().isoformat()
+        fields['previous_room'] = old_room
+        if transfer_reason:
+            fields['transfer_reason'] = transfer_reason
+        self.data_fields = fields
+    
+    @classmethod
+    def add_admission(cls, census_id, patient_name, room_number, patient_id=None, admission_type='routine'):
+        """Add a new patient admission to the census"""
+        new_patient = cls(
+            census_id=census_id,
+            room_number=room_number,
+            patient_name=patient_name,
+            patient_id=patient_id,
+            status='active'
+        )
+        new_patient.admit(admission_type=admission_type)
+        return new_patient
+    
+    def is_active(self):
+        """Check if patient is currently active in census"""
+        return self.status == 'active'
+    
+    def get_length_of_stay(self):
+        """Calculate length of stay based on admission date"""
+        fields = self.data_fields
+        admission_date_str = fields.get('admission_date')
+        if admission_date_str:
+            try:
+                from datetime import datetime as dt
+                admission_date = dt.strptime(admission_date_str, '%Y-%m-%d').date()
+                today = datetime.utcnow().date()
+                return (today - admission_date).days
+            except (ValueError, TypeError):
+                pass
+        return None
     
     def to_dict(self):
         """Convert to dictionary for API responses"""

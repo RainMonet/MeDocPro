@@ -162,7 +162,14 @@ const WorkspaceHeader = ({ censusData, userName, onOpenModal, onOpenDailyInfo })
         <div className="stat-card">
           <div className="stat-value">{censusData?.current_census_count || 0}</div>
           <div className="stat-label">Active Patients</div>
-          <div className="stat-change positive">Avg {averageDailyCaseload} over 7 days</div>
+          <div className="stat-change positive">
+            {censusData?.admission_count > 0 && (
+              <span style={{ color: 'var(--color-success)', marginRight: '8px' }}>
+                +{censusData.admission_count} pending
+              </span>
+            )}
+            Avg {averageDailyCaseload} over 7 days
+          </div>
         </div>
 
         <div className="stat-card">
@@ -402,8 +409,15 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        // Add timeout to prevent hanging
+        signal: AbortSignal.timeout(10000) // 10 second timeout
       });
+      
+      if (!todayResponse.ok) {
+        throw new Error(`HTTP ${todayResponse.status}: ${todayResponse.statusText}`);
+      }
+      
       const todayData = await todayResponse.json();
       
       if (!todayData.success) {
@@ -418,12 +432,16 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json'
-          }
+          },
+          // Add timeout for historical data too
+          signal: AbortSignal.timeout(5000) // 5 second timeout for optional data
         });
-        const historyData = await historyResponse.json();
         
-        if (historyData.success) {
-          historicalData = historyData.census_history;
+        if (historyResponse.ok) {
+          const historyData = await historyResponse.json();
+          if (historyData.success) {
+            historicalData = historyData.census_history;
+          }
         }
         // Silently continue if historical data fails - it's not critical
       } catch (historyErr) {
@@ -453,11 +471,20 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
       
       // More specific error messages
       if (err.name === 'TypeError' && err.message.includes('fetch')) {
-        setError('Backend server not running - using demo data');
+        setError('⚠️ Backend server not responding - Please restart the backend');
+      } else if (err.name === 'TimeoutError' || err.message.includes('timeout')) {
+        setError('⏱️ Backend is slow/unresponsive - Try refreshing or restart backend');
       } else if (err.message.includes('401') || err.message.includes('Unauthorized')) {
-        setError('Authentication failed - please log in');
+        setError('🔑 Session expired - Please log out and log back in');
+        // Auto-logout on auth failure to force re-login
+        setTimeout(() => {
+          localStorage.removeItem('token');
+          window.location.reload();
+        }, 3000);
+      } else if (err.message.includes('404')) {
+        setError('📊 Census data not found - may need to initialize');
       } else {
-        setError(`Network error: ${err.message}`);
+        setError(`❌ Network error: ${err.message}`);
       }
       
       // Provide fallback data so the workspace is still usable
@@ -496,11 +523,21 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
     }
   }, []);
 
-  // Load all data
+  // Load all data sequentially to avoid overwhelming the backend
   const loadData = useCallback(async () => {
     setLoading(true);
-    await Promise.all([loadCensusData(), loadScratchNotes()]);
-    setLoading(false);
+    try {
+      // Load census data first (most important)
+      await loadCensusData();
+      
+      // Wait a bit before loading scratch notes to avoid overwhelming the backend
+      await new Promise(resolve => setTimeout(resolve, 300));
+      await loadScratchNotes();
+    } catch (error) {
+      console.error('Error in loadData:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [loadCensusData, loadScratchNotes]);
 
   // Handle batch document generation

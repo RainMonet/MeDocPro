@@ -401,18 +401,26 @@ const BatchDocumentationCard = ({
             Batch Documentation
           </h3>
           <button
-            onClick={onOpenTemplateEditor}
+            onClick={onOpenTemplateLibrary}
             style={{
               padding: '4px 8px',
               backgroundColor: 'transparent',
-              color: styles.textSecondary,
+              color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
               border: `1px solid ${styles.borderColor}`,
               borderRadius: '4px',
               fontSize: '11px',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              fontWeight: '500',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = styles.bgAccent;
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = 'transparent';
             }}
           >
-            New Template
+            Template Library
           </button>
         </div>
         <p style={{
@@ -444,12 +452,7 @@ const BatchDocumentationCard = ({
           <div>
             {/* Template Selection */}
             <div style={{ marginBottom: '16px' }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '8px'
-              }}>
+              <div style={{ marginBottom: '8px' }}>
                 <label style={{
                   fontSize: '12px',
                   fontWeight: '500',
@@ -457,32 +460,6 @@ const BatchDocumentationCard = ({
                 }}>
                   Select Template
                 </label>
-                <button
-                  onClick={() => {
-                    if (onOpenTemplateLibrary) {
-                      onOpenTemplateLibrary();
-                    }
-                  }}
-                  style={{
-                    padding: '4px 8px',
-                    backgroundColor: 'transparent',
-                    color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
-                    border: `1px solid ${styles.borderColor}`,
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    cursor: 'pointer',
-                    fontWeight: '500',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = styles.bgAccent;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = 'transparent';
-                  }}
-                >
-                  Template Library
-                </button>
               </div>
               <TemplateSelector 
                 onSelect={handleTemplateSelect}

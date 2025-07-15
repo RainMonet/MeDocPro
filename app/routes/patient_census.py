@@ -55,34 +55,30 @@ def get_patient_censuses():
 @patient_census_bp.route('/api/patient-census/today', methods=['GET'])
 @jwt_required()
 def get_todays_census():
-    """Get today's patient census, create if doesn't exist"""
+    """Get today's patient census with automatic rollover from previous day"""
     try:
         user_id = get_jwt_identity()
-        today = date.today()
         
-        # Look for today's census
-        census = PatientCensus.query.filter_by(
-            user_id=user_id,
-            census_date=today,
-            is_active=True
-        ).first()
+        # Use the new get_or_create_today method which handles rollover
+        census, was_created, patients_carried, daily_info_carried = PatientCensus.get_or_create_today(user_id)
         
-        if not census:
-            # Create today's census
-            census = PatientCensus(
-                user_id=user_id,
-                census_date=today,
-                created_at=datetime.utcnow()
+        if was_created:
+            log_audit_event(
+                user_id, 
+                'patient_census_rollover', 
+                f'Created census via rollover: {patients_carried} patients, {daily_info_carried} daily info entries'
             )
-            db.session.add(census)
-            db.session.commit()
-            
-            log_audit_event(user_id, 'patient_census_created', f'Created census for {today}')
+        else:
+            log_audit_event(user_id, 'patient_census_viewed', f'Accessed today\'s census')
         
         return jsonify({
             'success': True,
             'census': census.to_dict(),
-            'is_new': census.created_at.date() == today
+            'rollover_info': {
+                'was_rollover': was_created,
+                'patients_carried_over': patients_carried,
+                'daily_info_carried_over': daily_info_carried
+            } if was_created else None
         }), 200
         
     except Exception as e:
@@ -239,13 +235,15 @@ def add_patient_row(census_id):
         if census.is_finalized:
             return jsonify({'success': False, 'error': 'Cannot modify finalized census'}), 400
         
-        # Create new patient row
+        # Create new patient row - handle workflow_type from frontend
+        workflow_type = data.get('workflow_type', data.get('status', 'follow-up'))
+        
         row = PatientCensusRow(
             census_id=census_id,
             room_number=data.get('room_number'),
             patient_name=data.get('patient_name'),
             patient_id=data.get('patient_id'),
-            status=data.get('status', 'active'),
+            status=workflow_type,  # Map workflow_type to status field
             data_fields=data.get('data_fields', {}),
             created_at=datetime.utcnow()
         )
@@ -259,6 +257,7 @@ def add_patient_row(census_id):
         return jsonify({
             'success': True,
             'row': row.to_dict(),
+            'patient_id': row.id,  # Include the database row ID for frontend
             'message': 'Patient row added successfully'
         }), 201
         
@@ -287,14 +286,16 @@ def update_patient_row(row_id):
         if row.census.is_finalized:
             return jsonify({'success': False, 'error': 'Cannot modify finalized census'}), 400
         
-        # Update fields
+        # Update fields - handle workflow_type from frontend
         if 'room_number' in data:
             row.room_number = data['room_number']
         if 'patient_name' in data:
             row.patient_name = data['patient_name']
         if 'patient_id' in data:
             row.patient_id = data['patient_id']
-        if 'status' in data:
+        if 'workflow_type' in data:
+            row.status = data['workflow_type']  # Map workflow_type to status field
+        elif 'status' in data:
             row.status = data['status']
         if 'data_fields' in data:
             row.data_fields = data['data_fields']
@@ -389,21 +390,31 @@ def delete_patient_row(row_id):
         if row.census.is_finalized:
             return jsonify({'success': False, 'error': 'Cannot modify finalized census'}), 400
         
+        # Delete related daily information entries first to avoid foreign key constraints
+        from ..models.daily_information import DailyInformation
+        daily_entries = DailyInformation.query.filter_by(patient_census_row_id=row_id).all()
+        for entry in daily_entries:
+            db.session.delete(entry)
+        
+        # Now delete the patient row
         db.session.delete(row)
         row.census.last_updated = datetime.utcnow()
         db.session.commit()
         
-        log_audit_event(user_id, 'patient_row_deleted', f'Deleted patient row {row_id}')
+        log_audit_event(user_id, 'patient_row_deleted', f'Deleted patient row {row_id} and {len(daily_entries)} daily info entries')
         
         return jsonify({
             'success': True,
-            'message': 'Patient row deleted successfully'
+            'message': f'Patient row deleted successfully (removed {len(daily_entries)} daily entries)'
         }), 200
         
     except Exception as e:
         logger.error(f"Error deleting patient row {row_id}: {str(e)}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         db.session.rollback()
-        return jsonify({'success': False, 'error': 'Failed to delete patient row'}), 500
+        return jsonify({'success': False, 'error': f'Failed to delete patient row: {str(e)}'}), 500
 
 @patient_census_bp.route('/api/patient-census/<int:census_id>/template-data', methods=['GET'])
 @jwt_required()
@@ -466,3 +477,205 @@ def finalize_census(census_id):
         logger.error(f"Error finalizing census {census_id}: {str(e)}")
         db.session.rollback()
         return jsonify({'success': False, 'error': 'Failed to finalize census'}), 500
+
+@patient_census_bp.route('/api/patient-census/rows/<int:row_id>/discharge', methods=['POST'])
+@jwt_required()
+def discharge_patient(row_id):
+    """Discharge a patient from the census"""
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json() or {}
+        
+        # Find the patient row
+        row = PatientCensusRow.query.join(PatientCensus).filter(
+            PatientCensusRow.id == row_id,
+            PatientCensus.user_id == user_id,
+            PatientCensus.is_active == True
+        ).first()
+        
+        if not row:
+            return jsonify({'success': False, 'error': 'Patient not found'}), 404
+        
+        if row.census.is_finalized:
+            return jsonify({'success': False, 'error': 'Cannot modify finalized census'}), 400
+        
+        # Process discharge
+        discharge_date = data.get('discharge_date')
+        if discharge_date:
+            try:
+                discharge_date = datetime.strptime(discharge_date, '%Y-%m-%d').date()
+            except ValueError:
+                discharge_date = None
+        
+        discharge_notes = data.get('discharge_notes')
+        
+        # Mark patient as discharged
+        row.discharge(discharge_date=discharge_date, notes=discharge_notes)
+        row.census.last_updated = datetime.utcnow()
+        db.session.commit()
+        
+        log_audit_event(
+            user_id, 
+            'patient_discharged', 
+            f'Discharged patient {row.patient_name} from census {row.census_id}'
+        )
+        
+        return jsonify({
+            'success': True,
+            'row': row.to_dict(),
+            'message': f'Patient {row.patient_name} discharged successfully'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error discharging patient {row_id}: {str(e)}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'Failed to discharge patient'}), 500
+
+@patient_census_bp.route('/api/patient-census/<int:census_id>/admissions', methods=['POST'])
+@jwt_required()
+def add_admission(census_id):
+    """Add a new patient admission to the census"""
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        # Validate required fields
+        required_fields = ['patient_name', 'room_number']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'success': False, 'error': f'{field} is required'}), 400
+        
+        # Find the census
+        census = PatientCensus.query.filter_by(
+            id=census_id, 
+            user_id=user_id, 
+            is_active=True
+        ).first()
+        
+        if not census:
+            return jsonify({'success': False, 'error': 'Census not found'}), 404
+        
+        if census.is_finalized:
+            return jsonify({'success': False, 'error': 'Cannot modify finalized census'}), 400
+        
+        # Check if room is already occupied
+        existing_patient = PatientCensusRow.query.filter_by(
+            census_id=census_id,
+            room_number=data['room_number'],
+            status='active'
+        ).first()
+        
+        if existing_patient:
+            return jsonify({'success': False, 'error': f'Room {data["room_number"]} is already occupied'}), 400
+        
+        # Process admission date
+        admission_date = data.get('admission_date')
+        if admission_date:
+            try:
+                admission_date = datetime.strptime(admission_date, '%Y-%m-%d').date()
+            except ValueError:
+                admission_date = None
+        
+        # Create new patient admission
+        new_patient = PatientCensusRow.add_admission(
+            census_id=census_id,
+            patient_name=data['patient_name'],
+            room_number=data['room_number'],
+            patient_id=data.get('patient_id'),
+            admission_type=data.get('admission_type', 'routine')
+        )
+        
+        # Set admission date if provided
+        if admission_date:
+            fields = new_patient.data_fields
+            fields['admission_date'] = admission_date.isoformat()
+            new_patient.data_fields = fields
+        
+        # Add any additional data fields
+        if data.get('additional_data'):
+            fields = new_patient.data_fields
+            fields.update(data['additional_data'])
+            new_patient.data_fields = fields
+        
+        db.session.add(new_patient)
+        census.last_updated = datetime.utcnow()
+        db.session.commit()
+        
+        log_audit_event(
+            user_id, 
+            'patient_admitted', 
+            f'Admitted new patient {new_patient.patient_name} to room {new_patient.room_number}'
+        )
+        
+        return jsonify({
+            'success': True,
+            'row': new_patient.to_dict(),
+            'message': f'Patient {new_patient.patient_name} admitted successfully'
+        }), 201
+        
+    except Exception as e:
+        logger.error(f"Error adding admission to census {census_id}: {str(e)}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'Failed to add admission'}), 500
+
+@patient_census_bp.route('/api/patient-census/rows/<int:row_id>/transfer', methods=['POST'])
+@jwt_required()
+def transfer_patient(row_id):
+    """Transfer a patient to a different room"""
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        if not data or not data.get('new_room_number'):
+            return jsonify({'success': False, 'error': 'New room number is required'}), 400
+        
+        # Find the patient row
+        row = PatientCensusRow.query.join(PatientCensus).filter(
+            PatientCensusRow.id == row_id,
+            PatientCensus.user_id == user_id,
+            PatientCensus.is_active == True
+        ).first()
+        
+        if not row:
+            return jsonify({'success': False, 'error': 'Patient not found'}), 404
+        
+        if row.census.is_finalized:
+            return jsonify({'success': False, 'error': 'Cannot modify finalized census'}), 400
+        
+        new_room = data['new_room_number']
+        
+        # Check if new room is already occupied
+        existing_patient = PatientCensusRow.query.filter_by(
+            census_id=row.census_id,
+            room_number=new_room,
+            status='active'
+        ).filter(PatientCensusRow.id != row_id).first()
+        
+        if existing_patient:
+            return jsonify({'success': False, 'error': f'Room {new_room} is already occupied'}), 400
+        
+        # Perform transfer
+        old_room = row.room_number
+        row.transfer(new_room, transfer_reason=data.get('transfer_reason'))
+        row.census.last_updated = datetime.utcnow()
+        db.session.commit()
+        
+        log_audit_event(
+            user_id, 
+            'patient_transferred', 
+            f'Transferred patient {row.patient_name} from room {old_room} to {new_room}'
+        )
+        
+        return jsonify({
+            'success': True,
+            'row': row.to_dict(),
+            'message': f'Patient {row.patient_name} transferred from {old_room} to {new_room}'
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error transferring patient {row_id}: {str(e)}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'Failed to transfer patient'}), 500
