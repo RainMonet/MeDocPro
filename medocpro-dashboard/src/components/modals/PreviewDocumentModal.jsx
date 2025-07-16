@@ -167,9 +167,10 @@ const DocumentPreview = ({ documents, theme }) => {
             display: 'flex',
             gap: '12px'
           }}>
-            <span>Format: {currentDoc.format.toUpperCase()}</span>
+            <span>Room: {currentDoc.room_number || 'N/A'}</span>
             {currentDoc.ai_enhanced && <span>✨ AI Enhanced</span>}
-            <span>Generated: {new Date(currentDoc.generated_at).toLocaleString()}</span>
+            <span>Status: {currentDoc.status || 'Generated'}</span>
+            {currentDoc.format && <span>Format: {currentDoc.format.toUpperCase()}</span>}
           </div>
         </div>
 
@@ -180,7 +181,7 @@ const DocumentPreview = ({ documents, theme }) => {
           color: styles.textPrimary,
           whiteSpace: 'pre-wrap'
         }}>
-          {currentDoc.content}
+          {currentDoc.populated_content || currentDoc.content || 'No content available'}
         </div>
       </div>
     </div>

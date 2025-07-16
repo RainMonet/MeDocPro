@@ -322,10 +322,18 @@ const BatchDocumentationCard = ({
 
     setIsGenerating(true);
     try {
+      // Get authentication token
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('❌ Authentication required. Please log in again.');
+        return;
+      }
+
       // Call backend API for document generation
       const response = await fetch('http://localhost:5000/api/generate-documents', {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -339,6 +347,19 @@ const BatchDocumentationCard = ({
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
+          // Show success message with details
+          const { successful_count, failed_count, failed_patients } = result;
+          let message = `✅ Generated ${successful_count} document${successful_count !== 1 ? 's' : ''} successfully!`;
+          
+          if (failed_count > 0) {
+            message += `\n\n⚠️ ${failed_count} patient${failed_count !== 1 ? 's' : ''} failed:`;
+            failed_patients.forEach(failure => {
+              message += `\n• ${failure.patient_name}: ${failure.error}`;
+            });
+          }
+          
+          alert(message);
+          
           // Call parent handler with generated documents
           if (onGenerate) {
             onGenerate({
@@ -348,18 +369,22 @@ const BatchDocumentationCard = ({
               aiEnhancement,
               documents: result.documents,
               batchId: result.batch_id,
-              totalCount: result.total_count
+              totalCount: result.total_count,
+              successfulCount: result.successful_count,
+              failedCount: result.failed_count,
+              failedPatients: result.failed_patients
             });
           }
         } else {
-          throw new Error(result.message || 'Failed to generate documents');
+          throw new Error(result.error || 'Failed to generate documents');
         }
       } else {
-        throw new Error('Network error');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
       }
     } catch (error) {
       console.error('Error generating documents:', error);
-      alert('❌ Error generating documents. Please try again.');
+      alert(`❌ Error generating documents: ${error.message}`);
     } finally {
       setIsGenerating(false);
     }

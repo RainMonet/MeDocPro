@@ -39,6 +39,14 @@ def create_app(config_class=Config):
         
         from .routes.patient_census import patient_census_bp
         app.register_blueprint(patient_census_bp)
+        
+        # Daily information endpoints
+        from .routes.daily_information import daily_info_bp
+        app.register_blueprint(daily_info_bp, url_prefix='/api')
+        
+        # Document generation endpoints
+        from .routes.document_generation import document_generation_bp
+        app.register_blueprint(document_generation_bp, url_prefix='/api')
 
         # Import models here to ensure they are registered with SQLAlchemy
         from . import models

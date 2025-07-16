@@ -329,6 +329,10 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
   const [availableTemplates, setAvailableTemplates] = useState([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [currentTheme, setCurrentTheme] = useState(theme);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState(null);
+  const [backendDataLoaded, setBackendDataLoaded] = useState(false);
+  const [loadingDailyInfo, setLoadingDailyInfo] = useState(false);
   const styles = getThemeStyles(currentTheme);
 
   // Listen for theme changes
@@ -465,32 +469,35 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
     const token = localStorage.getItem('token');
     if (!token || patients.length === 0) return;
 
+    setLoadingDailyInfo(true);
     try {
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
       const loadedFieldValues = {};
       const loadedCompletionStatus = {};
 
-      // Load daily info for each patient with delays to avoid overwhelming backend
-      for (let i = 0; i < patients.length; i++) {
-        const patient = patients[i];
+      // First, try to get a summary of which patients have data to avoid loading empty entries
+      console.log(`Checking for existing daily info entries for ${patients.length} patients on ${today}`);
+      
+      // Load only the first few patients initially for faster UI response
+      const priorityPatients = patients.slice(0, 5); // Load first 5 patients immediately
+      const remainingPatients = patients.slice(5); // Load remaining patients in background
+      
+      // Load priority patients first
+      const priorityPromises = priorityPatients.map(async (patient) => {
         try {
-          // Add delay between requests to avoid overwhelming the backend
-          if (i > 0) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
           const response = await fetch(`http://localhost:5000/api/daily-info/${patient.id}?date=${today}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
             },
-            // Add timeout to prevent hanging
-            signal: AbortSignal.timeout(15000)
+            signal: AbortSignal.timeout(3000) // Faster timeout for priority patients
           });
 
           if (response.ok) {
             const result = await response.json();
             if (result.success && result.entries && result.entries.length > 0) {
-              const latestEntry = result.entries[0]; // Get most recent entry for today
+              const latestEntry = result.entries[0];
+              console.log(`Found entry for patient ${patient.id}:`, latestEntry);
               loadedFieldValues[patient.id] = latestEntry.field_values || {};
               loadedCompletionStatus[patient.id] = latestEntry.status === 'completed' || latestEntry.status === 'signed';
               
@@ -522,7 +529,77 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
         } catch (error) {
           console.error(`Error loading daily info for patient ${patient.id}:`, error);
         }
+      });
+      
+      // Wait for priority patients to load first
+      await Promise.all(priorityPromises);
+      
+      // Set initial data for priority patients immediately
+      if (Object.keys(loadedFieldValues).length > 0) {
+        console.log('Priority patients loaded, setting initial data...');
+        setFieldValues(loadedFieldValues);
+        setCompletionStatus(loadedCompletionStatus);
+        setBackendDataLoaded(true);
       }
+      
+      // Load remaining patients in background (if any)
+      if (remainingPatients.length > 0) {
+        console.log(`Loading remaining ${remainingPatients.length} patients in background...`);
+        
+        // Process remaining patients in smaller batches
+        const batchSize = 3;
+        const batches = [];
+        
+        for (let i = 0; i < remainingPatients.length; i += batchSize) {
+          batches.push(remainingPatients.slice(i, i + batchSize));
+        }
+        
+        for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+          const batch = batches[batchIndex];
+          
+          const batchPromises = batch.map(async (patient) => {
+            try {
+              const response = await fetch(`http://localhost:5000/api/daily-info/${patient.id}?date=${today}`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                signal: AbortSignal.timeout(5000)
+              });
+
+              if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.entries && result.entries.length > 0) {
+                  const latestEntry = result.entries[0];
+                  console.log(`Found entry for patient ${patient.id}:`, latestEntry);
+                  loadedFieldValues[patient.id] = latestEntry.field_values || {};
+                  loadedCompletionStatus[patient.id] = latestEntry.status === 'completed' || latestEntry.status === 'signed';
+                }
+              }
+            } catch (error) {
+              console.error(`Error loading daily info for patient ${patient.id}:`, error);
+            }
+          });
+          
+          await Promise.all(batchPromises);
+          
+          // Update state with new data as it comes in
+          if (Object.keys(loadedFieldValues).length > 0) {
+            setFieldValues(prev => ({ ...prev, ...loadedFieldValues }));
+            setCompletionStatus(prev => ({ ...prev, ...loadedCompletionStatus }));
+          }
+          
+          // Small delay between batches
+          if (batchIndex < batches.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+          }
+        }
+      }
+
+      // Final merge with localStorage data (localStorage takes precedence for unsaved changes)
+      console.log('Final backend data loaded. Processing merge...');
+      console.log('Final loadedFieldValues:', loadedFieldValues);
+      console.log('Final loadedCompletionStatus:', loadedCompletionStatus);
 
       // Merge with localStorage data (localStorage takes precedence for unsaved changes)
       const savedData = localStorage.getItem('dailyInfoEntryData');
@@ -533,18 +610,33 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
           const mergedFieldValues = { ...loadedFieldValues, ...(parsedData.fieldValues || {}) };
           const mergedCompletionStatus = { ...loadedCompletionStatus, ...(parsedData.completionStatus || {}) };
           
-          setFieldValues(mergedFieldValues);
-          setCompletionStatus(mergedCompletionStatus);
-          console.log('Loaded and merged daily info data from backend and localStorage');
+          console.log('FINAL MERGE PROCESS:');
+          console.log('Backend loadedFieldValues:', loadedFieldValues);
+          console.log('localStorage parsedData.fieldValues:', parsedData.fieldValues);
+          console.log('Merged result:', mergedFieldValues);
+          
+          // Update with final merged data
+          setFieldValues(prev => ({ ...prev, ...mergedFieldValues }));
+          setCompletionStatus(prev => ({ ...prev, ...mergedCompletionStatus }));
+          console.log('Final merge completed');
+          
+          // Debug: Log what we're setting
+          console.log('Setting fieldValues to:', mergedFieldValues);
+          console.log('Patient 133 data in merged result:', mergedFieldValues[133]);
         } catch (error) {
           console.error('Error parsing localStorage data:', error);
-          setFieldValues(loadedFieldValues);
-          setCompletionStatus(loadedCompletionStatus);
+          setFieldValues(prev => ({ ...prev, ...loadedFieldValues }));
+          setCompletionStatus(prev => ({ ...prev, ...loadedCompletionStatus }));
         }
       } else {
-        setFieldValues(loadedFieldValues);
-        setCompletionStatus(loadedCompletionStatus);
-        console.log('Loaded daily info data from backend:', { loadedFieldValues, loadedCompletionStatus });
+        console.log('FINAL BACKEND ONLY LOAD:');
+        console.log('Backend loadedFieldValues:', loadedFieldValues);
+        console.log('Setting fieldValues to:', loadedFieldValues);
+        
+        // Update with final backend data
+        setFieldValues(prev => ({ ...prev, ...loadedFieldValues }));
+        setCompletionStatus(prev => ({ ...prev, ...loadedCompletionStatus }));
+        console.log('Final backend load completed:', { loadedFieldValues, loadedCompletionStatus });
       }
 
     } catch (error) {
@@ -561,17 +653,44 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
           console.error('Error loading daily info data from localStorage:', error);
         }
       }
+    } finally {
+      setLoadingDailyInfo(false);
     }
-  }, [patients, availableTemplates, selectedTemplate]);
+  }, [patients, availableTemplates]);
+
+  // Reset state when modal opens to ensure fresh data load
+  useEffect(() => {
+    if (isOpen) {
+      console.log('Modal opened - clearing state for fresh data load');
+      setFieldValues({});
+      setCompletionStatus({});
+      setCurrentPatientIndex(0);
+      setRolloverInfo(null);
+      setLastSaved(null);
+      setBackendDataLoaded(false);
+      setLoadingDailyInfo(false);
+      // Clear localStorage to ensure we get fresh data from backend
+      localStorage.removeItem('dailyInfoEntryData');
+    }
+  }, [isOpen]);
 
   // Load existing daily information when modal opens and patients are available
   useEffect(() => {
+    console.log('Daily info loading effect triggered:', { 
+      isOpen, 
+      patientsLength: patients.length, 
+      loadingTemplates,
+      availableTemplatesLength: availableTemplates.length 
+    });
+    
     if (isOpen && patients.length > 0 && !loadingTemplates) {
-      // Skip loading daily info for now to test template functionality
-      console.log('Skipping daily info load to test template rendering');
-      // loadExistingDailyInfo();
+      console.log('Loading existing daily info from backend...');
+      console.log('Patient count:', patients.length);
+      console.log('First few patients:', patients.slice(0, 3));
+      console.log('Available templates:', availableTemplates.length);
+      loadExistingDailyInfo();
     }
-  }, [isOpen, patients, loadingTemplates, loadExistingDailyInfo]);
+  }, [isOpen, patients, loadingTemplates]);
 
   // Save data to localStorage whenever fieldValues or completionStatus changes
   useEffect(() => {
@@ -586,35 +705,65 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
     }
   }, [fieldValues, completionStatus]);
 
-  // Auto-fill patient name fields when patient changes
+  // Auto-fill patient name fields when patient changes (only if no meaningful data exists)
   useEffect(() => {
-    if (patients[currentPatientIndex]) {
+    if (patients[currentPatientIndex] && backendDataLoaded) {
       const patient = patients[currentPatientIndex];
       const [lastName, firstName] = (patient.patient_name || '').split(', ');
       
-      setFieldValues(prev => ({
-        ...prev,
-        [patient.id]: {
-          ...prev[patient.id],
-          'last_name': lastName || '',
-          'first_name': firstName || ''
+      setFieldValues(prev => {
+        const existingData = prev[patient.id] || {};
+        
+        // Check if there's meaningful data (not just auto-filled names)
+        const meaningfulFields = Object.keys(existingData).filter(key => 
+          key !== 'last_name' && key !== 'first_name'
+        );
+        
+        console.log(`Auto-fill check for patient ${patient.id}:`, {
+          existingData,
+          meaningfulFields,
+          meaningfulFieldsCount: meaningfulFields.length,
+          backendDataLoaded
+        });
+        
+        // Only auto-fill if there's no meaningful data beyond just names AND no existing data at all
+        if (meaningfulFields.length === 0 && Object.keys(existingData).length === 0) {
+          console.log(`Auto-filling name fields for patient ${patient.id}: ${lastName}, ${firstName}`);
+          return {
+            ...prev,
+            [patient.id]: {
+              ...existingData,
+              'last_name': lastName || '',
+              'first_name': firstName || ''
+            }
+          };
         }
-      }));
+        
+        // If there's meaningful data OR existing data, don't override anything
+        console.log(`Skipping auto-fill for patient ${patient.id} - existing data found:`, existingData);
+        return prev;
+      });
     }
-  }, [currentPatientIndex, patients]);
+  }, [currentPatientIndex, patients, backendDataLoaded]);
 
   // Handle field changes
   const handleFieldChange = (fieldName, value) => {
     const patientId = patients[currentPatientIndex]?.id;
     if (!patientId) return;
 
-    setFieldValues(prev => ({
-      ...prev,
-      [patientId]: {
-        ...prev[patientId],
-        [fieldName]: value
-      }
-    }));
+    console.log(`Field changed: ${fieldName} = "${value}" for patient ${patientId}`);
+
+    setFieldValues(prev => {
+      const newFieldValues = {
+        ...prev,
+        [patientId]: {
+          ...prev[patientId],
+          [fieldName]: value
+        }
+      };
+      console.log('Updated fieldValues:', newFieldValues);
+      return newFieldValues;
+    });
 
     // Mark patient as having data
     setCompletionStatus(prev => ({
@@ -654,6 +803,14 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
   const clearPersistedData = () => {
     localStorage.removeItem('dailyInfoEntryData');
     console.log('Cleared daily info data from localStorage');
+  };
+
+  // Debug function to manually clear localStorage
+  const debugClearStorage = () => {
+    clearPersistedData();
+    setFieldValues({});
+    setCompletionStatus({});
+    alert('Cleared localStorage and reset modal state');
   };
 
   // Handle save
@@ -717,26 +874,116 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
     }
   };
 
+  // Auto-save data to backend
+  const autoSaveData = async (patientId, fieldData) => {
+    try {
+      setIsAutoSaving(true);
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      
+      const patient = patients.find(p => p.id === patientId);
+      if (!patient) return;
+      
+      // Only save if there's actual data (not just auto-filled names)
+      const hasRealData = Object.keys(fieldData).some(field => 
+        field !== 'last_name' && field !== 'first_name' && fieldData[field]
+      );
+      
+      if (!hasRealData) return;
+      
+      console.log(`Auto-saving data for patient ${patientId}:`, fieldData);
+      
+      const response = await fetch('http://localhost:5000/api/daily-info', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          patient_census_row_id: patientId,
+          template_id: selectedTemplate?.id || null,
+          field_values: fieldData,
+          status: 'draft',
+          notes: `Auto-saved daily information for ${patient.patient_name}`
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`Auto-save successful for patient ${patientId}:`, result.action);
+        setLastSaved(new Date());
+      }
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+    } finally {
+      setIsAutoSaving(false);
+    }
+  };
+
+  // Auto-save when field values change (debounced)
+  useEffect(() => {
+    console.log('Auto-save effect triggered, fieldValues:', fieldValues);
+    
+    const saveTimeout = setTimeout(() => {
+      console.log('Auto-save timeout executed');
+      Object.keys(fieldValues).forEach(patientId => {
+        const patientData = fieldValues[patientId];
+        console.log(`Checking patient ${patientId} data:`, patientData);
+        if (patientData && Object.keys(patientData).length > 0) {
+          autoSaveData(parseInt(patientId), patientData);
+        }
+      });
+    }, 2000); // Save 2 seconds after user stops typing
+    
+    return () => {
+      console.log('Auto-save timeout cleared');
+      clearTimeout(saveTimeout);
+    };
+  }, [fieldValues, selectedTemplate, patients]);
+
   // Handle modal close
-  const handleClose = () => {
-    // Ask user if they want to clear unsaved data
+  const handleClose = async () => {
+    // Save any unsaved data before closing
     const hasUnsavedData = Object.keys(fieldValues).some(patientId => 
       Object.keys(fieldValues[patientId] || {}).some(field => 
-        field !== 'last name' && field !== 'first name' && fieldValues[patientId][field]
+        field !== 'last_name' && field !== 'first_name' && fieldValues[patientId][field]
       )
     );
 
     if (hasUnsavedData) {
-      const shouldClear = window.confirm(
-        'You have unsaved changes. Do you want to clear all data?\n\n' +
-        'Click "OK" to clear all data and close.\n' +
-        'Click "Cancel" to keep data for next time.'
-      );
+      console.log('Saving data before closing modal...');
       
-      if (shouldClear) {
-        clearPersistedData();
-        setFieldValues({});
-        setCompletionStatus({});
+      // Save all patient data
+      const savePromises = Object.keys(fieldValues).map(patientId => {
+        const patientData = fieldValues[patientId];
+        if (patientData && Object.keys(patientData).length > 0) {
+          return autoSaveData(parseInt(patientId), patientData);
+        }
+        return Promise.resolve();
+      });
+      
+      try {
+        await Promise.all(savePromises);
+        console.log('All data saved successfully');
+        
+        // DO NOT clear state here - let the modal reopen and load fresh data
+        // This prevents the race condition where state is cleared before modal can reopen
+        console.log('Data saved, closing modal but preserving state for next open');
+      } catch (error) {
+        console.error('Error saving data:', error);
+        
+        // Ask user if they want to keep unsaved data
+        const shouldKeep = window.confirm(
+          'Failed to save some data. Do you want to keep unsaved changes?\n\n' +
+          'Click "OK" to keep data in browser storage.\n' +
+          'Click "Cancel" to discard unsaved changes.'
+        );
+        
+        if (!shouldKeep) {
+          clearPersistedData();
+          setFieldValues({});
+          setCompletionStatus({});
+        }
       }
     }
     
@@ -748,6 +995,13 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
   const currentPatient = patients[currentPatientIndex];
   const currentPatientValues = fieldValues[currentPatient?.id] || {};
   const currentPatientPrevious = previousValues[currentPatient?.id] || {};
+
+  // Debug logging
+  console.log('Current patient:', currentPatient);
+  console.log('All fieldValues:', fieldValues);
+  console.log('Current patient ID:', currentPatient?.id);
+  console.log('FieldValues for current patient ID:', fieldValues[currentPatient?.id]);
+  console.log('Current patient values:', currentPatientValues);
 
   return (
     <div style={{
@@ -928,14 +1182,28 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
                     📋 {selectedTemplate.name} - {currentPatient?.patient_name || 'Patient'}
                   </h4>
                   
-                  {/* Debug info */}
+                  {/* Loading and Debug info */}
                   <div style={{
                     fontSize: '12px',
                     color: styles.textMuted,
                     marginBottom: '8px',
-                    fontFamily: 'monospace'
+                    fontFamily: 'monospace',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
                   }}>
-                    Template Content: {selectedTemplate.content ? 'Available' : 'Not loaded'}
+                    {loadingDailyInfo && (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        color: styles.primaryColor
+                      }}>
+                        <div className="loading-spinner" style={{ width: '12px', height: '12px' }}></div>
+                        Loading daily info...
+                      </div>
+                    )}
+                    <span>Template Content: {selectedTemplate.content ? 'Available' : 'Not loaded'}</span>
                     {selectedTemplate.content && ` (${selectedTemplate.content.length} chars)`}
                   </div>
                   
@@ -1078,9 +1346,40 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
         }}>
           <div style={{
             fontSize: '12px',
-            color: styles.textMuted
+            color: styles.textMuted,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            justifyContent: 'space-between'
           }}>
-            Use Ctrl+← / Ctrl+→ to navigate between patients
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span>Use Ctrl+← / Ctrl+→ to navigate between patients</span>
+              {isAutoSaving && (
+                <span style={{ color: styles.primaryColor, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div className="loading-spinner" style={{ width: '12px', height: '12px' }} />
+                  Auto-saving...
+                </span>
+              )}
+              {lastSaved && !isAutoSaving && (
+                <span style={{ color: styles.successColor }}>
+                  Last saved: {lastSaved.toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={debugClearStorage}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: styles.errorColor,
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '10px',
+                cursor: 'pointer'
+              }}
+            >
+              Debug: Clear Storage
+            </button>
           </div>
           
           <div style={{
@@ -1099,7 +1398,24 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
                 cursor: 'pointer'
               }}
             >
-              Cancel
+              Close
+            </button>
+            <button
+              onClick={async () => {
+                await handleSave();
+              }}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: styles.primaryColor,
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer'
+              }}
+            >
+              Save
             </button>
             <button
               onClick={async () => {
