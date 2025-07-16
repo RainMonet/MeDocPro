@@ -16,20 +16,20 @@ const getThemeStyles = (theme = 'dark') => ({
 });
 
 // Template with your actual format
-const DEFAULT_TEMPLATE = `{{last name}}, {{first name}}:
+const DEFAULT_TEMPLATE = `{{last_name}}, {{first_name}}:
 
-CC:  
+CC: {{chief_complaint}}
 
-{{chief complaint}}
+Prior to evaluation, patient was observed {{clinical_observations}}. He has been {{medication_compliance}} with {{reported_side_effects}}. At the moment, he is reporting {{current_mood}} {{suicidal_ideation}} {{homicidal_ideation}} {{perceptual_disturbances}}. He reports sleeping {{sleep_quality}} and is feeling {{energy_level}}. No other new complaints were offered today. No acute events were reported overnight.
 
-Prior to evaluation, patient was observed {{observation}}.  He has been {{compliance}} with {{side effects}}.  At the moment, he is reporting {{mood}} {{SI}} {{HI}} {{perceptual disturbances}}.  He reports sleeping {{sleep}} and is feeling {{energy}}.  No other new complaints were offered today.  No acute events were reported overnight.
-
-{{assessment}}
+ASSESSMENT:
+{{clinical_assessment}}
 
 —-----------------------------------------------`;
 
 // Parse template to identify placeholders and static text
-const parseTemplate = (template) => {
+const parseTemplateInline = (template, fieldValues = {}, theme = 'dark') => {
+  const styles = getThemeStyles(theme);
   const parts = [];
   let currentIndex = 0;
   const placeholderRegex = /\{\{([^}]+)\}\}/g;
@@ -44,11 +44,20 @@ const parseTemplate = (template) => {
       });
     }
 
-    // Add placeholder
+    const placeholderName = match[1].trim();
+    const fieldType = getFieldType(placeholderName);
+    const value = fieldValues[placeholderName] || '';
+    const hasValue = Boolean(value.trim());
+
+    // Add placeholder as interactive element
     parts.push({
       type: 'placeholder',
-      name: match[1].trim(),
-      content: match[0]
+      name: placeholderName,
+      content: match[0],
+      fieldType,
+      value,
+      hasValue,
+      placeholder: getPlaceholderText(placeholderName)
     });
 
     currentIndex = match.index + match[0].length;
@@ -65,78 +74,101 @@ const parseTemplate = (template) => {
   return parts;
 };
 
+// Get placeholder text based on field name
+const getPlaceholderText = (placeholderName) => {
+  const name = placeholderName.toLowerCase();
+  
+  const placeholderMap = {
+    'last_name': 'Last name',
+    'first_name': 'First name', 
+    'chief_complaint': "Patient's primary concern...",
+    'clinical_observations': 'Clinical observations during evaluation...',
+    'medication_compliance': 'e.g., compliant, non-compliant',
+    'reported_side_effects': 'Reported side effects',
+    'current_mood': 'e.g., denying SI',
+    'suicidal_ideation': 'e.g., denying SI',
+    'homicidal_ideation': 'e.g., denying HI', 
+    'perceptual_disturbances': 'Any hallucinations or perceptual issues',
+    'sleep_quality': 'Sleep quality/pattern',
+    'energy_level': 'Energy level/motivation',
+    'clinical_assessment': 'Clinical assessment and plan...'
+  };
+  
+  return placeholderMap[name] || placeholderName.replace(/_/g, ' ');
+};
+
 // Determine field type based on placeholder name
 const getFieldType = (placeholderName) => {
   const name = placeholderName.toLowerCase();
   
-  if (name.includes('assessment') || name.includes('chief complaint') || 
-      name.includes('side effects') || name.includes('perceptual disturbances')) {
+  if (name.includes('assessment') || name.includes('chief_complaint') || 
+      name.includes('clinical_observations') || name.includes('side_effects') || 
+      name.includes('perceptual_disturbances')) {
     return 'textarea';
   }
   
-  if (name.includes('first name') || name.includes('last name')) {
+  if (name.includes('first_name') || name.includes('last_name')) {
     return 'readonly'; // Auto-filled from patient data
   }
   
   return 'input'; // Short text fields
 };
 
-// Individual field component
-const PlaceholderField = ({ placeholder, value, onChange, previousValue, theme }) => {
+// Inline input field component
+const InlineField = ({ placeholder, value, onChange, theme }) => {
   const styles = getThemeStyles(theme);
-  const fieldType = getFieldType(placeholder.name);
-  const hasChanged = value !== previousValue;
+  const { fieldType, name, hasValue } = placeholder;
   
   if (fieldType === 'readonly') {
     return (
       <span style={{
-        color: styles.textMuted,
-        backgroundColor: styles.bgSecondary,
-        padding: '4px 8px',
-        borderRadius: '4px',
+        color: styles.primaryColor,
+        backgroundColor: 'transparent',
+        padding: '2px 4px',
+        borderRadius: '3px',
         fontSize: '14px',
-        fontStyle: 'italic'
+        fontWeight: '500',
+        borderBottom: `1px solid ${styles.primaryColor}`
       }}>
-        {value || `[${placeholder.name}]`}
+        {value || name.replace(/_/g, ' ')}
       </span>
     );
   }
 
-  const commonStyles = {
-    padding: '8px 12px',
-    border: `2px solid ${hasChanged ? styles.warningColor : styles.borderColor}`,
-    borderRadius: '6px',
-    backgroundColor: styles.bgPrimary,
-    color: styles.textPrimary,
+  const baseInputStyles = {
+    backgroundColor: hasValue ? 'transparent' : styles.bgSecondary,
+    border: hasValue ? 'none' : `1px solid ${styles.borderColor}`,
+    borderBottom: hasValue ? `2px solid ${styles.primaryColor}` : `1px dashed ${styles.borderColor}`,
+    borderRadius: hasValue ? '0' : '4px',
+    padding: hasValue ? '2px 4px' : '6px 8px',
+    color: hasValue ? styles.textPrimary : styles.textMuted,
     fontSize: '14px',
     fontFamily: 'inherit',
     outline: 'none',
-    transition: 'border-color 0.2s ease'
+    transition: 'all 0.2s ease',
+    fontWeight: hasValue ? '500' : '400'
   };
 
   if (fieldType === 'textarea') {
     return (
-      <div style={{ margin: '4px 0' }}>
-        <label style={{
-          display: 'block',
-          fontSize: '12px',
-          color: styles.textMuted,
-          marginBottom: '4px',
-          fontWeight: '500'
-        }}>
-          {placeholder.name}
-          {hasChanged && <span style={{ color: styles.warningColor }}> (changed)</span>}
-        </label>
+      <div style={{ 
+        display: 'inline-block',
+        minWidth: '200px',
+        verticalAlign: 'top',
+        margin: '2px'
+      }}>
         <textarea
           value={value || ''}
-          onChange={(e) => onChange(placeholder.name, e.target.value)}
-          placeholder={previousValue || `Enter ${placeholder.name}...`}
+          onChange={(e) => onChange(name, e.target.value)}
+          placeholder={placeholder.placeholder}
           style={{
-            ...commonStyles,
-            width: '100%',
-            minHeight: '80px',
-            resize: 'vertical'
+            ...baseInputStyles,
+            minWidth: '300px',
+            minHeight: hasValue ? 'auto' : '60px',
+            resize: 'vertical',
+            display: 'inline-block'
           }}
+          rows={hasValue ? Math.max(1, value.split('\n').length) : 3}
         />
       </div>
     );
@@ -146,14 +178,57 @@ const PlaceholderField = ({ placeholder, value, onChange, previousValue, theme }
     <input
       type="text"
       value={value || ''}
-      onChange={(e) => onChange(placeholder.name, e.target.value)}
-      placeholder={previousValue || `Enter ${placeholder.name}...`}
+      onChange={(e) => onChange(name, e.target.value)}
+      placeholder={placeholder.placeholder}
       style={{
-        ...commonStyles,
-        minWidth: '120px',
-        margin: '0 4px'
+        ...baseInputStyles,
+        minWidth: hasValue ? `${Math.max(value.length * 8, 60)}px` : '120px',
+        maxWidth: '300px',
+        display: 'inline'
       }}
     />
+  );
+};
+
+// Template renderer with inline editing
+const InlineTemplateRenderer = ({ template, fieldValues, onChange, theme }) => {
+  const parts = parseTemplateInline(template, fieldValues, theme);
+  const styles = getThemeStyles(theme);
+
+  return (
+    <div style={{
+      backgroundColor: styles.bgPrimary,
+      border: `1px solid ${styles.borderColor}`,
+      borderRadius: '8px',
+      padding: '20px',
+      fontFamily: 'monospace',
+      fontSize: '14px',
+      lineHeight: '1.6',
+      color: styles.textPrimary,
+      whiteSpace: 'pre-wrap',
+      minHeight: '400px'
+    }}>
+      {parts.map((part, index) => {
+        if (part.type === 'static') {
+          return (
+            <span key={index} style={{ color: styles.textPrimary }}>
+              {part.content}
+            </span>
+          );
+        } else if (part.type === 'placeholder') {
+          return (
+            <InlineField
+              key={index}
+              placeholder={part}
+              value={part.value}
+              onChange={onChange}
+              theme={theme}
+            />
+          );
+        }
+        return null;
+      })}
+    </div>
   );
 };
 
@@ -248,6 +323,7 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
   const [fieldValues, setFieldValues] = useState({});
   const [previousValues, setPreviousValues] = useState({});
   const [completionStatus, setCompletionStatus] = useState({});
+  const [rolloverInfo, setRolloverInfo] = useState(null); // Track if data was carried over
   const [templateParts, setTemplateParts] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [availableTemplates, setAvailableTemplates] = useState([]);
@@ -272,8 +348,10 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
     return () => observer.disconnect();
   }, []);
 
-  // Load available templates on mount
+  // Load available templates only when modal is open to avoid overloading backend
   useEffect(() => {
+    if (!isOpen) return;
+    
     const loadTemplates = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -334,41 +412,166 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
     };
     
     loadTemplates();
-  }, []);
+  }, [isOpen]);
 
-  // Parse selected template when it changes
+  // Load full template content when template is selected
   useEffect(() => {
-    if (selectedTemplate && selectedTemplate.content) {
-      setTemplateParts(parseTemplate(selectedTemplate.content));
-    } else if (selectedTemplate && selectedTemplate.placeholders) {
-      // Use placeholders to create template parts
-      const parts = selectedTemplate.placeholders.map(placeholder => ({
-        type: 'placeholder',
-        name: placeholder.key,
-        description: placeholder.description,
-        example: placeholder.example,
-        dataType: placeholder.type
-      }));
-      setTemplateParts(parts);
-    } else {
-      setTemplateParts([]);
-    }
-  }, [selectedTemplate]);
+    const loadTemplateContent = async () => {
+      if (selectedTemplate && !selectedTemplate.content) {
+        try {
+          const token = localStorage.getItem('token');
+          if (!token) return;
+          
+          const response = await fetch(`http://localhost:5000/api/templates/${selectedTemplate.id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.template && data.template.content) {
+              setSelectedTemplate(prev => ({
+                ...prev,
+                content: data.template.content
+              }));
+              console.log('Loaded template content:', data.template.content);
+            }
+          } else {
+            console.error('Failed to load template content');
+            // Fallback to default template
+            setSelectedTemplate(prev => ({
+              ...prev,
+              content: DEFAULT_TEMPLATE
+            }));
+          }
+        } catch (error) {
+          console.error('Error loading template content:', error);
+          // Fallback to default template
+          setSelectedTemplate(prev => ({
+            ...prev,
+            content: DEFAULT_TEMPLATE
+          }));
+        }
+      }
+    };
+    
+    loadTemplateContent();
+  }, [selectedTemplate?.id]);
 
-  // Load persisted data from localStorage on mount
-  useEffect(() => {
-    const savedData = localStorage.getItem('dailyInfoEntryData');
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        setFieldValues(parsedData.fieldValues || {});
-        setCompletionStatus(parsedData.completionStatus || {});
-        console.log('Loaded daily info data from localStorage:', parsedData);
-      } catch (error) {
-        console.error('Error loading daily info data from localStorage:', error);
+  // Load existing daily information entries from backend
+  const loadExistingDailyInfo = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token || patients.length === 0) return;
+
+    try {
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      const loadedFieldValues = {};
+      const loadedCompletionStatus = {};
+
+      // Load daily info for each patient with delays to avoid overwhelming backend
+      for (let i = 0; i < patients.length; i++) {
+        const patient = patients[i];
+        try {
+          // Add delay between requests to avoid overwhelming the backend
+          if (i > 0) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+          const response = await fetch(`http://localhost:5000/api/daily-info/${patient.id}?date=${today}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            // Add timeout to prevent hanging
+            signal: AbortSignal.timeout(15000)
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.entries && result.entries.length > 0) {
+              const latestEntry = result.entries[0]; // Get most recent entry for today
+              loadedFieldValues[patient.id] = latestEntry.field_values || {};
+              loadedCompletionStatus[patient.id] = latestEntry.status === 'completed' || latestEntry.status === 'signed';
+              
+              // Check if this data was carried over from previous day
+              if (latestEntry.notes && latestEntry.notes.includes('Carried over from')) {
+                if (!rolloverInfo) {
+                  setRolloverInfo({
+                    hasRollover: true,
+                    message: latestEntry.notes,
+                    count: 1
+                  });
+                } else {
+                  setRolloverInfo(prev => ({
+                    ...prev,
+                    count: prev.count + 1
+                  }));
+                }
+              }
+              
+              // Set the template if one was used
+              if (latestEntry.template_id && !selectedTemplate) {
+                const template = availableTemplates.find(t => t.id === latestEntry.template_id);
+                if (template) {
+                  setSelectedTemplate(template);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error loading daily info for patient ${patient.id}:`, error);
+        }
+      }
+
+      // Merge with localStorage data (localStorage takes precedence for unsaved changes)
+      const savedData = localStorage.getItem('dailyInfoEntryData');
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData);
+          // Merge backend data with localStorage data (localStorage takes precedence)
+          const mergedFieldValues = { ...loadedFieldValues, ...(parsedData.fieldValues || {}) };
+          const mergedCompletionStatus = { ...loadedCompletionStatus, ...(parsedData.completionStatus || {}) };
+          
+          setFieldValues(mergedFieldValues);
+          setCompletionStatus(mergedCompletionStatus);
+          console.log('Loaded and merged daily info data from backend and localStorage');
+        } catch (error) {
+          console.error('Error parsing localStorage data:', error);
+          setFieldValues(loadedFieldValues);
+          setCompletionStatus(loadedCompletionStatus);
+        }
+      } else {
+        setFieldValues(loadedFieldValues);
+        setCompletionStatus(loadedCompletionStatus);
+        console.log('Loaded daily info data from backend:', { loadedFieldValues, loadedCompletionStatus });
+      }
+
+    } catch (error) {
+      console.error('Error loading existing daily information:', error);
+      // Fall back to localStorage only
+      const savedData = localStorage.getItem('dailyInfoEntryData');
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData);
+          setFieldValues(parsedData.fieldValues || {});
+          setCompletionStatus(parsedData.completionStatus || {});
+          console.log('Fallback: Loaded daily info data from localStorage only');
+        } catch (error) {
+          console.error('Error loading daily info data from localStorage:', error);
+        }
       }
     }
-  }, []);
+  }, [patients, availableTemplates, selectedTemplate]);
+
+  // Load existing daily information when modal opens and patients are available
+  useEffect(() => {
+    if (isOpen && patients.length > 0 && !loadingTemplates) {
+      // Skip loading daily info for now to test template functionality
+      console.log('Skipping daily info load to test template rendering');
+      // loadExistingDailyInfo();
+    }
+  }, [isOpen, patients, loadingTemplates, loadExistingDailyInfo]);
 
   // Save data to localStorage whenever fieldValues or completionStatus changes
   useEffect(() => {
@@ -393,8 +596,8 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
         ...prev,
         [patient.id]: {
           ...prev[patient.id],
-          'last name': lastName || '',
-          'first name': firstName || ''
+          'last_name': lastName || '',
+          'first_name': firstName || ''
         }
       }));
     }
@@ -460,16 +663,26 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
       if (!currentPatient) return;
 
       const currentPatientValues = fieldValues[currentPatient.id] || {};
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        alert('❌ Authentication required. Please log in again.');
+        return;
+      }
       
       // Save to backend API
       const response = await fetch('http://localhost:5000/api/daily-info', {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          patient_id: currentPatient.id,
-          field_values: currentPatientValues
+          patient_census_row_id: currentPatient.id,
+          template_id: selectedTemplate?.id || null,
+          field_values: currentPatientValues,
+          status: 'completed',
+          notes: `Daily information entry for ${currentPatient.patient_name}`
         })
       });
 
@@ -482,17 +695,25 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
             [currentPatient.id]: true
           }));
           
+          // Clear localStorage data for this patient since it's now saved
+          const savedData = JSON.parse(localStorage.getItem('dailyInfoEntryData') || '{}');
+          if (savedData.fieldValues && savedData.fieldValues[currentPatient.id]) {
+            delete savedData.fieldValues[currentPatient.id];
+            localStorage.setItem('dailyInfoEntryData', JSON.stringify(savedData));
+          }
+          
           // Show success message
           alert(`✅ Daily information saved successfully for ${currentPatient.patient_name}!`);
         } else {
-          throw new Error(result.message || 'Failed to save');
+          throw new Error(result.error || 'Failed to save');
         }
       } else {
-        throw new Error('Network error');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
       }
     } catch (error) {
       console.error('Error saving daily info:', error);
-      alert('❌ Error saving daily information. Please try again.');
+      alert(`❌ Error saving daily information: ${error.message}`);
     }
   };
 
@@ -663,68 +884,166 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
                 )}
               </div>
 
-              {/* Template Fields */}
-              {selectedTemplate ? (
+              {/* Rollover Information */}
+              {rolloverInfo && rolloverInfo.hasRollover && (
                 <div style={{
-                  padding: '16px',
-                  backgroundColor: styles.bgPrimary,
-                  border: `1px solid ${styles.borderColor}`,
-                  borderRadius: '8px'
+                  marginBottom: '16px',
+                  padding: '12px',
+                  backgroundColor: currentTheme === 'dark' ? '#2a4d3a' : '#f0f9ff',
+                  border: `1px solid ${currentTheme === 'dark' ? '#16a34a' : '#0ea5e9'}`,
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
                 }}>
+                  <div style={{
+                    fontSize: '16px',
+                    color: currentTheme === 'dark' ? '#16a34a' : '#0ea5e9'
+                  }}>
+                    ℹ️
+                  </div>
+                  <div style={{
+                    flex: 1,
+                    fontSize: '14px',
+                    color: styles.textPrimary
+                  }}>
+                    <strong>Data Carried Over:</strong> Daily information for {rolloverInfo.count} patient{rolloverInfo.count > 1 ? 's' : ''} has been automatically carried over from the previous day. You can review and update the information as needed.
+                  </div>
+                </div>
+              )}
+
+              {/* Dynamic Template Renderer */}
+              {selectedTemplate ? (
+                <div>
                   <h4 style={{
                     margin: 0,
                     marginBottom: '16px',
-                    fontSize: '14px',
+                    fontSize: '16px',
                     fontWeight: '600',
-                    color: styles.textPrimary
+                    color: styles.textPrimary,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
                   }}>
-                    {selectedTemplate.name} - Patient Information
+                    📋 {selectedTemplate.name} - {currentPatient?.patient_name || 'Patient'}
                   </h4>
                   
+                  {/* Debug info */}
                   <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                    gap: '16px'
+                    fontSize: '12px',
+                    color: styles.textMuted,
+                    marginBottom: '8px',
+                    fontFamily: 'monospace'
                   }}>
-                    {templateParts.map((part, index) => (
-                      <div key={index}>
-                        <label style={{
-                          display: 'block',
-                          fontSize: '12px',
-                          fontWeight: '500',
-                          color: styles.textSecondary,
-                          marginBottom: '6px'
-                        }}>
-                          {part.description || part.name}
-                        </label>
-                        <input
-                          type={part.dataType === 'date' ? 'date' : part.dataType === 'number' ? 'number' : 'text'}
-                          value={currentPatientValues[part.name] || ''}
-                          onChange={(e) => handleFieldChange(part.name, e.target.value)}
-                          placeholder={part.example || `Enter ${part.name}`}
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            border: `1px solid ${styles.borderColor}`,
-                            borderRadius: '4px',
-                            fontSize: '14px',
-                            backgroundColor: styles.bgSecondary,
-                            color: styles.textPrimary,
-                            outline: 'none'
-                          }}
-                        />
-                        {part.example && (
-                          <div style={{
-                            fontSize: '11px',
-                            color: styles.textMuted,
-                            marginTop: '4px',
-                            fontStyle: 'italic'
-                          }}>
-                            Example: {part.example}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                    Template Content: {selectedTemplate.content ? 'Available' : 'Not loaded'}
+                    {selectedTemplate.content && ` (${selectedTemplate.content.length} chars)`}
+                  </div>
+                  
+                  {/* Template Content with Interactive Fields */}
+                  <div style={{
+                    backgroundColor: styles.bgPrimary,
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '8px',
+                    padding: '20px',
+                    fontFamily: 'monospace',
+                    fontSize: '14px',
+                    lineHeight: '1.6',
+                    color: styles.textPrimary,
+                    whiteSpace: 'pre-wrap'
+                  }}>
+                    {(selectedTemplate.content || DEFAULT_TEMPLATE)
+                      .split(/(\{\{[^}]+\}\})/)
+                      .map((part, index) => {
+                        // Check if this part is a placeholder
+                        const placeholderMatch = part.match(/\{\{([^}]+)\}\}/);
+                        
+                        if (placeholderMatch) {
+                          const fieldName = placeholderMatch[1].trim();
+                          const fieldType = getFieldType(fieldName);
+                          const value = currentPatientValues[fieldName] || '';
+                          
+                          if (fieldType === 'readonly') {
+                            // Auto-filled fields (patient name, etc.)
+                            return (
+                              <span
+                                key={index}
+                                style={{
+                                  color: styles.primaryColor,
+                                  fontWeight: '600',
+                                  backgroundColor: styles.bgSecondary,
+                                  padding: '2px 6px',
+                                  borderRadius: '3px',
+                                  border: `1px solid ${styles.primaryColor}`
+                                }}
+                              >
+                                {value || fieldName.replace(/_/g, ' ')}
+                              </span>
+                            );
+                          } else if (fieldType === 'textarea') {
+                            // Multi-line text areas
+                            return (
+                              <textarea
+                                key={index}
+                                value={value}
+                                onChange={(e) => handleFieldChange(fieldName, e.target.value)}
+                                placeholder={`Enter ${fieldName.replace(/_/g, ' ')}...`}
+                                style={{
+                                  backgroundColor: value ? 'transparent' : styles.bgSecondary,
+                                  border: value ? 'none' : `1px dashed ${styles.borderColor}`,
+                                  borderBottom: value ? `2px solid ${styles.primaryColor}` : `1px dashed ${styles.borderColor}`,
+                                  borderRadius: value ? '0' : '4px',
+                                  padding: value ? '2px 4px' : '8px',
+                                  color: value ? styles.textPrimary : styles.textMuted,
+                                  fontSize: '14px',
+                                  fontFamily: 'monospace',
+                                  outline: 'none',
+                                  transition: 'all 0.2s ease',
+                                  fontWeight: value ? '500' : '400',
+                                  minWidth: '200px',
+                                  minHeight: value ? 'auto' : '60px',
+                                  resize: 'vertical',
+                                  display: 'inline-block',
+                                  verticalAlign: 'top'
+                                }}
+                                rows={value ? Math.max(1, value.split('\\n').length) : 3}
+                              />
+                            );
+                          } else {
+                            // Single-line inputs
+                            return (
+                              <input
+                                key={index}
+                                type="text"
+                                value={value}
+                                onChange={(e) => handleFieldChange(fieldName, e.target.value)}
+                                placeholder={`Enter ${fieldName.replace(/_/g, ' ')}...`}
+                                style={{
+                                  backgroundColor: value ? 'transparent' : styles.bgSecondary,
+                                  border: value ? 'none' : `1px dashed ${styles.borderColor}`,
+                                  borderBottom: value ? `2px solid ${styles.primaryColor}` : `1px dashed ${styles.borderColor}`,
+                                  borderRadius: value ? '0' : '4px',
+                                  padding: value ? '2px 4px' : '6px 8px',
+                                  color: value ? styles.textPrimary : styles.textMuted,
+                                  fontSize: '14px',
+                                  fontFamily: 'monospace',
+                                  outline: 'none',
+                                  transition: 'all 0.2s ease',
+                                  fontWeight: value ? '500' : '400',
+                                  minWidth: value ? `${Math.max(value.length * 8, 60)}px` : '120px',
+                                  maxWidth: '300px'
+                                }}
+                              />
+                            );
+                          }
+                        } else {
+                          // Static text
+                          return (
+                            <span key={index} style={{ color: styles.textPrimary }}>
+                              {part}
+                            </span>
+                          );
+                        }
+                      })}
                   </div>
                 </div>
               ) : (

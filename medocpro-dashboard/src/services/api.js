@@ -6,7 +6,7 @@ const API_BASE_URL = 'http://localhost:5000';
 class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
-    this.token = localStorage.getItem('authToken');
+    this.token = localStorage.getItem('token');
   }
 
   // Helper method to get headers with authentication
@@ -15,8 +15,12 @@ class ApiService {
       'Content-Type': 'application/json',
     };
     
-    if (includeAuth && this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+    if (includeAuth) {
+      // Always get fresh token from localStorage
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
     }
     
     return headers;
@@ -37,9 +41,9 @@ class ApiService {
   setToken(token) {
     this.token = token;
     if (token) {
-      localStorage.setItem('authToken', token);
+      localStorage.setItem('token', token);
     } else {
-      localStorage.removeItem('authToken');
+      localStorage.removeItem('token');
     }
   }
 
@@ -150,23 +154,29 @@ class ApiService {
   }
 
   async createTemplate(templateData) {
+    console.log('Creating template with data:', templateData);
     const response = await fetch(`${this.baseURL}/api/templates`, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(templateData),
     });
     
-    return this.handleResponse(response);
+    const result = await this.handleResponse(response);
+    console.log('Create template response:', result);
+    return result;
   }
 
   async updateTemplate(templateId, templateData) {
+    console.log('Updating template', templateId, 'with data:', templateData);
     const response = await fetch(`${this.baseURL}/api/templates/${templateId}`, {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify(templateData),
     });
     
-    return this.handleResponse(response);
+    const result = await this.handleResponse(response);
+    console.log('Update template response:', result);
+    return result;
   }
 
   async deleteTemplate(templateId) {

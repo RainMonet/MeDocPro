@@ -448,7 +448,8 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'da
   // Reset template when modal opens/closes or initialTemplate changes
   useEffect(() => {
     if (isOpen) {
-      setTemplate({
+      // Default template structure
+      const defaultTemplate = {
         name: '',
         category: 'progress',
         version: '1.0',
@@ -458,9 +459,19 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'da
           { key: 'date_of_service', description: 'Date of service', example: new Date().toLocaleDateString(), type: 'date' },
           { key: 'provider_name', description: 'Healthcare provider name', example: 'Dr. Smith', type: 'text' }
         ],
-        aiEnhancementZones: [],
-        ...initialTemplate
-      });
+        aiEnhancementZones: []
+      };
+      
+      // If editing existing template, use its data; otherwise use defaults
+      if (initialTemplate && initialTemplate.id) {
+        setTemplate({
+          ...defaultTemplate,
+          ...initialTemplate
+        });
+      } else {
+        setTemplate(defaultTemplate);
+      }
+      
       setValidationErrors([]);
     }
   }, [isOpen, initialTemplate]);
@@ -487,13 +498,19 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'da
 
   // Validate and save template
   const handleSave = useCallback(() => {
+    console.log('TemplateEditor handleSave called with template:', template);
+    console.log('initialTemplate:', initialTemplate);
+    
     const errors = validateTemplateData(template);
     setValidationErrors(errors);
     
     if (errors.length === 0) {
+      console.log('Validation passed, calling onSave with template:', template);
       onSave(template);
+    } else {
+      console.log('Validation failed with errors:', errors);
     }
-  }, [template, onSave]);
+  }, [template, onSave, initialTemplate]);
 
   // Load sample template content
   const loadSampleTemplate = useCallback((type) => {

@@ -437,15 +437,6 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew, theme = '
           marginBottom: '20px'
         }}>
           <div>
-            <h2 style={{
-              margin: 0,
-              fontSize: '20px',
-              fontWeight: '600',
-              color: styles.textPrimary,
-              marginBottom: '4px'
-            }}>
-              📚 Template Library
-            </h2>
             <p style={{
               margin: 0,
               fontSize: '14px',
@@ -456,113 +447,6 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew, theme = '
           </div>
         </div>
 
-        {/* Statistics Cards Row - Similar to Patient Census */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-          gap: '16px',
-          marginBottom: '20px'
-        }}>
-          <div style={{
-            padding: '12px 16px',
-            backgroundColor: styles.bgSecondary,
-            borderRadius: '8px',
-            border: `1px solid ${styles.borderColor}`,
-            textAlign: 'center'
-          }}>
-            <div style={{
-              fontSize: '20px',
-              fontWeight: '600',
-              color: styles.textPrimary,
-              marginBottom: '4px'
-            }}>
-              {templates.length}
-            </div>
-            <div style={{
-              fontSize: '12px',
-              color: styles.textMuted,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              Total Templates
-            </div>
-          </div>
-          
-          <div style={{
-            padding: '12px 16px',
-            backgroundColor: styles.bgSecondary,
-            borderRadius: '8px',
-            border: `1px solid ${styles.borderColor}`,
-            textAlign: 'center'
-          }}>
-            <div style={{
-              fontSize: '20px',
-              fontWeight: '600',
-              color: '#6b8e23',
-              marginBottom: '4px'
-            }}>
-              {templateCounts['progress'] || 0}
-            </div>
-            <div style={{
-              fontSize: '12px',
-              color: styles.textMuted,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              Progress Notes
-            </div>
-          </div>
-
-          <div style={{
-            padding: '12px 16px',
-            backgroundColor: styles.bgSecondary,
-            borderRadius: '8px',
-            border: `1px solid ${styles.borderColor}`,
-            textAlign: 'center'
-          }}>
-            <div style={{
-              fontSize: '20px',
-              fontWeight: '600',
-              color: '#8b4513',
-              marginBottom: '4px'
-            }}>
-              {templateCounts['assessment'] || 0}
-            </div>
-            <div style={{
-              fontSize: '12px',
-              color: styles.textMuted,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              Assessments
-            </div>
-          </div>
-
-          <div style={{
-            padding: '12px 16px',
-            backgroundColor: styles.bgSecondary,
-            borderRadius: '8px',
-            border: `1px solid ${styles.borderColor}`,
-            textAlign: 'center'
-          }}>
-            <div style={{
-              fontSize: '20px',
-              fontWeight: '600',
-              color: '#cd853f',
-              marginBottom: '4px'
-            }}>
-              {filteredTemplates.length}
-            </div>
-            <div style={{
-              fontSize: '12px',
-              color: styles.textMuted,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              Filtered Results
-            </div>
-          </div>
-        </div>
 
         {/* Error Alert */}
         {error && (
@@ -583,18 +467,12 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew, theme = '
         <div style={{
           display: 'flex',
           gap: '12px',
-          alignItems: 'center',
-          flexWrap: 'wrap'
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          marginBottom: '16px'
         }}>
           {/* Search Input */}
-          <div style={{ position: 'relative', flex: '1 1 250px', minWidth: '200px' }}>
-            <SearchIcon style={{
-              position: 'absolute',
-              left: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: styles.textMuted
-            }} />
+          <div style={{ flex: '1 1 250px', minWidth: '200px' }}>
             <input
               type="text"
               className="form-input"
@@ -602,8 +480,11 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew, theme = '
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ 
-                paddingLeft: '36px',
-                fontSize: '14px'
+                padding: '10px 12px',
+                fontSize: '14px',
+                height: '40px',
+                boxSizing: 'border-box',
+                width: '100%'
               }}
             />
           </div>
@@ -620,13 +501,15 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew, theme = '
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
             style={{
-              padding: '8px 12px',
+              padding: '10px 12px',
               borderRadius: '6px',
               border: `1px solid ${styles.borderColor}`,
               backgroundColor: styles.bgPrimary,
               color: styles.textPrimary,
               fontSize: '14px',
-              minWidth: '150px'
+              minWidth: '150px',
+              height: '40px',
+              boxSizing: 'border-box'
             }}
           >
             <option value="all">All Categories</option>
@@ -641,7 +524,7 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew, theme = '
           <button
             onClick={onCreateNew}
             style={{
-              padding: '8px 16px',
+              padding: '10px 16px',
               backgroundColor: '#6b8e23',
               color: 'white',
               border: 'none',
@@ -651,7 +534,9 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew, theme = '
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px'
+              gap: '6px',
+              height: '40px',
+              whiteSpace: 'nowrap'
             }}
           >
             <span style={{ fontSize: '16px' }}>+</span>

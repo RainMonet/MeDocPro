@@ -48,20 +48,16 @@ TEMPLATE_CATEGORIES = {
 
 @templates_bp.route('/templates', methods=['GET'])
 def list_templates():
-    """List all templates with basic information"""
+    """List all templates with full information including placeholders"""
     try:
         templates = Template.query.all()
         template_list = []
         
         for template in templates:
-            template_list.append({
-                'id': template.id,
-                'name': template.name,
-                'category': getattr(template, 'category', 'custom'),
-                'content_preview': template.content[:200] + '...' if len(template.content) > 200 else template.content,
-                'created_at': getattr(template, 'created_at', None),
-                'is_active': True
-            })
+            template_dict = template.to_dict(include_placeholders=True)
+            # Add content preview for backward compatibility
+            template_dict['content_preview'] = template.content[:200] + '...' if len(template.content) > 200 else template.content
+            template_list.append(template_dict)
         
         return jsonify({
             'templates': template_list,
@@ -79,14 +75,7 @@ def get_template(template_id):
         template = Template.query.get_or_404(template_id)
         
         return jsonify({
-            'template': {
-                'id': template.id,
-                'name': template.name,
-                'content': template.content,
-                'category': getattr(template, 'category', 'custom'),
-                'created_at': getattr(template, 'created_at', None),
-                'is_active': True
-            }
+            'template': template.to_dict(include_placeholders=True)
         }), 200
         
     except Exception as e:
@@ -103,23 +92,78 @@ def create_template():
         
         template = Template(
             name=data['name'],
-            content=data['content']
+            content=data['content'],
+            category=data.get('category', 'custom'),
+            description=data.get('description', '')
         )
+        
+        # Handle placeholders if provided
+        if 'placeholders' in data:
+            template.placeholders = data['placeholders']
         
         db.session.add(template)
         db.session.commit()
         
         return jsonify({
-            'template': {
-                'id': template.id,
-                'name': template.name,
-                'content': template.content,
-                'category': getattr(template, 'category', 'custom'),
-                'created_at': getattr(template, 'created_at', None),
-                'is_active': True
-            },
+            'template': template.to_dict(include_placeholders=True),
             'message': 'Template created successfully'
         }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@templates_bp.route('/templates/<int:template_id>', methods=['PUT'])
+def update_template(template_id):
+    """Update an existing template"""
+    try:
+        template = Template.query.get_or_404(template_id)
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Update template fields
+        if 'name' in data:
+            template.name = data['name']
+        if 'content' in data:
+            template.content = data['content']
+        if 'category' in data:
+            template.category = data['category']
+        if 'description' in data:
+            template.description = data['description']
+        
+        # Handle placeholders if provided
+        if 'placeholders' in data:
+            template.placeholders = data['placeholders']
+        
+        db.session.commit()
+        
+        return jsonify({
+            'template': template.to_dict(include_placeholders=True),
+            'message': 'Template updated successfully'
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@templates_bp.route('/templates/<int:template_id>', methods=['DELETE'])
+def delete_template(template_id):
+    """Delete a template"""
+    try:
+        template = Template.query.get_or_404(template_id)
+        
+        # Check if template is a system template
+        if template.is_system:
+            return jsonify({'error': 'System templates cannot be deleted'}), 403
+        
+        db.session.delete(template)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Template deleted successfully'
+        }), 200
         
     except Exception as e:
         db.session.rollback()
@@ -175,22 +219,20 @@ def get_template_statistics():
 def get_top_used_templates():
     """Get user's most frequently used templates (frontend compatibility endpoint)"""
     try:
-        # Get user's top 4 most used templates (mock data for now)
-        # In a real system, this would query usage statistics for the authenticated user
-        templates = Template.query.limit(4).all()
+        # Get all templates with full data including placeholders
+        templates = Template.query.order_by(Template.created_at.desc()).all()
         
         user_templates = []
-        usage_counts = [47, 34, 29, 18]  # Mock usage data
+        base_usage_counts = [47, 34, 29, 18, 15, 12, 10, 8]  # Mock usage data
         
         for i, template in enumerate(templates):
-            user_templates.append({
-                'id': template.id,
-                'name': template.name,
-                'category': 'progress',  # Mock category
-                'usage_count': usage_counts[i] if i < len(usage_counts) else 10,
+            template_dict = template.to_dict(include_placeholders=True)
+            template_dict.update({
+                'usage_count': base_usage_counts[i] if i < len(base_usage_counts) else max(1, 10 - i),
                 'last_used': '2024-07-07T14:30:00Z',  # Mock last used date
                 'created_by': 'Dr. Jane Smith'  # Mock creator
             })
+            user_templates.append(template_dict)
         
         return jsonify({
             'success': True,
