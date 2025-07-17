@@ -153,7 +153,7 @@ class PatientCensus(db.Model):
         
         # Copy active patients from source census
         for source_row in source_census.rows:
-            if source_row.status == 'active':  # Only carry over active patients
+            if source_row.status in ['active', 'follow-up']:  # Carry over active and follow-up patients
                 # Create new patient row
                 new_row = PatientCensusRow(
                     census_id=new_census.id,

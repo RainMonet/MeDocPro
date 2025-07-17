@@ -114,7 +114,7 @@ def get_census_history():
         census_history = []
         for census in censuses:
             # Calculate census counts
-            active_count = len([row for row in census.rows if row.status == 'active'])
+            active_count = len([row for row in census.rows if row.status in ['active', 'follow-up']])
             admission_count = len([row for row in census.rows if row.status == 'admission'])
             discharge_count = len([row for row in census.rows if row.status == 'discharge'])
             
