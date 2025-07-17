@@ -362,6 +362,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
   const [scratchNotes, setScratchNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingInProgress, setLoadingInProgress] = useState(false);
+  const [censusLoading, setCensusLoading] = useState(false);
   const [error, setError] = useState('');
   const [censusRefreshKey, setCensusRefreshKey] = useState(0);
   const loadDataRef = useRef();
@@ -374,7 +375,13 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
 
   // Load today's census data with 7-day historical data
   const loadCensusData = useCallback(async () => {
+    if (censusLoading) {
+      console.log('🔍 CensusData load already in progress, skipping...');
+      return;
+    }
+    
     console.log('🔍 ClinicalWorkspace: loadCensusData called');
+    setCensusLoading(true);
     const token = localStorage.getItem('token');
     console.log('🔍 Token check:', token ? `Token exists (${token.substring(0, 20)}...)` : 'No token');
     
@@ -413,7 +420,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
           'Content-Type': 'application/json'
         },
         // Add timeout to prevent hanging
-        signal: AbortSignal.timeout(10000) // 10 second timeout
+        signal: AbortSignal.timeout(5000) // 5 second timeout
       });
       
       if (!todayResponse.ok) {
@@ -436,7 +443,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
             'Content-Type': 'application/json'
           },
           // Add timeout for historical data too
-          signal: AbortSignal.timeout(5000) // 5 second timeout for optional data
+          signal: AbortSignal.timeout(3000) // 3 second timeout for optional data
         });
         
         if (historyResponse.ok) {
@@ -467,6 +474,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
       
       setCensusData(censusWithHistory);
       setError(''); // Clear any previous errors
+      setCensusLoading(false);
       
     } catch (err) {
       console.error('Census loading error:', err);
@@ -498,7 +506,8 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
         historical_data: []
       });
     }
-  }, []);
+    setCensusLoading(false);
+  }, [censusLoading]);
 
   // Load scratch notes for integration
   const loadScratchNotes = useCallback(async () => {
