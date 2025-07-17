@@ -443,6 +443,15 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'da
     type: 'text'
   });
 
+  // Text selection and AI transformation states
+  const [selectedText, setSelectedText] = useState('');
+  const [selectionStart, setSelectionStart] = useState(0);
+  const [selectionEnd, setSelectionEnd] = useState(0);
+  const [showAIMenu, setShowAIMenu] = useState(false);
+  const [aiMenuPosition, setAIMenuPosition] = useState({ x: 0, y: 0 });
+  const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const [aiTransformType, setAITransformType] = useState('enhance');
+
   const styles = getThemeStyles(theme);
 
   // Reset template when modal opens/closes or initialTemplate changes
@@ -624,6 +633,94 @@ Provider: {{provider_signature}}`
       setTemplate(prev => ({ ...prev, content: samples[type] }));
     }
   }, []);
+
+  // Handle text selection in the textarea
+  const handleTextSelect = (e) => {
+    const textarea = e.target;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = textarea.value.substring(start, end);
+    
+    if (selected.length > 0) {
+      setSelectedText(selected);
+      setSelectionStart(start);
+      setSelectionEnd(end);
+      
+      // Calculate position for AI menu
+      const rect = textarea.getBoundingClientRect();
+      const lines = textarea.value.substring(0, start).split('\n');
+      const lineHeight = 20; // Approximate line height
+      const y = rect.top + (lines.length - 1) * lineHeight - textarea.scrollTop;
+      const x = rect.left + 10; // Offset from left edge
+      
+      setAIMenuPosition({ x, y });
+      setShowAIMenu(true);
+    } else {
+      setShowAIMenu(false);
+      setSelectedText('');
+    }
+  };
+
+  // AI transformation function
+  const transformWithAI = async (transformType) => {
+    if (!selectedText.trim()) return;
+    
+    setIsProcessingAI(true);
+    setShowAIMenu(false);
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/ai-enhancement/enhance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          text: selectedText,
+          enhancement_type: transformType,
+          model: 'mistral:latest',
+          clinical_context: true
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.enhanced_text) {
+        // Replace selected text with AI-enhanced version
+        const newContent = 
+          template.content.substring(0, selectionStart) +
+          data.enhanced_text +
+          template.content.substring(selectionEnd);
+        
+        setTemplate(prev => ({ ...prev, content: newContent }));
+        setSelectedText('');
+      } else {
+        console.error('AI enhancement failed:', data.error);
+        alert('AI enhancement failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error calling AI enhancement API:', error);
+      alert(`AI enhancement error: ${error.message}`);
+    } finally {
+      setIsProcessingAI(false);
+    }
+  };
+
+  // Close AI menu when clicking outside
+  const handleDocumentClick = useCallback((e) => {
+    if (showAIMenu && !e.target.closest('.ai-transformation-menu')) {
+      setShowAIMenu(false);
+    }
+  }, [showAIMenu]);
+
+  useEffect(() => {
+    document.addEventListener('click', handleDocumentClick);
+    return () => document.removeEventListener('click', handleDocumentClick);
+  }, [handleDocumentClick]);
 
   // Handle backdrop click to close modal
   const handleBackdropClick = (e) => {
@@ -861,12 +958,113 @@ Provider: {{provider_signature}}`
                     backgroundColor: styles.inputBg,
                     color: styles.textPrimary
                   }}
-                  placeholder="Begin creating your clinical template here. Use {{placeholder_name}} syntax to insert dynamic fields..."
+                  placeholder="Begin creating your clinical template here. Use {{placeholder_name}} syntax to insert dynamic fields. Select text and use AI to enhance it..."
                   value={template.content}
                   onChange={(e) => setTemplate(prev => ({ ...prev, content: e.target.value }))}
+                  onMouseUp={handleTextSelect}
+                  onKeyUp={handleTextSelect}
                 />
               </div>
             </>
+          )}
+
+          {/* AI Transformation Menu */}
+          {showAIMenu && selectedText && (
+            <div
+              className="ai-transformation-menu"
+              style={{
+                position: 'fixed',
+                top: aiMenuPosition.y + 'px',
+                left: aiMenuPosition.x + 'px',
+                zIndex: 1000,
+                backgroundColor: styles.bgPrimary,
+                border: `1px solid ${styles.borderColor}`,
+                borderRadius: '8px',
+                padding: '8px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                minWidth: '200px'
+              }}
+            >
+              <div style={{
+                marginBottom: '8px',
+                fontSize: '12px',
+                color: styles.textMuted,
+                borderBottom: `1px solid ${styles.borderColor}`,
+                paddingBottom: '6px'
+              }}>
+                AI Transform: "{selectedText.substring(0, 30)}{selectedText.length > 30 ? '...' : ''}"
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <button
+                  onClick={() => transformWithAI('enhance')}
+                  disabled={isProcessingAI}
+                  style={{
+                    padding: '6px 10px',
+                    border: 'none',
+                    borderRadius: '4px',
+                    backgroundColor: styles.primaryColor,
+                    color: 'white',
+                    fontSize: '12px',
+                    cursor: isProcessingAI ? 'not-allowed' : 'pointer',
+                    opacity: isProcessingAI ? 0.6 : 1
+                  }}
+                >
+                  {isProcessingAI ? '🔄 Processing...' : '✨ Enhance Clinical Language'}
+                </button>
+                
+                <button
+                  onClick={() => transformWithAI('simplify')}
+                  disabled={isProcessingAI}
+                  style={{
+                    padding: '6px 10px',
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '4px',
+                    backgroundColor: styles.bgSecondary,
+                    color: styles.textPrimary,
+                    fontSize: '12px',
+                    cursor: isProcessingAI ? 'not-allowed' : 'pointer',
+                    opacity: isProcessingAI ? 0.6 : 1
+                  }}
+                >
+                  {isProcessingAI ? '🔄 Processing...' : '📝 Simplify Language'}
+                </button>
+                
+                <button
+                  onClick={() => transformWithAI('medical_analysis')}
+                  disabled={isProcessingAI}
+                  style={{
+                    padding: '6px 10px',
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '4px',
+                    backgroundColor: styles.bgSecondary,
+                    color: styles.textPrimary,
+                    fontSize: '12px',
+                    cursor: isProcessingAI ? 'not-allowed' : 'pointer',
+                    opacity: isProcessingAI ? 0.6 : 1
+                  }}
+                >
+                  {isProcessingAI ? '🔄 Processing...' : '🩺 Clinical Analysis'}
+                </button>
+                
+                <button
+                  onClick={() => transformWithAI('decision_support')}
+                  disabled={isProcessingAI}
+                  style={{
+                    padding: '6px 10px',
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '4px',
+                    backgroundColor: styles.bgSecondary,
+                    color: styles.textPrimary,
+                    fontSize: '12px',
+                    cursor: isProcessingAI ? 'not-allowed' : 'pointer',
+                    opacity: isProcessingAI ? 0.6 : 1
+                  }}
+                >
+                  {isProcessingAI ? '🔄 Processing...' : '🎯 Decision Support'}
+                </button>
+              </div>
+            </div>
           )}
 
           {/* Placeholders Management Tab */}

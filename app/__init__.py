@@ -47,6 +47,10 @@ def create_app(config_class=Config):
         # Document generation endpoints
         from .routes.document_generation import document_generation_bp
         app.register_blueprint(document_generation_bp, url_prefix='/api')
+        
+        # AI enhancement endpoints
+        from .routes.ai_enhancement import ai_bp
+        app.register_blueprint(ai_bp, url_prefix='/api/ai-enhancement')
 
         # Import models here to ensure they are registered with SQLAlchemy
         from . import models
