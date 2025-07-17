@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PatientCensusCard from './PatientCensusCard';
 import BatchDocumentationCard from './BatchDocumentationCard';
 import { RecentDocuments } from '../dashboard';
@@ -364,6 +364,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
   const [loadingInProgress, setLoadingInProgress] = useState(false);
   const [error, setError] = useState('');
   const [censusRefreshKey, setCensusRefreshKey] = useState(0);
+  const loadDataRef = useRef();
   const [selectedPatients, setSelectedPatients] = useState([]);
   const [dailyInfoModalOpen, setDailyInfoModalOpen] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
@@ -546,7 +547,10 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
       setLoading(false);
       setLoadingInProgress(false);
     }
-  }, [loadCensusData, loadScratchNotes, loadingInProgress]);
+  }, [loadCensusData, loadScratchNotes]); // Remove loadingInProgress dependency
+  
+  // Store loadData in ref to avoid stale closures
+  loadDataRef.current = loadData;
 
   // Handle batch document generation
   const handleGenerateDocuments = async (options) => {
@@ -592,14 +596,18 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
   };
 
 
+  // Initial load effect
   useEffect(() => {
-    loadData();
-    
+    loadDataRef.current();
+  }, []);
+  
+  // Auto-refresh and focus handling
+  useEffect(() => {
     // Auto-refresh every 5 minutes, but only if no modals are open
     const interval = setInterval(() => {
       if (!dailyInfoModalOpen && !previewModalOpen) {
         console.log('Auto-refreshing data (no modals open)');
-        loadData();
+        loadDataRef.current();
       } else {
         console.log('Skipping auto-refresh (modal is open)');
       }
@@ -609,7 +617,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
     const handleFocus = () => {
       if (!dailyInfoModalOpen && !previewModalOpen) {
         console.log('Window focused - refreshing census data');
-        loadData();
+        loadDataRef.current();
       } else {
         console.log('Window focused but skipping refresh (modal is open)');
       }
@@ -621,7 +629,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [loadData, dailyInfoModalOpen, previewModalOpen]);
+  }, [dailyInfoModalOpen, previewModalOpen]);
 
   if (loading) {
     return (
