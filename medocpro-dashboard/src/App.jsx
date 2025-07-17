@@ -167,10 +167,13 @@ function App() {
   };
 
   const handleModalClose = () => {
+    // Check which modal is closing before setting it to null
+    const wasPatientCensusModal = activeModal === 'patient-census' || activeModal === 'patients';
+    
     setActiveModal(null);
     
     // Only refresh workspace if census data was actually modified (not for daily info modal)
-    if (viewMode === 'workspace' && activeModal === 'patient-census') {
+    if (viewMode === 'workspace' && wasPatientCensusModal) {
       setWorkspaceRefreshKey(prev => prev + 1);
     }
   };
