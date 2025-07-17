@@ -361,6 +361,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
   const [censusData, setCensusData] = useState(null);
   const [scratchNotes, setScratchNotes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingInProgress, setLoadingInProgress] = useState(false);
   const [error, setError] = useState('');
   const [censusRefreshKey, setCensusRefreshKey] = useState(0);
   const [selectedPatients, setSelectedPatients] = useState([]);
@@ -525,11 +526,12 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
 
   // Load all data sequentially to avoid overwhelming the backend
   const loadData = useCallback(async () => {
-    if (loading) {
+    if (loadingInProgress) {
       console.log('LoadData already in progress, skipping...');
       return; // Prevent concurrent loads
     }
     
+    setLoadingInProgress(true);
     setLoading(true);
     try {
       // Load census data first (most important)
@@ -542,8 +544,9 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
       console.error('Error in loadData:', error);
     } finally {
       setLoading(false);
+      setLoadingInProgress(false);
     }
-  }, [loadCensusData, loadScratchNotes, loading]);
+  }, [loadCensusData, loadScratchNotes, loadingInProgress]);
 
   // Handle batch document generation
   const handleGenerateDocuments = async (options) => {
