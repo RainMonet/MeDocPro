@@ -75,12 +75,46 @@ class DailyInformation(db.Model):
         content = self.template.content
         field_values = self.field_values
         
+        # Create a mapping of field values with common aliases
+        mapped_values = field_values.copy()
+        
+        # Add common field mappings
+        if 'last_name' in field_values and 'first_name' in field_values:
+            # Create patient_name from first and last name
+            first_name = field_values.get('first_name', '').strip()
+            last_name = field_values.get('last_name', '').strip()
+            if first_name and last_name:
+                mapped_values['patient_name'] = f"{first_name} {last_name}"
+            elif last_name:
+                mapped_values['patient_name'] = last_name
+            elif first_name:
+                mapped_values['patient_name'] = first_name
+        
+        # Add patient info from census row if available
+        if self.patient_census_row:
+            if 'patient_name' not in mapped_values:
+                mapped_values['patient_name'] = self.patient_census_row.patient_name or ''
+            if 'room_number' not in mapped_values:
+                mapped_values['room_number'] = self.patient_census_row.room_number or ''
+            if 'patient_id' not in mapped_values:
+                mapped_values['patient_id'] = str(self.patient_census_row.id)
+        
+        # Add date of service
+        if 'date_of_service' not in mapped_values:
+            mapped_values['date_of_service'] = self.entry_date.strftime('%Y-%m-%d') if self.entry_date else ''
+        
         # Replace template placeholders with actual values
-        for field_name, field_value in field_values.items():
+        for field_name, field_value in mapped_values.items():
             placeholder = f"{{{{{field_name}}}}}"
             if placeholder in content:
                 content = content.replace(placeholder, str(field_value) if field_value is not None else "")
         
+        # Handle any remaining placeholders by marking them as not filled
+        import re
+        remaining_placeholders = re.findall(r'\{\{([^}]+)\}\}', content)
+        for placeholder_name in remaining_placeholders:
+            placeholder = f"{{{{{placeholder_name}}}}}"
+            content = content.replace(placeholder, f"[{placeholder_name.replace('_', ' ').title()}]")
         return content
     
     def mark_completed(self):
