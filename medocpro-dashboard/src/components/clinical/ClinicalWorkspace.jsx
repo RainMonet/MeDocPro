@@ -525,6 +525,11 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
 
   // Load all data sequentially to avoid overwhelming the backend
   const loadData = useCallback(async () => {
+    if (loading) {
+      console.log('LoadData already in progress, skipping...');
+      return; // Prevent concurrent loads
+    }
+    
     setLoading(true);
     try {
       // Load census data first (most important)
@@ -538,7 +543,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
     } finally {
       setLoading(false);
     }
-  }, [loadCensusData, loadScratchNotes]);
+  }, [loadCensusData, loadScratchNotes, loading]);
 
   // Handle batch document generation
   const handleGenerateDocuments = async (options) => {

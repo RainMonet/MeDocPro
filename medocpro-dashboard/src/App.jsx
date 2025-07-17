@@ -169,8 +169,8 @@ function App() {
   const handleModalClose = () => {
     setActiveModal(null);
     
-    // If we're in workspace mode, trigger a refresh
-    if (viewMode === 'workspace') {
+    // Only refresh workspace if census data was actually modified (not for daily info modal)
+    if (viewMode === 'workspace' && activeModal === 'patient-census') {
       setWorkspaceRefreshKey(prev => prev + 1);
     }
   };
@@ -187,10 +187,15 @@ function App() {
   };
 
   const handleSaveTemplate = async (templateData) => {
+    console.log('App.jsx handleSaveTemplate called with:', templateData);
+    console.log('currentTemplate:', currentTemplate);
+    
     try {
       if (currentTemplate && currentTemplate.id) {
+        console.log('Updating existing template with ID:', currentTemplate.id);
         await apiService.updateTemplate(currentTemplate.id, templateData);
       } else {
+        console.log('Creating new template');
         await apiService.createTemplate(templateData);
       }
       setShowTemplateEditor(false);
@@ -438,7 +443,7 @@ function App() {
                 fontWeight: '600',
                 color: theme === 'dark' ? '#f1f5f9' : '#2d1810'
               }}>
-                📚 Template Library
+                Template Library
               </h2>
               <button 
                 className="modal-close" 

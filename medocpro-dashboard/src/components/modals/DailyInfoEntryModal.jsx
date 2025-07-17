@@ -683,14 +683,15 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
       availableTemplatesLength: availableTemplates.length 
     });
     
-    if (isOpen && patients.length > 0 && !loadingTemplates) {
+    // Only load when modal first opens, not on patient changes
+    if (isOpen && patients.length > 0 && !loadingTemplates && !backendDataLoaded) {
       console.log('Loading existing daily info from backend...');
       console.log('Patient count:', patients.length);
       console.log('First few patients:', patients.slice(0, 3));
       console.log('Available templates:', availableTemplates.length);
       loadExistingDailyInfo();
     }
-  }, [isOpen, patients, loadingTemplates]);
+  }, [isOpen, patients.length, loadingTemplates, backendDataLoaded]);
 
   // Save data to localStorage whenever fieldValues or completionStatus changes
   useEffect(() => {
@@ -924,6 +925,11 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
   useEffect(() => {
     console.log('Auto-save effect triggered, fieldValues:', fieldValues);
     
+    // Only save if modal is open and we have data
+    if (!isOpen || Object.keys(fieldValues).length === 0) {
+      return;
+    }
+    
     const saveTimeout = setTimeout(() => {
       console.log('Auto-save timeout executed');
       Object.keys(fieldValues).forEach(patientId => {
@@ -939,7 +945,7 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
       console.log('Auto-save timeout cleared');
       clearTimeout(saveTimeout);
     };
-  }, [fieldValues, selectedTemplate, patients]);
+  }, [fieldValues, selectedTemplate, isOpen]); // Removed patients dependency
 
   // Handle modal close
   const handleClose = async () => {
@@ -966,9 +972,11 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
         await Promise.all(savePromises);
         console.log('All data saved successfully');
         
-        // DO NOT clear state here - let the modal reopen and load fresh data
-        // This prevents the race condition where state is cleared before modal can reopen
-        console.log('Data saved, closing modal but preserving state for next open');
+        // Clear state after successful save to prevent stale data
+        setFieldValues({});
+        setCompletionStatus({});
+        setBackendDataLoaded(false);
+        console.log('Data saved and state cleared, closing modal');
       } catch (error) {
         console.error('Error saving data:', error);
         
