@@ -39,8 +39,11 @@ const LoginForm = ({ onLogin, theme = 'dark' }) => {
       const data = await response.json();
 
       if (response.ok && data.access_token) {
-        // Store the real JWT token
+        // Store the real JWT tokens
         localStorage.setItem('token', data.access_token);
+        if (data.refresh_token) {
+          localStorage.setItem('refresh_token', data.refresh_token);
+        }
         onLogin();
       } else {
         setError(data.error || 'Invalid credentials');
@@ -73,8 +76,11 @@ const LoginForm = ({ onLogin, theme = 'dark' }) => {
       const data = await response.json();
 
       if (response.ok && data.access_token) {
-        // Store the real JWT token
+        // Store the real JWT tokens
         localStorage.setItem('token', data.access_token);
+        if (data.refresh_token) {
+          localStorage.setItem('refresh_token', data.refresh_token);
+        }
         onLogin();
       } else {
         setError(data.error || 'Demo login failed');

@@ -17,7 +17,7 @@ class Config:
     # Database - Default to SQLite if DATABASE_URL not set
     DATABASE_URL = os.environ.get('DATABASE_URL')
     if not DATABASE_URL:
-        DATABASE_URL = 'sqlite:///' + os.path.join(basedir, 'medocpro.db')
+        DATABASE_URL = 'sqlite:///' + os.path.join(basedir, 'instance', 'medocpro.db')
     
     SQLALCHEMY_DATABASE_URI = DATABASE_URL
     SQLALCHEMY_ECHO = False
@@ -28,7 +28,7 @@ class Config:
     
     # JWT Configuration
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'dev-jwt-secret-key'
-    JWT_ACCESS_TOKEN_EXPIRES = 900  # 15 minutes
+    JWT_ACCESS_TOKEN_EXPIRES = 3600  # 1 hour (increased from 15 minutes)
     JWT_REFRESH_TOKEN_EXPIRES = 604800  # 7 days
     
     # CORS Configuration

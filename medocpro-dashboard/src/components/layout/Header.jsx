@@ -112,7 +112,10 @@ const Header = ({ user, theme, onToggleTheme, viewMode, onViewChange, onLogout, 
           display: 'flex', 
           justifyContent: 'center', 
           alignItems: 'center',
-          padding: '0 20px'
+          padding: '0 20px',
+          minWidth: 0, // Allow flex item to shrink
+          maxWidth: '100%', // Prevent overflow
+          overflow: 'hidden' // Ensure no overflow
         }}>
           <QuoteDisplay theme={theme} onLogin={isNewLogin} />
         </div>

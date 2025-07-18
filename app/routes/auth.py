@@ -2,7 +2,7 @@
 
 from flask import Blueprint, request, jsonify
 from werkzeug.security import check_password_hash
-from flask_jwt_extended import create_access_token, create_refresh_token
+from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
 from datetime import timedelta
 from ..extensions import db
 from ..models import User
@@ -118,6 +118,38 @@ def login():
 def logout():
     """User logout - placeholder implementation"""
     return jsonify({'message': 'Logged out successfully'}), 200
+
+@auth_bp.route('/refresh', methods=['POST'])
+@jwt_required(refresh=True)
+def refresh():
+    """Refresh access token using refresh token"""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        
+        if not user or not user.is_active:
+            return jsonify({'error': 'Invalid user'}), 401
+        
+        # Generate new access token
+        additional_claims = {
+            'username': user.username,
+            'email': user.email,
+            'role': user.role
+        }
+        
+        access_token = create_access_token(
+            identity=str(user.id),
+            additional_claims=additional_claims
+        )
+        
+        return jsonify({
+            'access_token': access_token,
+            'message': 'Token refreshed successfully'
+        }), 200
+        
+    except Exception as e:
+        print(f"Refresh token error: {str(e)}")
+        return jsonify({'error': 'Token refresh failed'}), 401
 
 @auth_bp.route('/password-requirements', methods=['GET'])
 def password_requirements():

@@ -1,6 +1,7 @@
 // Patient Census Management Modal - Backend-integrated version
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import './PatientCensusModal.css';
+import apiService from '../../services/api';
 
 // Helper function for theme-aware styling
 const getThemeStyles = (theme = 'dark') => ({
@@ -39,9 +40,15 @@ const EditablePatientRow = ({ patient, onUpdate, onDelete, theme }) => {
   const styles = getThemeStyles(theme);
   const workflowDisplay = getWorkflowDisplay(patient.workflow_type || patient.status);
 
-  const handleSave = () => {
-    onUpdate(patient.id, editData);
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      await onUpdate(patient.id, editData);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving patient:', error);
+      // Keep editing mode active if save fails
+      // Error notification is handled by the parent component
+    }
   };
 
   const handleCancel = () => {
@@ -243,6 +250,7 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
   const [error, setError] = useState('');
   const [notification, setNotification] = useState(null);
   const [stats, setStats] = useState({ total: 0, followUp: 0, admission: 0, discharge: 0 });
+  const dataChangeTimeoutRef = useRef(null);
   
   // Sorting states
   const [sortBy, setSortBy] = useState('name'); // 'name' or 'type'
@@ -289,14 +297,8 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
       setLoading(true);
       setError('');
       
-      const response = await fetch('http://localhost:5000/api/patient-census/today', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      const data = await response.json();
+      // Use API service which handles token refresh automatically
+      const data = await apiService.getPatientCensusToday();
       
       if (data.success && data.census) {
         const patientList = data.census.rows || [];
@@ -307,7 +309,12 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
       }
     } catch (err) {
       console.error('Census loading error:', err);
-      setError('Network error loading census');
+      if (err.message.includes('401') || err.message.includes('Unauthorized')) {
+        setError('Session expired. Please log in again.');
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        setError('Network error loading census');
+      }
     } finally {
       setLoading(false);
     }
@@ -319,6 +326,26 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
     setTimeout(() => setNotification(null), 3000);
   };
 
+  // Cleanup timeouts when modal closes
+  useEffect(() => {
+    return () => {
+      if (dataChangeTimeoutRef.current) {
+        clearTimeout(dataChangeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Helper function to check if token is expired and handle auth errors
+  const checkAndRefreshToken = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      showNotification('Session expired. Please log in again.', 'error');
+      setTimeout(() => window.location.reload(), 2000);
+      return false;
+    }
+    return true;
+  };
+
   // Add new patient
   const handleAddPatient = async () => {
     if (!newPatientName.trim() || !newPatientId.trim()) {
@@ -326,16 +353,9 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
       return;
     }
 
-    // First get today's census to get the correct census ID
     try {
-      const censusResponse = await fetch('http://localhost:5000/api/patient-census/today', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      const censusData = await censusResponse.json();
+      // First get today's census to get the correct census ID
+      const censusData = await apiService.getPatientCensusToday();
       if (!censusData.success || !censusData.census) {
         showNotification('Failed to get census information', 'error');
         return;
@@ -343,23 +363,16 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
 
       const censusId = censusData.census.id;
 
-      const response = await fetch(`http://localhost:5000/api/patient-census/${censusId}/rows`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          patient_name: newPatientName.trim(),
-          patient_id: newPatientId.trim(),
-          room_number: newRoomNumber.trim() || null,
-          workflow_type: newWorkflowType,
-          status: newWorkflowType,  // Keep status for backward compatibility
-          data_fields: {}
-        })
-      });
+      const patientData = {
+        patient_name: newPatientName.trim(),
+        patient_id: newPatientId.trim(),
+        room_number: newRoomNumber.trim() || null,
+        workflow_type: newWorkflowType,
+        status: newWorkflowType,  // Keep status for backward compatibility
+        data_fields: {}
+      };
 
-      const data = await response.json();
+      const data = await apiService.addPatientToCensus(censusId, patientData);
       
       if (data.success) {
         // Add the new patient to local state and update stats
@@ -383,32 +396,36 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
         setShowAddForm(false);
         showNotification('Patient added successfully!', 'success');
         
-        // Notify parent component of data change
+        // Debounce parent component notification to avoid excessive API calls
         if (onDataChange) {
-          onDataChange();
+          if (dataChangeTimeoutRef.current) {
+            clearTimeout(dataChangeTimeoutRef.current);
+          }
+          dataChangeTimeoutRef.current = setTimeout(() => {
+            onDataChange();
+          }, 500); // Wait 500ms before notifying parent
         }
       } else {
         showNotification(data.error || 'Failed to add patient', 'error');
       }
     } catch (error) {
       console.error('Error adding patient:', error);
-      showNotification('Network error adding patient', 'error');
+      if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+        showNotification('Session expired. Please log in again.', 'error');
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        showNotification('Network error adding patient', 'error');
+      }
     }
   };
 
   // Update patient
   const handleUpdatePatient = async (patientId, updates) => {
+    console.log('handleUpdatePatient called with:', { patientId, updates });
+    
     try {
-      const response = await fetch(`http://localhost:5000/api/patient-census/rows/${patientId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updates)
-      });
-
-      const data = await response.json();
+      const data = await apiService.updatePatientInCensus(patientId, updates);
+      console.log('Response data:', data);
       
       if (data.success) {
         // Update local state and recalculate stats
@@ -419,16 +436,28 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
         setStats(calculateStats(updatedPatients));
         showNotification('Patient updated successfully!', 'success');
         
-        // Notify parent component of data change
+        // Debounce parent component notification to avoid excessive API calls
         if (onDataChange) {
-          onDataChange();
+          if (dataChangeTimeoutRef.current) {
+            clearTimeout(dataChangeTimeoutRef.current);
+          }
+          dataChangeTimeoutRef.current = setTimeout(() => {
+            onDataChange();
+          }, 500); // Wait 500ms before notifying parent
         }
       } else {
         showNotification(data.error || 'Failed to update patient', 'error');
+        throw new Error(data.error || 'Failed to update patient');
       }
     } catch (error) {
       console.error('Error updating patient:', error);
-      showNotification('Network error updating patient', 'error');
+      if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+        showNotification('Session expired. Please log in again.', 'error');
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        showNotification('Network error updating patient', 'error');
+      }
+      throw error; // Re-throw to let EditablePatientRow handle it
     }
   };
 
@@ -439,15 +468,7 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
 
     if (window.confirm(`Are you sure you want to remove ${patient.patient_name} from the census?`)) {
       try {
-        const response = await fetch(`http://localhost:5000/api/patient-census/rows/${patientId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        const data = await response.json();
+        const data = await apiService.deletePatientFromCensus(patientId);
         
         if (data.success) {
           // Update local state and recalculate stats
@@ -465,7 +486,12 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
         }
       } catch (error) {
         console.error('Error deleting patient:', error);
-        showNotification('Network error removing patient', 'error');
+        if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+          showNotification('Session expired. Please log in again.', 'error');
+          setTimeout(() => window.location.reload(), 2000);
+        } else {
+          showNotification('Network error removing patient', 'error');
+        }
       }
     }
   };

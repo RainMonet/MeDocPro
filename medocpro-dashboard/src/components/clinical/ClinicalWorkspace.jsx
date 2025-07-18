@@ -160,41 +160,35 @@ const WorkspaceHeader = ({ censusData, userName, onOpenModal, onOpenDailyInfo })
       {/* Stats Cards Row - exactly like dashboard with beautiful gradients */}
       <div className="stats-row">
         <div className="stat-card">
-          <div className="stat-value">{censusData?.current_census_count || 0}</div>
-          <div className="stat-label">Active Patients</div>
+          <div className="stat-value">{censusData?.rows?.length || 0}</div>
+          <div className="stat-label">Total Patients</div>
           <div className="stat-change positive">
-            {censusData?.admission_count > 0 && (
-              <span style={{ color: 'var(--color-success)', marginRight: '8px' }}>
-                +{censusData.admission_count} pending
-              </span>
-            )}
-            Avg {averageDailyCaseload} over 7 days
+            All patients in census
           </div>
         </div>
 
         <div className="stat-card">
           <div className="stat-value" style={{ color: 'var(--color-success)' }}>
-            {censusData?.admission_count || 0}
+            {censusData?.rows?.filter(row => row.workflow_type === 'admission' || row.status === 'admission').length || 0}
           </div>
-          <div className="stat-label">New Admissions</div>
-          <div className="stat-change positive">+{censusData?.admission_count || 0} today</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: 'var(--color-warning)' }}>
-            {censusData?.discharge_count || 0}
-          </div>
-          <div className="stat-label">Discharges</div>
-          <div className="stat-change">Processed today</div>
+          <div className="stat-label">Admissions</div>
+          <div className="stat-change positive">Total admission patients</div>
         </div>
 
         <div className="stat-card">
           <div className="stat-value" style={{ color: 'var(--color-info)' }}>
-            {((censusData?.current_census_count || 0) > 0 ? 
-              Math.round(((censusData?.admission_count || 0) / (censusData?.current_census_count || 1)) * 100) : 0)}%
+            {censusData?.rows?.filter(row => row.workflow_type === 'follow-up' || row.status === 'follow-up').length || 0}
           </div>
-          <div className="stat-label">Turnover Rate</div>
-          <div className="stat-change">Daily metric</div>
+          <div className="stat-label">Follow-Ups</div>
+          <div className="stat-change">Total follow-up patients</div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-value" style={{ color: 'var(--color-warning)' }}>
+            {censusData?.rows?.filter(row => row.workflow_type === 'discharge' || row.status === 'discharge').length || 0}
+          </div>
+          <div className="stat-label">Discharges</div>
+          <div className="stat-change">Total discharge patients</div>
         </div>
       </div>
     </div>

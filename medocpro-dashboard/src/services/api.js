@@ -26,11 +26,56 @@ class ApiService {
     return headers;
   }
 
-  // Helper method to handle API responses
-  async handleResponse(response) {
+  // Helper method to handle API responses with automatic token refresh
+  async handleResponse(response, originalRequest = null) {
     const data = await response.json();
     
     if (!response.ok) {
+      // Handle 401 Unauthorized - try to refresh token
+      if (response.status === 401 && originalRequest) {
+        console.log('401 Unauthorized - attempting token refresh');
+        
+        // Try to refresh the token
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (refreshToken) {
+          try {
+            const refreshResponse = await fetch(`${this.baseURL}/auth/refresh`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refresh_token: refreshToken }),
+            });
+            
+            if (refreshResponse.ok) {
+              const refreshData = await refreshResponse.json();
+              if (refreshData.access_token) {
+                this.setToken(refreshData.access_token);
+                console.log('Token refreshed successfully');
+                
+                // Retry the original request with new token
+                const retryResponse = await fetch(originalRequest.url, {
+                  ...originalRequest,
+                  headers: {
+                    ...originalRequest.headers,
+                    'Authorization': `Bearer ${refreshData.access_token}`
+                  }
+                });
+                
+                if (retryResponse.ok) {
+                  return await retryResponse.json();
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Token refresh failed:', error);
+          }
+        }
+        
+        // If refresh fails, redirect to login
+        console.log('Token refresh failed, redirecting to login');
+        this.setToken(null);
+        window.location.reload(); // Force re-login
+      }
+      
       throw new Error(data.error || `HTTP error! status: ${response.status}`);
     }
     
@@ -337,6 +382,45 @@ class ApiService {
 
   async deleteUser(userId) {
     const response = await fetch(`${this.baseURL}/api/users/${userId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  // Patient Census endpoints
+  async getPatientCensusToday() {
+    const response = await fetch(`${this.baseURL}/api/patient-census/today`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async addPatientToCensus(censusId, patientData) {
+    const response = await fetch(`${this.baseURL}/api/patient-census/${censusId}/rows`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(patientData),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async updatePatientInCensus(patientId, updates) {
+    const response = await fetch(`${this.baseURL}/api/patient-census/rows/${patientId}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(updates),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async deletePatientFromCensus(patientId) {
+    const response = await fetch(`${this.baseURL}/api/patient-census/rows/${patientId}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });

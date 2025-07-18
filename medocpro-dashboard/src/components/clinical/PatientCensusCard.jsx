@@ -16,22 +16,21 @@ const getThemeStyles = (theme = 'dark') => ({
   errorColor: theme === 'dark' ? '#ef4444' : '#a0522d'
 });
 
-// Patient status indicators
-const getStatusDisplay = (status) => {
-  const statusConfig = {
-    'follow-up': { label: 'Follow-up', color: '#3b82f6' },
-    'admission': { label: 'Admission', color: '#10b981' },
-    'discharge': { label: 'Discharge', color: '#ef4444' },
-    'active': { label: 'Active', color: '#10b981' }  // fallback for existing data
+// Patient workflow type configuration - matches PatientCensusModal
+const getWorkflowDisplay = (workflowType) => {
+  const workflowConfig = {
+    'follow-up': { icon: '', label: 'Follow-up', color: '#3b82f6' },
+    'admission': { icon: '', label: 'Admission', color: '#10b981' },
+    'discharge': { icon: '', label: 'Discharge', color: '#ef4444' }
   };
-  return statusConfig[status] || statusConfig['follow-up'];
+  return workflowConfig[workflowType] || workflowConfig['follow-up'];
 };
 
 // Individual patient row component
 const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme }) => {
   const [isHovered, setIsHovered] = useState(false);
   const styles = getThemeStyles(theme);
-  const statusDisplay = getStatusDisplay(patient.clinical_status || 'follow-up');
+  const workflowDisplay = getWorkflowDisplay(patient.workflow_type || patient.status || 'follow-up');
 
   const getBackgroundColor = () => {
     if (isSelected) return `${styles.primaryColor}15`;
@@ -122,7 +121,7 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
         )}
       </div>
 
-      {/* Status Indicator */}
+      {/* Workflow Type Indicator */}
       <div
         style={{
           display: 'flex',
@@ -131,8 +130,8 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
           cursor: 'pointer',
           padding: '4px 8px',
           borderRadius: '6px',
-          backgroundColor: `${statusDisplay.color}15`,
-          border: `1px solid ${statusDisplay.color}30`
+          backgroundColor: `${workflowDisplay.color}15`,
+          border: `1px solid ${workflowDisplay.color}30`
         }}
         onClick={(e) => {
           e.stopPropagation();
@@ -142,9 +141,9 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
         <span style={{
           fontSize: '11px',
           fontWeight: '500',
-          color: statusDisplay.color
+          color: workflowDisplay.color
         }}>
-          {statusDisplay.label}
+          {workflowDisplay.label}
         </span>
       </div>
     </div>
@@ -204,10 +203,26 @@ const PatientCensusCard = ({
         const bName = getLastName(b.patient_name || '');
         compareValue = aName.localeCompare(bName);
       } else if (sortBy === 'workflow') {
-        // Sort by workflow type
-        const aWorkflow = a.clinical_status || 'follow-up';
-        const bWorkflow = b.clinical_status || 'follow-up';
-        compareValue = aWorkflow.localeCompare(bWorkflow);
+        // Sort by workflow type with explicit ordering
+        const workflowOrder = { 'follow-up': 0, 'admission': 1, 'discharge': 2 };
+        const aWorkflow = a.workflow_type || a.status || 'follow-up';
+        const bWorkflow = b.workflow_type || b.status || 'follow-up';
+        
+        const aOrder = workflowOrder[aWorkflow] !== undefined ? workflowOrder[aWorkflow] : 0;
+        const bOrder = workflowOrder[bWorkflow] !== undefined ? workflowOrder[bWorkflow] : 0;
+        
+        compareValue = aOrder - bOrder;
+        
+        // If same workflow type, sort by name as secondary sort
+        if (compareValue === 0) {
+          const getLastName = (name) => {
+            const parts = name.split(',');
+            return parts[0].trim().toLowerCase();
+          };
+          const aName = getLastName(a.patient_name || '');
+          const bName = getLastName(b.patient_name || '');
+          compareValue = aName.localeCompare(bName);
+        }
       }
       
       return sortOrder === 'asc' ? compareValue : -compareValue;
@@ -237,11 +252,27 @@ const PatientCensusCard = ({
       const data = await response.json();
       
       if (data.success && data.census) {
-        // Use existing workflow_type or status, don't randomly assign
-        const patientsWithStatus = data.census.rows.map(patient => ({
-          ...patient,
-          clinical_status: patient.workflow_type || patient.status || 'follow-up'
-        }));
+        // Use existing workflow_type or status, ensure consistency
+        const patientsWithStatus = data.census.rows.map(patient => {
+          const workflowType = patient.workflow_type || patient.status || 'follow-up';
+          
+          // Normalize workflow type to ensure it's one of the valid options
+          const validWorkflowTypes = ['follow-up', 'admission', 'discharge'];
+          const normalizedWorkflowType = validWorkflowTypes.includes(workflowType) ? workflowType : 'follow-up';
+          
+          return {
+            ...patient,
+            workflow_type: normalizedWorkflowType
+          };
+        });
+        
+        // Debug: Log workflow type distribution
+        const workflowCounts = patientsWithStatus.reduce((acc, patient) => {
+          acc[patient.workflow_type] = (acc[patient.workflow_type] || 0) + 1;
+          return acc;
+        }, {});
+        console.log('Workflow type distribution:', workflowCounts);
+        
         setPatients(sortPatients(patientsWithStatus));
       } else {
         setError('Failed to load patient census');
@@ -289,15 +320,15 @@ const PatientCensusCard = ({
     }
   };
 
-  // Handle status change
+  // Handle workflow type change
   const handleStatusChange = async (patientId) => {
     const patient = patients.find(p => p.id === patientId);
     if (!patient) return;
 
-    const statuses = ['follow-up', 'admission', 'discharge'];
-    const currentIndex = statuses.indexOf(patient.clinical_status || 'follow-up');
-    const nextIndex = (currentIndex + 1) % statuses.length;
-    const newStatus = statuses[nextIndex];
+    const workflowTypes = ['follow-up', 'admission', 'discharge'];
+    const currentIndex = workflowTypes.indexOf(patient.workflow_type || patient.status || 'follow-up');
+    const nextIndex = (currentIndex + 1) % workflowTypes.length;
+    const newWorkflowType = workflowTypes[nextIndex];
 
     try {
       // Update in backend
@@ -308,8 +339,8 @@ const PatientCensusCard = ({
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          workflow_type: newStatus,
-          status: newStatus  // Keep both for compatibility
+          workflow_type: newWorkflowType,
+          status: newWorkflowType  // Keep both for compatibility
         })
       });
 
@@ -317,7 +348,7 @@ const PatientCensusCard = ({
         // Update local state only if backend update succeeded
         setPatients(prev => prev.map(pat => {
           if (pat.id === patientId) {
-            return { ...pat, clinical_status: newStatus, workflow_type: newStatus, status: newStatus };
+            return { ...pat, workflow_type: newWorkflowType, status: newWorkflowType };
           }
           return pat;
         }));
@@ -343,7 +374,25 @@ const PatientCensusCard = ({
 
   // Re-sort patients when sort options change
   useEffect(() => {
-    setPatients(prev => sortPatients(prev));
+    setPatients(prev => {
+      const sorted = sortPatients(prev);
+      
+      // Debug: Log sort results when sorting by workflow
+      if (sortBy === 'workflow') {
+        console.log('Sorting by workflow type:', {
+          sortBy,
+          sortOrder,
+          totalPatients: prev.length,
+          sortedPatients: sorted.length,
+          workflowGroups: sorted.reduce((acc, patient) => {
+            acc[patient.workflow_type] = (acc[patient.workflow_type] || 0) + 1;
+            return acc;
+          }, {})
+        });
+      }
+      
+      return sorted;
+    });
   }, [sortBy, sortOrder]);
 
   useEffect(() => {

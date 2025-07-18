@@ -19,9 +19,9 @@ const getThemeStyles = (theme = 'dark') => ({
 const FormatSelector = ({ value, onChange, theme }) => {
   const styles = getThemeStyles(theme);
   const formats = [
-    { value: 'individual', label: 'Individual Files', description: 'One .doc file per patient', icon: '📄' },
-    { value: 'combined', label: 'Combined File', description: 'All notes in one .doc file', icon: '📚' },
-    { value: 'pdf', label: 'PDF Export', description: 'Formatted PDF documents', icon: '📋' }
+    { value: 'individual', label: 'Individual Files', description: 'One .doc file per patient' },
+    { value: 'combined', label: 'Combined File', description: 'All notes in one .doc file' },
+    { value: 'pdf', label: 'PDF Export', description: 'Formatted PDF documents' }
   ];
 
   return (
@@ -33,7 +33,7 @@ const FormatSelector = ({ value, onChange, theme }) => {
         color: styles.textPrimary,
         marginBottom: '8px'
       }}>
-        📦 Output Format
+        Output Format
       </label>
       <div style={{
         display: 'grid',
@@ -60,7 +60,6 @@ const FormatSelector = ({ value, onChange, theme }) => {
               gap: '8px',
               marginBottom: '4px'
             }}>
-              <span style={{ fontSize: '16px' }}>{format.icon}</span>
               <span style={{
                 fontSize: '13px',
                 fontWeight: '500',
@@ -95,13 +94,21 @@ const DocumentPreview = ({ documents, theme }) => {
         textAlign: 'center',
         color: styles.textMuted
       }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
-        <div>No documents to preview</div>
+        <div style={{ fontSize: '18px', marginBottom: '16px', fontWeight: '500' }}>No documents to preview</div>
       </div>
     );
   }
 
   const currentDoc = documents[selectedDoc];
+
+  // Navigation functions
+  const goToPrevious = () => {
+    setSelectedDoc(prev => prev > 0 ? prev - 1 : documents.length - 1);
+  };
+
+  const goToNext = () => {
+    setSelectedDoc(prev => prev < documents.length - 1 ? prev + 1 : 0);
+  };
 
   return (
     <div style={{
@@ -116,14 +123,27 @@ const DocumentPreview = ({ documents, theme }) => {
           display: 'flex',
           overflowX: 'auto',
           backgroundColor: styles.bgSecondary,
-          borderBottom: `1px solid ${styles.borderColor}`
+          borderBottom: `1px solid ${styles.borderColor}`,
+          scrollbarWidth: 'thin',
+          scrollbarColor: `${styles.borderColor} ${styles.bgSecondary}`,
+          // Custom scrollbar for webkit browsers
+          '&::-webkit-scrollbar': {
+            height: '6px'
+          },
+          '&::-webkit-scrollbar-track': {
+            backgroundColor: styles.bgSecondary
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: styles.borderColor,
+            borderRadius: '3px'
+          }
         }}>
           {documents.map((doc, index) => (
             <button
               key={index}
               onClick={() => setSelectedDoc(index)}
               style={{
-                padding: '8px 16px',
+                padding: '12px 20px',
                 backgroundColor: selectedDoc === index ? styles.bgPrimary : 'transparent',
                 border: 'none',
                 borderBottom: selectedDoc === index ? `2px solid ${styles.primaryColor}` : '2px solid transparent',
@@ -131,7 +151,25 @@ const DocumentPreview = ({ documents, theme }) => {
                 color: selectedDoc === index ? styles.textPrimary : styles.textMuted,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
-                fontWeight: selectedDoc === index ? '500' : 'normal'
+                fontWeight: selectedDoc === index ? '500' : 'normal',
+                minWidth: '120px',
+                maxWidth: '200px',
+                flexShrink: 0,
+                textAlign: 'center',
+                textOverflow: 'ellipsis',
+                overflow: 'hidden',
+                transition: 'all 0.2s ease',
+                borderRight: `1px solid ${styles.borderColor}40`
+              }}
+              onMouseEnter={(e) => {
+                if (selectedDoc !== index) {
+                  e.target.style.backgroundColor = `${styles.bgAccent}80`;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (selectedDoc !== index) {
+                  e.target.style.backgroundColor = 'transparent';
+                }
               }}
             >
               {doc.patient_name}
@@ -154,13 +192,83 @@ const DocumentPreview = ({ documents, theme }) => {
           borderBottom: `1px solid ${styles.borderColor}`
         }}>
           <div style={{
-            fontSize: '16px',
-            fontWeight: '600',
-            color: styles.textPrimary,
-            marginBottom: '4px'
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '8px'
           }}>
-            {currentDoc.template_name} - {currentDoc.patient_name}
+            <div style={{
+              fontSize: '16px',
+              fontWeight: '600',
+              color: styles.textPrimary
+            }}>
+              {currentDoc.template_name} - {currentDoc.patient_name}
+            </div>
+            
+            {/* Navigation buttons */}
+            {documents.length > 1 && (
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'center'
+              }}>
+                <button
+                  onClick={goToPrevious}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: styles.bgSecondary,
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    color: styles.textPrimary,
+                    fontWeight: '500',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = styles.bgAccent;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = styles.bgSecondary;
+                  }}
+                >
+                  ← Previous
+                </button>
+                
+                <span style={{
+                  fontSize: '12px',
+                  color: styles.textMuted,
+                  fontWeight: '500'
+                }}>
+                  {selectedDoc + 1} of {documents.length}
+                </span>
+                
+                <button
+                  onClick={goToNext}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: styles.bgSecondary,
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    color: styles.textPrimary,
+                    fontWeight: '500',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = styles.bgAccent;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = styles.bgSecondary;
+                  }}
+                >
+                  Next →
+                </button>
+              </div>
+            )}
           </div>
+          
           <div style={{
             fontSize: '12px',
             color: styles.textMuted,
@@ -168,7 +276,7 @@ const DocumentPreview = ({ documents, theme }) => {
             gap: '12px'
           }}>
             <span>Room: {currentDoc.room_number || 'N/A'}</span>
-            {currentDoc.ai_enhanced && <span>✨ AI Enhanced</span>}
+            {currentDoc.ai_enhanced && <span>AI Enhanced</span>}
             <span>Status: {currentDoc.status || 'Generated'}</span>
             {currentDoc.format && <span>Format: {currentDoc.format.toUpperCase()}</span>}
           </div>
@@ -222,10 +330,7 @@ const ExportOptions = ({ onExport, isExporting, theme }) => {
             Exporting...
           </>
         ) : (
-          <>
-            <span>💾</span>
-            Download Files
-          </>
+          'Download Files'
         )}
       </button>
 
@@ -246,7 +351,6 @@ const ExportOptions = ({ onExport, isExporting, theme }) => {
           opacity: isExporting ? 0.6 : 1
         }}
       >
-        <span>📧</span>
         Email Documents
       </button>
     </div>
@@ -291,16 +395,16 @@ const PreviewDocumentModal = ({
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       if (exportType === 'download') {
-        alert(`📁 Documents exported successfully!\nFormat: ${outputFormat}\nTotal files: ${documents.length}`);
+        alert(`Documents exported successfully!\nFormat: ${outputFormat}\nTotal files: ${documents.length}`);
       } else if (exportType === 'email') {
-        alert(`📧 Documents sent via email!\nRecipients will receive ${documents.length} document(s).`);
+        alert(`Documents sent via email!\nRecipients will receive ${documents.length} document(s).`);
       }
       
       // Close modal after successful export
       onClose();
     } catch (error) {
       console.error('Export error:', error);
-      alert('❌ Error exporting documents. Please try again.');
+      alert('Error exporting documents. Please try again.');
     } finally {
       setIsExporting(false);
     }
@@ -347,7 +451,7 @@ const PreviewDocumentModal = ({
               color: styles.textPrimary,
               marginBottom: '4px'
             }}>
-              📋 Document Preview & Export
+              Document Preview & Export
             </h2>
             <div style={{
               fontSize: '14px',
@@ -393,7 +497,7 @@ const PreviewDocumentModal = ({
               color: styles.textPrimary,
               marginBottom: '8px'
             }}>
-              📄 Document Preview
+              Document Preview
             </label>
             <DocumentPreview 
               documents={documents} 
