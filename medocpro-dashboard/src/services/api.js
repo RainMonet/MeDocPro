@@ -428,6 +428,55 @@ class ApiService {
     return this.handleResponse(response);
   }
 
+  // User management endpoints
+  async getCurrentUser() {
+    const response = await fetch(`${this.baseURL}/api/users/current`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async listUsers() {
+    const response = await fetch(`${this.baseURL}/api/users/list`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async createUser(userData) {
+    const response = await fetch(`${this.baseURL}/api/users/create`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(userData),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async switchUser(userId) {
+    const response = await fetch(`${this.baseURL}/api/users/switch`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ user_id: userId }),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async updateUser(userId, userData) {
+    const response = await fetch(`${this.baseURL}/api/users/${userId}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(userData),
+    });
+    
+    return this.handleResponse(response);
+  }
+
   // Audit endpoints (admin only)
   async getAuditLogs(params = {}) {
     const searchParams = new URLSearchParams(params);

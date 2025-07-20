@@ -29,6 +29,10 @@ def create_app(config_class=Config):
         from .routes.auth import auth_bp
         app.register_blueprint(auth_bp, url_prefix='/auth')
         
+        # User management endpoints
+        from .routes.users import users_bp
+        app.register_blueprint(users_bp, url_prefix='/api/users')
+        
         # Template endpoints
         from .routes.templates import templates_bp
         app.register_blueprint(templates_bp, url_prefix='/api')

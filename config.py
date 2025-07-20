@@ -41,3 +41,7 @@ class Config:
     # Security
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = None
+    
+    # Development Mode Configuration
+    DEVELOPMENT_MODE = os.environ.get('DEVELOPMENT_MODE', 'true').lower() == 'true'
+    DEVELOPMENT_ADMIN_PRIVILEGES = True  # Force admin privileges for all users in development

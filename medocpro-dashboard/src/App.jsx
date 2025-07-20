@@ -42,18 +42,35 @@ function App() {
   // Patient data for daily info entry
   const [patientList, setPatientList] = useState([]);
 
-  // User data
-  const user = {
+  // User data - initially hardcoded, will be updated on login/switch
+  const [user, setUser] = useState({
     firstName: "Jane",
     lastName: "Smith",
     role: "Psychiatrist"
-  };
+  });
+
 
 
   // Authentication handlers
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setIsAuthenticated(true);
     setIsNewLogin(true);
+    
+    // Load current user data after login
+    try {
+      const response = await apiService.getCurrentUser();
+      if (response.success && response.user) {
+        setUser({
+          firstName: response.user.firstName || response.user.first_name,
+          lastName: response.user.lastName || response.user.last_name,
+          role: response.user.role,
+          id: response.user.id
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load current user after login:', error);
+    }
+    
     // Reset the new login flag after a brief moment
     setTimeout(() => setIsNewLogin(false), 1000);
   };
@@ -62,12 +79,71 @@ function App() {
     console.log('App.jsx handleLogout called!');
     console.log('Current isAuthenticated:', isAuthenticated);
     localStorage.removeItem('token');
+    localStorage.removeItem('refresh_token');
     quotesService.reset(); // Reset quotes service for next login
     console.log('Token removed from localStorage');
     setIsAuthenticated(false);
     setIsNewLogin(false);
     console.log('isAuthenticated set to false');
   };
+
+  // User switch handler
+  const handleUserSwitch = (newUser) => {
+    setUser({
+      firstName: newUser.firstName || newUser.first_name,
+      lastName: newUser.lastName || newUser.last_name,
+      role: newUser.role,
+      id: newUser.id
+    });
+    // Refresh workspace data since we're now a different user
+    setWorkspaceRefreshKey(prev => prev + 1);
+  };
+
+  // Load current user on app start
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      if (isAuthenticated && localStorage.getItem('token')) {
+        try {
+          const response = await apiService.getCurrentUser();
+          if (response.success && response.user) {
+            setUser({
+              firstName: response.user.firstName || response.user.first_name,
+              lastName: response.user.lastName || response.user.last_name,
+              role: response.user.role,
+              id: response.user.id
+            });
+          }
+        } catch (error) {
+          console.error('Failed to load current user:', error);
+        }
+      }
+    };
+
+    loadCurrentUser();
+  }, [isAuthenticated]);
+
+  // Also load user data on initial mount if already authenticated
+  useEffect(() => {
+    const loadInitialUser = async () => {
+      if (isAuthenticated && localStorage.getItem('token')) {
+        try {
+          const response = await apiService.getCurrentUser();
+          if (response.success && response.user) {
+            setUser({
+              firstName: response.user.firstName || response.user.first_name,
+              lastName: response.user.lastName || response.user.last_name,
+              role: response.user.role,
+              id: response.user.id
+            });
+          }
+        } catch (error) {
+          console.error('Failed to load initial current user:', error);
+        }
+      }
+    };
+
+    loadInitialUser();
+  }, []); // Run once on mount
 
   // Effects
   useEffect(() => {
@@ -245,6 +321,7 @@ function App() {
         viewMode={viewMode}
         onViewChange={setViewMode}
         onLogout={handleLogout}
+        onUserSwitch={handleUserSwitch}
         isNewLogin={isNewLogin}
       />
 

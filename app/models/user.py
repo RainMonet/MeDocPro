@@ -24,6 +24,14 @@ class User(db.Model):
     password_changed_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     mfa_enabled = db.Column(db.Boolean, nullable=False, default=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Multi-user support fields
+    account_id = db.Column(db.Integer, nullable=True)  # Group users by account for multi-user support
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Reference to creator
+    is_primary = db.Column(db.Boolean, nullable=False, default=False)  # Original account owner
+    
+    # Self-referential relationship for user creation tracking
+    created_users = db.relationship('User', backref=db.backref('creator', remote_side=[id]))
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -56,7 +64,19 @@ class User(db.Model):
             'username': self.username,
             'email': self.email,
             'role': self.role,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+            'account_id': self.account_id,
+            'is_primary': self.is_primary,
+            'created_by': str(self.created_by) if self.created_by else None,
         }
         return data
+    
+    def get_effective_role(self):
+        """Get effective role considering development mode privileges"""
+        from flask import current_app
+        if current_app.config.get('DEVELOPMENT_MODE') and current_app.config.get('DEVELOPMENT_ADMIN_PRIVILEGES'):
+            return 'administrator'
+        return self.role
