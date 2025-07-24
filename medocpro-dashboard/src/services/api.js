@@ -1,7 +1,10 @@
 // medocpro-dashboard/src/services/api.js
 // API service for communicating with MeDocPro backend
 
-const API_BASE_URL = 'http://localhost:5000';
+// Environment-based API configuration
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const DEBUG_MODE = import.meta.env.VITE_DEBUG === 'true';
+const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT || 'development';
 
 class ApiService {
   constructor() {
@@ -30,10 +33,15 @@ class ApiService {
   async handleResponse(response, originalRequest = null) {
     const data = await response.json();
     
+    // Debug logging in development
+    if (DEBUG_MODE) {
+      console.log(`🌐 API Response [${response.status}]:`, response.url, data);
+    }
+    
     if (!response.ok) {
       // Handle 401 Unauthorized - try to refresh token
       if (response.status === 401 && originalRequest) {
-        console.log('401 Unauthorized - attempting token refresh');
+        if (DEBUG_MODE) console.log('🔄 401 Unauthorized - attempting token refresh');
         
         // Try to refresh the token
         const refreshToken = localStorage.getItem('refresh_token');
@@ -503,6 +511,46 @@ class ApiService {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(exportData),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  // AI Enhancement endpoints
+  async enhanceText(enhancementData) {
+    const response = await fetch(`${this.baseURL}/api/ai/enhance`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        text: enhancementData.text,
+        enhancement_type: enhancementData.enhancement_type || 'clinical',
+        intensity: enhancementData.intensity || 50,
+        style: enhancementData.style || 'professional',
+        model: enhancementData.model || 'mistral:latest',
+        include_spell_check: enhancementData.include_spell_check || true,
+        include_grammar_check: enhancementData.include_grammar_check || true,
+        preserve_structure: enhancementData.preserve_structure || true
+      }),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async spellCheck(text) {
+    const response = await fetch(`${this.baseURL}/api/ai/spell-check`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ text }),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async grammarCheck(text) {
+    const response = await fetch(`${this.baseURL}/api/ai/grammar-check`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ text }),
     });
     
     return this.handleResponse(response);

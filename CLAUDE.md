@@ -2,26 +2,35 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Development Commands
+## Development Commands - UPDATED ARCHITECTURE (Phase 1 Complete)
 
-### Backend (Flask API)
+### 🚀 RECOMMENDED STARTUP METHODS (Replaces all previous startup approaches)
 ```bash
-# Virtual environment setup
-python -m venv venv
-venv\Scripts\Activate.ps1  # Windows PowerShell
-source venv/bin/activate   # Linux/Mac
+# DEVELOPMENT MODE (Hot reloading, debug enabled)
+dev-start.bat                    # Windows - Single command startup
+python process-manager.py dev    # Cross-platform alternative
 
-# Install dependencies
-pip install -r requirements.txt
+# PRODUCTION MODE (Waitress WSGI, optimized)
+prod-start.bat                   # Windows - Single command startup
+python process-manager.py prod   # Cross-platform alternative
+
+# STOP ALL SERVICES
+python process-manager.py stop   # Clean shutdown with port cleanup
+```
+
+### 🔧 Manual Development Commands (if needed)
+```bash
+# Backend Development Server (Flask with hot reloading)
+python dev-start.py              # Starts on localhost:5000, debug mode
+
+# Backend Production Server (Waitress WSGI)
+python prod-start.py             # Starts on localhost:5000, production mode
 
 # Database management
 python manage.py init-database     # Initialize database and create tables
 python manage.py create-admin      # Create administrator user
 python manage.py check-database    # Check database connection
 python manage.py list-users        # List all users
-
-# Start development server
-python app.py
 
 # Testing
 pytest                             # Run all tests
@@ -30,7 +39,7 @@ pytest -m "unit"                   # Unit tests only
 pytest -m "security"               # Security tests only
 ```
 
-### Frontend (React Dashboard)
+### 🌐 Frontend (React Dashboard) - Environment-Based Configuration
 ```bash
 # Navigate to dashboard directory
 cd medocpro-dashboard
@@ -38,14 +47,24 @@ cd medocpro-dashboard
 # Install dependencies
 npm install
 
-# Development server
-npm run dev
+# Development server (uses .env.development)
+npm run dev                      # Auto-loads http://localhost:5000 API
 
-# Build for production
+# Build for production (uses .env.production)
 npm run build
 
 # Preview production build
 npm run preview
+```
+
+### ⚠️ DEPRECATED STARTUP METHODS (DO NOT USE)
+```bash
+# These files are deprecated and should be avoided:
+# - start-stable-windows.bat (causes CORS issues with Waitress)
+# - start-super-stable-backend.py (overly complex)
+# - start-working-backend.py (temporary workaround)
+# - start-simple-stable.py (outdated)
+# - start-production-backend.py (superseded)
 ```
 
 ### Docker Deployment
@@ -78,10 +97,13 @@ docker-compose exec api python manage.py create-admin
 - **Authentication**: JWT-based with role-based access control
 - **AI Integration**: Ollama for text enhancement with clinical terminology
 - **HIPAA Compliance**: Comprehensive audit logging with 6-year retention
-- **Development Backend**: `simple_backend.py` for rapid prototyping with in-memory storage
+- **Development Backend**: `dev-start.py` for development with Flask hot reloading
+- **Production Backend**: `prod-start.py` for production with Waitress WSGI server
+- **Environment Configuration**: Separate development and production configurations
+- **CORS Handling**: Environment-specific CORS setup (Flask-CORS for dev, manual headers for prod)
 
 ### Frontend Architecture  
-- **React 18** with Vite build system
+- **React 18** with Vite build system and environment-based configuration
 - **Component Structure**:
   - `src/App.jsx` - Main application component with authentication and layout management
   - `src/components/ui/` - Reusable UI components (StatCard)
@@ -91,6 +113,8 @@ docker-compose exec api python manage.py create-admin
   - `src/components/modals/` - Modal components (PatientCensusModal, DailyInfoEntryModal)
   - `src/components/templates/` - Template management (TemplateEditor, TemplateLibrary, AIEnhancement)
 - **State Management**: Local React state with hooks, authentication state, theme persistence in localStorage
+- **API Configuration**: Environment-based API URLs via VITE_API_BASE_URL
+- **Debug Mode**: Configurable via VITE_DEBUG environment variable
 - **Theming**: Comprehensive antique book design with warm earth tones for light mode
 - **Responsive Design**: Mobile-first with sidebar collapse/overlay pattern
 - **Authentication**: Complete login/logout flow with proper state management
@@ -103,12 +127,33 @@ docker-compose exec api python manage.py create-admin
 - **DailyInformation**: Daily patient information entries with template integration (`app/models/daily_information.py`)
 - **AuditLog**: HIPAA compliance audit trail (`app/models/audit_log.py`)
 
-### Key Files
-- `app.py` - Application entry point
+### Key Files - UPDATED ARCHITECTURE
+#### 🚀 Primary Startup Files (Phase 1 Implementation)
+- `dev-start.py` - Development server with Flask hot reloading (localhost:5000)
+- `prod-start.py` - Production server with Waitress WSGI (localhost:5000)
+- `dev-start.bat` - Windows development startup wrapper
+- `prod-start.bat` - Windows production startup wrapper
+- `process-manager.py` - Cross-platform process management utility
+- `README-STARTUP.md` - Complete startup documentation
+
+#### 🔧 Core Application Files
+- `app.py` - Legacy application entry point (use startup scripts instead)
 - `config.py` - Environment configuration with security defaults
 - `manage.py` - CLI tool for database operations and user management
-- `simple_backend.py` - Development server with patient census API (port 5001)
 - `requirements.txt` - Python dependencies (note: has encoding issues, may need fixing)
+
+#### 🌐 Frontend Environment Configuration
+- `medocpro-dashboard/.env.development` - Development environment variables
+- `medocpro-dashboard/.env.production` - Production environment variables
+- `medocpro-dashboard/src/services/api.js` - Environment-aware API service
+
+#### ⚠️ Deprecated/Legacy Files (DO NOT MODIFY)
+- `simple_backend.py` - Legacy development server (port 5001) - superseded by dev-start.py
+- `start-stable-windows.bat` - Causes CORS issues with Waitress
+- `start-super-stable-backend.py` - Overly complex, deprecated
+- `start-working-backend.py` - Temporary workaround, deprecated
+- `start-simple-stable.py` - Outdated approach
+- `start-production-backend.py` - Superseded by prod-start.py
 
 ## Development Patterns
 
@@ -152,26 +197,53 @@ Routes are organized by blueprint:
 3. Apply migration: `flask db upgrade`
 4. Update `manage.py` seed data if needed
 
-## Configuration Notes
+## Configuration Notes - UPDATED ARCHITECTURE
 
-### Environment Variables
-Key variables in `.env`:
+### Backend Environment Variables (Flask .env file)
+Key variables in project root `.env`:
 - `SECRET_KEY` - Flask secret key
 - `JWT_SECRET_KEY` - JWT signing key  
 - `DATABASE_URL` - Database connection string
 - `OLLAMA_URL` - AI service URL (default: http://localhost:11434)
-- `CORS_ORIGINS` - Allowed frontend origins
+- `CORS_ORIGINS` - Allowed frontend origins (handled automatically in new architecture)
+- `FLASK_ENV` - Environment mode (development/production)
+- `DEBUG` - Debug mode toggle
 
-### Default Ports
-- Backend API: 5000
-- Development Backend: 5001 (simple_backend.py)
-- Frontend dev server: 5173 (Vite default)
-- PostgreSQL: 5432
-- Redis: 6379
-- Ollama: 11434
+### Frontend Environment Variables (Vite)
+**Development**: `medocpro-dashboard/.env.development`
+- `VITE_API_BASE_URL=http://localhost:5000` - Backend API URL
+- `VITE_APP_TITLE=MeDocPro (Development)` - Browser title
+- `VITE_DEBUG=true` - Enable debug logging
+- `VITE_ENVIRONMENT=development` - Environment identifier
 
-### Current Branch Context
-Working on `features/info-entry` - Enhanced clinical workflow with comprehensive authentication system, antique book theming, template editor improvements, and daily information entry capabilities.
+**Production**: `medocpro-dashboard/.env.production`
+- `VITE_API_BASE_URL=http://localhost:5000` - Backend API URL
+- `VITE_APP_TITLE=MeDocPro` - Browser title
+- `VITE_DEBUG=false` - Disable debug logging
+- `VITE_ENVIRONMENT=production` - Environment identifier
+
+### Default Ports - STANDARDIZED
+- **Backend API**: 5000 (both development and production)
+- **Frontend dev server**: 5173 (Vite default)
+- **Frontend production preview**: 4173 (Vite preview)
+- **PostgreSQL**: 5432
+- **Redis**: 6379
+- **Ollama**: 11434
+
+⚠️ **DEPRECATED PORTS**:
+- ~~5001 (simple_backend.py - legacy, causes CORS issues)~~
+- ~~5002 (temporary workaround ports - no longer needed)~~
+
+### Current Branch Context - PHASE 1 ARCHITECTURE COMPLETE
+Working on `main` branch - **Phase 1 Implementation Complete**: 
+- ✅ Consolidated startup scripts (dev vs prod)
+- ✅ Environment-based frontend configuration  
+- ✅ Process management utility
+- ✅ Eliminated CORS and port confusion issues
+- ✅ Hot reloading works properly in development
+- ✅ Enhanced clinical workflow with comprehensive authentication system
+- ✅ Antique book theming and template editor improvements
+- ✅ Daily information entry capabilities with performance optimization
 
 ## Clinical Workflow Features
 
@@ -206,14 +278,27 @@ Working on `features/info-entry` - Enhanced clinical workflow with comprehensive
 - `POST /api/generate-documents` - Generate batch documents from templates
 - `GET /api/generate-documents/<batch_id>/download` - Download generated documents
 
-### Development Setup
-For clinical workflow development:
+### Development Setup - UPDATED APPROACH
+🚀 **RECOMMENDED**: Use the new consolidated startup approach:
 ```bash
-# Start development backend (required for census functionality)
-python simple_backend.py
+# Single command startup (Windows)
+dev-start.bat
 
-# Start frontend in separate terminal
-cd medocpro-dashboard && npm run dev
+# Cross-platform alternative
+python process-manager.py dev
+
+# This automatically:
+# 1. Starts backend on localhost:5000 with hot reloading
+# 2. Starts frontend on localhost:5173 with proper API configuration
+# 3. Handles port conflicts and process management
+# 4. Uses environment-based configuration
+```
+
+⚠️ **LEGACY APPROACH** (deprecated, causes CORS issues):
+```bash
+# DON'T USE: This approach causes Waitress CORS issues
+# python simple_backend.py  # Port 5001, deprecated
+# cd medocpro-dashboard && npm run dev  # Manual configuration required
 ```
 
 ### Workflow Type System
@@ -476,3 +561,217 @@ Auto-save on Changes → Save on Close
 - **Error Handling**: Comprehensive error boundaries and user feedback
 - **Security**: JWT authentication for all API endpoints
 - **Performance**: Sub-3-second initial load time for priority data
+
+---
+
+# 🚀 PHASE 1 ARCHITECTURE IMPLEMENTATION - COMPLETED
+
+## Overview
+**Status**: ✅ COMPLETE
+**Date**: July 2025  
+**Objective**: Eliminate development workflow issues caused by CORS problems, port conflicts, and server persistence issues.
+
+## 🎯 Problems Solved
+
+### 1. Waitress Server Persistence Issue
+**Problem**: Waitress production server ignored code changes, causing CORS fixes to appear ineffective
+**Solution**: Clear separation between development (Flask) and production (Waitress) servers
+- `dev-start.py` - Flask development server with hot reloading
+- `prod-start.py` - Waitress production server with manual CORS headers
+
+### 2. Port Switching Chaos  
+**Problem**: Multiple backend scripts using different ports (5000, 5001, 5002) causing confusion
+**Solution**: Standardized on `localhost:5000` for all backends with automatic port conflict resolution
+- Process manager kills conflicting processes automatically
+- Environment-based API configuration eliminates hardcoded URLs
+
+### 3. CORS Configuration Confusion
+**Problem**: Flask-CORS didn't work with Waitress, leading to manual header workarounds
+**Solution**: Environment-specific CORS handling
+- Development: Flask-CORS for hot reloading compatibility
+- Production: Manual headers optimized for Waitress
+
+### 4. Configuration Coupling
+**Problem**: Frontend hardcoded to specific backend URLs, required manual updates
+**Solution**: Environment-based configuration with Vite environment variables
+- `.env.development` and `.env.production` files
+- Dynamic API URL resolution via `VITE_API_BASE_URL`
+
+## 📁 New File Structure
+
+### 🚀 Primary Startup Files
+```
+dev-start.py              # Development server (Flask + hot reload)
+prod-start.py             # Production server (Waitress WSGI)
+dev-start.bat             # Windows development wrapper
+prod-start.bat            # Windows production wrapper  
+process-manager.py        # Cross-platform process management
+README-STARTUP.md         # Complete startup documentation
+```
+
+### 🌐 Environment Configuration
+```
+medocpro-dashboard/.env.development    # Dev environment variables
+medocpro-dashboard/.env.production     # Prod environment variables
+medocpro-dashboard/src/services/api.js # Environment-aware API service
+```
+
+### 🗑️ Deprecated Files (DO NOT MODIFY)
+```
+start-stable-windows.bat        # Causes Waitress CORS issues
+start-super-stable-backend.py   # Overly complex
+start-working-backend.py        # Temporary workaround
+start-simple-stable.py          # Legacy approach
+start-production-backend.py     # Superseded
+simple_backend.py               # Port 5001, deprecated
+```
+
+## 🔧 Usage Instructions
+
+### Development Mode (Recommended)
+```bash
+# Windows
+dev-start.bat
+
+# Cross-platform  
+python process-manager.py dev
+
+# Manual (if needed)
+python dev-start.py
+```
+
+### Production Mode
+```bash
+# Windows
+prod-start.bat
+
+# Cross-platform
+python process-manager.py prod
+
+# Manual (if needed)  
+python prod-start.py
+```
+
+## 🌐 Access Points
+
+### Development
+- **Frontend**: http://localhost:5173 (Vite dev server)
+- **Backend**: http://localhost:5000 (Flask debug mode)  
+- **Hot Reloading**: ✅ Enabled
+- **Debug Logging**: ✅ Enabled (via VITE_DEBUG=true)
+
+### Production
+- **Frontend**: http://localhost:4173 (Vite preview) or 5173 (fallback)
+- **Backend**: http://localhost:5000 (Waitress WSGI)
+- **Hot Reloading**: ❌ Disabled (restart required)
+- **Debug Logging**: ❌ Disabled (via VITE_DEBUG=false)
+
+## 🏗️ Architecture Benefits
+
+### ✅ Eliminated Issues
+1. **No more CORS confusion** - Environment-specific configuration
+2. **No more port conflicts** - Automatic cleanup and standardization  
+3. **No more server persistence** - Proper dev/prod separation
+4. **No more configuration drift** - Environment variables handle all config
+5. **No more manual URL updates** - Dynamic API configuration
+
+### ✅ Improved Developer Experience
+1. **Single command startup** - `dev-start.bat` does everything
+2. **Hot reloading works** - Development server properly configured
+3. **Clear error messages** - Better debugging and process management
+4. **Consistent behavior** - No more "works on my machine" issues
+5. **Environment clarity** - Clear separation between dev and prod
+
+### ✅ Production Readiness
+1. **Waitress WSGI server** - Production-grade performance
+2. **Proper CORS headers** - Manual configuration for Waitress compatibility
+3. **Environment variables** - Production configuration management
+4. **Process monitoring** - Health checks and automatic restart capability
+
+## 🐛 Troubleshooting
+
+### Port Conflicts
+```bash
+# Stop all services
+python process-manager.py stop
+
+# Check what's running on port 5000
+netstat -ano | findstr :5000  # Windows
+lsof -i :5000                 # Unix/Linux
+```
+
+### Environment Issues
+1. Check `.env.development` has correct `VITE_API_BASE_URL=http://localhost:5000`
+2. Ensure backend is running on port 5000
+3. Restart both services with startup scripts
+
+### CORS Problems
+- Development: Should work automatically with Flask-CORS
+- Production: Manual headers configured in `prod-start.py`
+
+## 🔄 Next Phases
+
+### Phase 2: Architecture Improvements (Planned)
+- Docker development environment
+- Automated testing pipeline  
+- Configuration validation
+- Health monitoring system
+
+### Phase 3: Production Readiness (Planned)
+- Load balancing/reverse proxy
+- Comprehensive monitoring and logging
+- Deployment automation
+- Performance optimization
+
+---
+
+## 🎉 Implementation Success
+
+**The Phase 1 implementation successfully eliminates the root causes of development workflow issues that were consuming hours of debugging time. The new architecture provides:**
+
+- ✅ **Reliable development workflow** with hot reloading
+- ✅ **Clear separation** between development and production  
+- ✅ **Automatic process management** with conflict resolution
+- ✅ **Environment-based configuration** eliminating manual updates  
+- ✅ **Comprehensive documentation** for future developers
+
+**Use `dev-start.bat` for all development work going forward.**
+
+---
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+
+## 🚨 CRITICAL STARTUP INSTRUCTIONS FOR CLAUDE
+**ALWAYS use the new Phase 1 architecture when starting MeDocPro:**
+
+### ✅ CORRECT STARTUP APPROACH:
+```bash
+# For development work (99% of cases):
+dev-start.bat
+
+# For production testing:
+prod-start.bat
+```
+
+### ❌ DO NOT USE THESE DEPRECATED APPROACHES:
+- `start-stable-windows.bat` (causes Waitress CORS issues)
+- `start-super-stable-backend.py` (overly complex)
+- `start-working-backend.py` (temporary workaround)  
+- `simple_backend.py` (port 5001, deprecated)
+- Manual `python app.py` (use `python dev-start.py` instead)
+
+### 🔧 API Configuration:
+- **Backend always runs on**: `localhost:5000`
+- **Frontend API configured via**: Environment variables (VITE_API_BASE_URL)
+- **No more hardcoded URLs**: All configuration is environment-based
+
+### 🐛 If Issues Occur:
+1. Use `python process-manager.py stop` to clean up processes
+2. Check that `.env.development` has `VITE_API_BASE_URL=http://localhost:5000`
+3. Restart with `dev-start.bat`
+
+**This Phase 1 implementation eliminates the CORS/port issues that caused development friction.**
