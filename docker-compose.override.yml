@@ -1,0 +1,167 @@
+# Docker Compose Override for Development
+# This file is automatically loaded by docker-compose and provides development-specific overrides
+# Use: docker-compose up (automatically includes this file)
+
+services:
+  # Enhanced Development API
+  api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - DEBUG=true
+      - DATABASE_URL=postgresql://medocpro:secure_password@db:5432/medocpro_db
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_URL=http://ollama-cpu:11434
+      - SECRET_KEY=dev_secret_key_change_in_production
+      - JWT_SECRET_KEY=dev_jwt_secret_key_change_in_production
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173
+      # Phase 2: Enhanced development features
+      - ENABLE_PROFILING=true
+      - ENABLE_DEBUG_TOOLBAR=true
+      - LOG_LEVEL=DEBUG
+      - TESTING=false
+    volumes:
+      # Live reload for development
+      - .:/app
+      - ./logs:/app/logs
+      - ./backups:/app/backups
+      # Exclude node_modules and other unnecessary directories
+      - /app/medocpro-dashboard/node_modules
+      - /app/.git
+      - /app/__pycache__
+    ports:
+      - "5000:5000"
+      # Debug port for remote debugging
+      - "5678:5678"
+    command: ["python", "dev-start.py"]
+    profiles:
+      - development
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # Development Database with extended configuration
+  db:
+    environment:
+      - POSTGRES_DB=medocpro_db
+      - POSTGRES_USER=medocpro
+      - POSTGRES_PASSWORD=secure_password
+      # Enhanced logging for development
+      - POSTGRES_INITDB_ARGS=--auth-host=md5 --auth-local=md5
+    ports:
+      - "5432:5432"
+    # Development-specific postgres configuration
+    command: >
+      postgres
+      -c log_statement=all
+      -c log_min_duration_statement=0
+      -c log_line_prefix='%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+      -c shared_preload_libraries=''
+      -c max_connections=100
+      -c shared_buffers=128MB
+
+  # Development Redis with persistence disabled for faster restarts
+  redis:
+    command: redis-server --save "" --appendonly no --maxmemory 128mb --maxmemory-policy allkeys-lru
+
+  # Frontend Development Server
+  frontend-dev:
+    build:
+      context: ./medocpro-dashboard
+      dockerfile: Dockerfile.dev
+    container_name: medocpro-frontend-dev
+    environment:
+      - NODE_ENV=development
+      - VITE_API_BASE_URL=http://localhost:5000
+      - VITE_DEBUG=true
+      - VITE_APP_TITLE=MeDocPro (Development)
+      - VITE_ENVIRONMENT=development
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./medocpro-dashboard:/app
+      - /app/node_modules
+    networks:
+      - medocpro-network
+    profiles:
+      - development
+    restart: unless-stopped
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
+  # Development Testing Runner  
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: testing
+    container_name: medocpro-test-runner
+    environment:
+      - FLASK_ENV=testing
+      - DATABASE_URL=postgresql://medocpro:secure_password@db:5432/medocpro_test_db
+      - REDIS_URL=redis://redis:6379/1
+      - SECRET_KEY=test_secret_key
+      - JWT_SECRET_KEY=test_jwt_secret
+      - TESTING=true
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+      - ./test-results:/app/test-results
+    networks:
+      - medocpro-network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    profiles:
+      - testing
+    command: ["python", "-m", "pytest", "tests/", "-v", "--cov=.", "--cov-report=html:test-results/coverage", "--junit-xml=test-results/junit.xml"]
+
+  # Configuration Validator Service
+  config-validator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: medocpro-config-validator
+    environment:
+      - FLASK_ENV=development
+    volumes:
+      - .:/app
+    networks:
+      - medocpro-network
+    profiles:
+      - validation
+    command: ["python", "scripts/validate-config.py"]
+
+# Development-specific networks and volumes
+networks:
+  medocpro-network:
+    driver: bridge
+    # Enable better container-to-container communication
+    driver_opts:
+      com.docker.network.bridge.name: medocpro-dev
+      com.docker.network.driver.mtu: 1500
+
+volumes:
+  # Override production volumes with local development versions
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/dev-data/postgres
+      o: bind
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none  
+      device: ${PWD}/dev-data/redis
+      o: bind

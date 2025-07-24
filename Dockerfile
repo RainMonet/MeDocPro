@@ -158,7 +158,7 @@ CMD ["gunicorn", \
      "--log-level", "info", \
      "--capture-output", \
      "--enable-stdio-inheritance", \
-     "app:app"]
+     "app:create_app()"]
 
 # =============================================================================
 # Testing Stage

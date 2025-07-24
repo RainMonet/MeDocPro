@@ -15,8 +15,17 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     jwt.init_app(app)
     
-    # Enable CORS for all domains and routes
-    CORS(app, origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"])
+    # Remove Flask-CORS and use manual CORS for better control
+    # CORS(app, origins="*", supports_credentials=True)
+    
+    # Add manual CORS headers for all responses
+    @app.after_request
+    def after_request(response):
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
+        response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
 
     # Register blueprints here
     # Use a with block to ensure app context is available for blueprint registration
@@ -54,7 +63,11 @@ def create_app(config_class=Config):
         
         # AI enhancement endpoints
         from .routes.ai_enhancement import ai_bp
-        app.register_blueprint(ai_bp, url_prefix='/api/ai-enhancement')
+        app.register_blueprint(ai_bp, url_prefix='/api/ai')
+        
+        # Monitoring endpoints
+        from .routes.monitoring import monitoring_bp
+        app.register_blueprint(monitoring_bp)
 
         # Import models here to ensure they are registered with SQLAlchemy
         from . import models

@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Development Commands - UPDATED ARCHITECTURE (Phase 1 Complete)
+## Development Commands - UPDATED ARCHITECTURE (Phase 1 & 2 Complete)
 
 ### 🚀 RECOMMENDED STARTUP METHODS (Replaces all previous startup approaches)
 ```bash
@@ -32,8 +32,11 @@ python manage.py create-admin      # Create administrator user
 python manage.py check-database    # Check database connection
 python manage.py list-users        # List all users
 
-# Testing
-pytest                             # Run all tests
+# Testing (Phase 2 Enhanced)
+python scripts/run-tests.py         # Run comprehensive automated testing pipeline
+python scripts/validate-config.py   # Validate environment configuration
+python test-phase2.py              # Test Phase 2 architecture systems
+pytest                             # Run basic unit tests
 pytest --cov=. --cov-report=html  # Run with coverage
 pytest -m "unit"                   # Unit tests only
 pytest -m "security"               # Security tests only
@@ -67,9 +70,9 @@ npm run preview
 # - start-production-backend.py (superseded)
 ```
 
-### Docker Deployment
+### 🐳 Docker Deployment (Phase 2 Enhanced)
 ```bash
-# Development with CPU-only AI
+# Development with CPU-only AI (Phase 2 Enhanced)
 docker-compose --profile development --profile cpu up --build
 
 # Production deployment
@@ -81,6 +84,10 @@ docker-compose --profile development --profile gpu up
 # Initialize database in Docker
 docker-compose exec api python manage.py init-database
 docker-compose exec api python manage.py create-admin
+
+# Phase 2 Health Monitoring in Docker
+curl http://localhost:5000/health
+curl http://localhost:5000/metrics
 ```
 
 ## Architecture Overview
@@ -775,3 +782,203 @@ prod-start.bat
 3. Restart with `dev-start.bat`
 
 **This Phase 1 implementation eliminates the CORS/port issues that caused development friction.**
+
+---
+
+# 🚀 PHASE 2 ARCHITECTURE IMPLEMENTATION - COMPLETED
+
+## Overview
+**Status**: ✅ COMPLETE  
+**Date**: January 2025  
+**Objective**: Add enterprise-grade DevOps capabilities including health monitoring, automated testing, configuration validation, and enhanced Docker development environment.
+
+## 🎯 Phase 2 Components Implemented
+
+### 1. 📊 Health Monitoring System
+**Implementation**: Complete monitoring infrastructure with comprehensive health checks
+
+**New Endpoints**:
+- `/health` - Basic health check with database status
+- `/health/detailed` - Component-specific health status (database, Redis, AI service)
+- `/metrics` - System performance metrics (CPU, memory, disk usage)
+- `/health/database` - Database-specific health and latency
+- `/health/ai` - AI service (Ollama) health and available models
+- `/status` - Service status, uptime, and configuration
+- `/ping` - Simple ping endpoint for load balancers
+
+**Features**:
+- Real-time system metrics using psutil
+- Component health checks with latency measurements
+- Database activity metrics and table statistics
+- AI service integration status
+- JSON responses with timestamps and detailed status information
+
+**Usage**:
+```bash
+# Test health endpoints (with backend running)
+curl http://localhost:5000/health
+curl http://localhost:5000/metrics
+curl http://localhost:5000/status
+```
+
+### 2. ⚙️ Configuration Validation System
+**Implementation**: Comprehensive environment and system validation
+
+**File**: `scripts/validate-config.py`
+
+**Validation Checks**:
+- Required environment variables (SECRET_KEY, JWT_SECRET_KEY, DATABASE_URL)
+- Optional environment variables with descriptions
+- Database connectivity testing (PostgreSQL/SQLite)
+- Redis connection validation (if configured)  
+- AI service (Ollama) connectivity and model availability
+- File structure verification
+- Python dependency validation
+- Port availability checks
+- Security configuration analysis
+
+**Usage**:
+```bash
+# Run configuration validation
+python scripts/validate-config.py
+
+# Will show colorized output with ✅/❌ status for each check
+```
+
+### 3. 🧪 Automated Testing Pipeline
+**Implementation**: Comprehensive testing system with multiple test types
+
+**File**: `scripts/run-tests.py`
+
+**Test Types**:
+- **Configuration Tests**: Environment and system validation
+- **Unit Tests**: Code unit testing with coverage reporting
+- **Integration Tests**: API and database integration testing
+- **Security Tests**: Bandit security scanning and Safety vulnerability checks
+- **Code Quality**: Flake8 linting, Black formatting, isort import sorting
+- **Frontend Tests**: NPM linting, testing, and build validation
+- **API Tests**: Endpoint testing with detailed reporting
+- **Database Tests**: Migration and model validation
+
+**Reporting**:  
+- HTML test report (`test-results/test-report.html`)
+- JSON results (`test-results/test-report.json`)
+- Coverage analysis with HTML report
+- JUnit XML for CI/CD integration
+
+**Usage**:
+```bash
+# Run all tests
+python scripts/run-tests.py
+
+# Run specific test types
+python scripts/run-tests.py --types config unit security
+
+# View results in browser
+open test-results/test-report.html
+```
+
+### 4. 🐳 Enhanced Docker Development Environment  
+**Implementation**: Improved Docker setup with development-specific enhancements
+
+**New Files**:
+- `docker-compose.override.yml` - Development-specific overrides
+- `medocpro-dashboard/Dockerfile.dev` - Frontend development container
+- Enhanced main `Dockerfile` with proper application factory pattern
+
+**Features**:
+- Hot reloading in development containers
+- Separate development and production configurations
+- Frontend development container with Vite hot reloading
+- Proper application factory pattern for Gunicorn
+- Environment-based configuration
+- Health monitoring endpoints available in containers
+
+**Usage**:
+```bash
+# Start development environment
+docker-compose --profile development --profile cpu up --build
+
+# Access health monitoring in Docker
+curl http://localhost:5000/health
+curl http://localhost:5000/metrics
+
+# Initialize database in container
+docker-compose exec api python manage.py init-database
+```
+
+## 🧪 Testing Phase 2 Systems
+
+### Quick System Test
+```bash
+# Test all Phase 2 components
+python test-phase2.py
+
+# Expected output: 5/5 systems passing
+```
+
+### Individual System Testing
+
+**1. Configuration Validation**:
+```bash
+python scripts/validate-config.py
+# Shows environment variables, database connection, file structure, etc.
+```
+
+**2. Health Monitoring** (requires backend running):
+```bash
+# Start backend
+python dev-start.py
+
+# Test endpoints
+curl http://localhost:5000/health
+curl http://localhost:5000/health/detailed
+curl http://localhost:5000/metrics
+```
+
+**3. Automated Testing**:
+```bash
+# Run comprehensive test suite
+python scripts/run-tests.py
+
+# View HTML report
+open test-results/test-report.html
+```
+
+**4. Docker Development**:
+```bash
+# Test Docker configuration
+docker-compose config
+
+# Start development environment
+docker-compose --profile development --profile cpu up --build
+```
+
+## 🔧 Dependencies Added in Phase 2
+
+```txt
+# Phase 2 Dependencies (added to requirements.txt)
+psutil>=5.9.0          # System metrics monitoring
+redis>=5.0.0           # Redis connectivity testing
+bandit[toml]>=1.7.0    # Security scanning
+safety>=3.0.0          # Vulnerability scanning  
+pytest>=7.0.0          # Unit testing framework
+pytest-cov>=4.0.0      # Coverage reporting
+flake8>=6.0.0          # Code linting
+black>=23.0.0          # Code formatting
+isort>=5.12.0          # Import sorting
+```
+
+## 🎉 Phase 2 Implementation Success
+
+**The Phase 2 implementation successfully adds enterprise-grade capabilities to MeDocPro:**
+
+- ✅ **Comprehensive health monitoring** with real-time metrics
+- ✅ **Automated testing pipeline** with multiple test types and reporting
+- ✅ **Configuration validation** preventing deployment issues
+- ✅ **Enhanced Docker development** with hot reloading and proper containerization
+- ✅ **Production-ready monitoring** with load balancer endpoints
+- ✅ **Security scanning** and vulnerability detection
+- ✅ **Code quality enforcement** with automated formatting and linting
+
+**MeDocPro now has enterprise-grade DevOps capabilities ready for production deployment and monitoring.**
