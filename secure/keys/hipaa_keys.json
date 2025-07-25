@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "created": "2025-07-25T13:31:13.425564+00:00",
+  "keys": {
+    "master_key": {
+      "key": "f21ZRTaAy5Osmw5RDwQu4H3JBDqB2sTmG3x9ilxDWQg=",
+      "created": "2025-07-25T13:31:13.431690+00:00",
+      "algorithm": "PBKDF2-SHA256",
+      "key_size": 256,
+      "status": "active"
+    }
+  },
+  "rotation_log": []
+}
