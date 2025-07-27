@@ -47,7 +47,7 @@ const getDocumentTypeDisplay = (type) => {
 };
 
 // Individual document row component
-const DocumentListItem = ({ document, theme, isSelected, onSelect, onView }) => {
+const DocumentListItem = ({ document, theme, isSelected, onSelect, onView, loadingContent }) => {
   const [isHovered, setIsHovered] = useState(false);
   const styles = getThemeStyles(theme);
 
@@ -166,29 +166,35 @@ const DocumentListItem = ({ document, theme, isSelected, onSelect, onView }) => 
           e.stopPropagation();
           onView(document);
         }}
+        disabled={loadingContent}
         style={{
           padding: '4px 8px',
           backgroundColor: 'transparent',
           border: `1px solid ${styles.borderColor}`,
           borderRadius: '4px',
           fontSize: '11px',
-          color: styles.textPrimary,
-          cursor: 'pointer',
+          color: loadingContent ? styles.textMuted : styles.textPrimary,
+          cursor: loadingContent ? 'wait' : 'pointer',
           fontWeight: '500',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
+          opacity: loadingContent ? 0.5 : 1
         }}
         onMouseEnter={(e) => {
-          e.target.style.backgroundColor = styles.primaryColor;
-          e.target.style.color = 'white';
-          e.target.style.borderColor = styles.primaryColor;
+          if (!loadingContent) {
+            e.target.style.backgroundColor = styles.primaryColor;
+            e.target.style.color = 'white';
+            e.target.style.borderColor = styles.primaryColor;
+          }
         }}
         onMouseLeave={(e) => {
-          e.target.style.backgroundColor = 'transparent';
-          e.target.style.color = styles.textPrimary;
-          e.target.style.borderColor = styles.borderColor;
+          if (!loadingContent) {
+            e.target.style.backgroundColor = 'transparent';
+            e.target.style.color = styles.textPrimary;
+            e.target.style.borderColor = styles.borderColor;
+          }
         }}
       >
-        View
+        {loadingContent ? '...' : 'View'}
       </button>
     </div>
   );
@@ -206,6 +212,7 @@ const RecentDocuments = ({ theme }) => {
   const [selectedDocuments, setSelectedDocuments] = useState(new Set());
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewingDocuments, setViewingDocuments] = useState([]);
+  const [loadingContent, setLoadingContent] = useState(false);
   
   // Watch for theme changes
   useEffect(() => {
@@ -290,17 +297,72 @@ const RecentDocuments = ({ theme }) => {
     }
   };
 
-  const handleViewSelected = () => {
+  const handleViewSelected = async () => {
     const selected = documents.filter(doc => selectedDocuments.has(doc.id));
     if (selected.length > 0) {
-      setViewingDocuments(selected);
-      setViewModalOpen(true);
+      setLoadingContent(true);
+      try {
+        // Fetch full content for selected documents
+        const documentsWithContent = await fetchDocumentContent(selected);
+        setViewingDocuments(documentsWithContent);
+        setViewModalOpen(true);
+      } catch (error) {
+        console.error('Error loading documents for viewing:', error);
+      } finally {
+        setLoadingContent(false);
+      }
     }
   };
 
-  const handleViewSingle = (document) => {
-    setViewingDocuments([document]);
-    setViewModalOpen(true);
+  const handleViewSingle = async (document) => {
+    setLoadingContent(true);
+    try {
+      // Fetch full content for single document
+      const documentsWithContent = await fetchDocumentContent([document]);
+      setViewingDocuments(documentsWithContent);
+      setViewModalOpen(true);
+    } catch (error) {
+      console.error('Error loading document for viewing:', error);
+    } finally {
+      setLoadingContent(false);
+    }
+  };
+
+  // Fetch full document content for viewing
+  const fetchDocumentContent = async (documentsToFetch) => {
+    try {
+      const documentsWithContent = await Promise.all(
+        documentsToFetch.map(async (doc) => {
+          // If document already has content, return as-is
+          if (doc.document_content) {
+            return doc;
+          }
+          
+          // Fetch full document details including content
+          try {
+            const response = await apiService.get(`/api/recent-documents/${doc.id}`);
+            if (response.success && response.document) {
+              return response.document;
+            } else {
+              // If fetch fails, return document with placeholder content
+              return { ...doc, document_content: 'Content could not be loaded.' };
+            }
+          } catch (error) {
+            console.error(`Error fetching content for document ${doc.id}:`, error);
+            return { ...doc, document_content: 'Error loading content.' };
+          }
+        })
+      );
+      
+      return documentsWithContent;
+    } catch (error) {
+      console.error('Error fetching document content:', error);
+      // Return original documents with placeholder content
+      return documentsToFetch.map(doc => ({ 
+        ...doc, 
+        document_content: doc.document_content || 'Content could not be loaded.' 
+      }));
+    }
   };
 
   const styles = getThemeStyles(currentTheme);
@@ -353,18 +415,20 @@ const RecentDocuments = ({ theme }) => {
               <>
                 <button
                   onClick={handleViewSelected}
+                  disabled={loadingContent}
                   style={{
                     padding: '4px 8px',
-                    backgroundColor: styles.primaryColor,
+                    backgroundColor: loadingContent ? styles.bgAccent : styles.primaryColor,
                     color: 'white',
                     border: 'none',
                     borderRadius: '4px',
                     fontSize: '12px',
-                    cursor: 'pointer',
-                    fontWeight: '500'
+                    cursor: loadingContent ? 'wait' : 'pointer',
+                    fontWeight: '500',
+                    opacity: loadingContent ? 0.7 : 1
                   }}
                 >
-                  View Selected ({selectedDocuments.size})
+                  {loadingContent ? 'Loading...' : `View Selected (${selectedDocuments.size})`}
                 </button>
                 <button
                   onClick={() => setSelectedDocuments(new Set())}
@@ -532,6 +596,7 @@ const RecentDocuments = ({ theme }) => {
                 isSelected={selectedDocuments.has(document.id)}
                 onSelect={handleSelectDocument}
                 onView={handleViewSingle}
+                loadingContent={loadingContent}
               />
             ))}
             
@@ -626,6 +691,7 @@ const RecentDocuments = ({ theme }) => {
           onClose={() => {
             setViewModalOpen(false);
             setViewingDocuments([]);
+            setLoadingContent(false);
           }}
           documents={viewingDocuments}
           theme={currentTheme}
