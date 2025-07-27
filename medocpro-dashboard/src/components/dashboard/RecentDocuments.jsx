@@ -723,8 +723,6 @@ const RetentionInfoTooltip = ({ theme }) => {
     <div style={{ position: 'relative', display: 'inline-block' }}>
       <span
         onClick={() => setShowTooltip(!showTooltip)}
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
         style={{
           fontSize: '14px',
           color: styles.primaryColor,
