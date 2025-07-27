@@ -617,89 +617,90 @@ const RecentDocuments = ({ theme }) => {
             </button>
           </div>
         ) : displayedDocuments.length > 0 ? (
-          <div style={{
-            maxHeight: '400px',
-            overflowY: 'auto',
-            border: `1px solid ${styles.borderColor}`,
-            borderRadius: '6px',
-            marginBottom: '16px'
-          }}>
-            {displayedDocuments.map(document => (
-              <DocumentListItem
-                key={document.id}
-                document={document}
-                theme={currentTheme}
-                isSelected={selectedDocuments.has(document.id)}
-                onSelect={handleSelectDocument}
-                onView={handleViewSingle}
-                loadingContent={loadingContent}
-              />
-            ))}
-          </div>
+          <>
+            <div style={{
+              maxHeight: '400px',
+              overflowY: 'auto',
+              border: `1px solid ${styles.borderColor}`,
+              borderRadius: '6px',
+              marginBottom: '16px'
+            }}>
+              {displayedDocuments.map(document => (
+                <DocumentListItem
+                  key={document.id}
+                  document={document}
+                  theme={currentTheme}
+                  isSelected={selectedDocuments.has(document.id)}
+                  onSelect={handleSelectDocument}
+                  onView={handleViewSingle}
+                  loadingContent={loadingContent}
+                />
+              ))}
+            </div>
             
-          {/* More button */}
-          {hasMoreDocuments && !showAll && (
-            <div style={{ textAlign: 'center' }}>
-              <button
-                onClick={() => setShowAll(true)}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: 'transparent',
-                  color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
-                  border: `1px solid ${styles.borderColor}`,
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  margin: '0 auto'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = styles.bgAccent;
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                }}
-              >
-                Show {documents.length - 3} more documents
-              </button>
-            </div>
-          )}
-          
-          {/* Show less button when all are displayed */}
-          {showAll && hasMoreDocuments && (
-            <div style={{ textAlign: 'center' }}>
-              <button
-                onClick={() => setShowAll(false)}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: 'transparent',
-                  color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
-                  border: `1px solid ${styles.borderColor}`,
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  fontWeight: '500',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  margin: '0 auto'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = styles.bgAccent;
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                }}
-              >
-                Show less
-              </button>
-            </div>
-          )}
+            {/* More button */}
+            {hasMoreDocuments && !showAll && (
+              <div style={{ textAlign: 'center' }}>
+                <button
+                  onClick={() => setShowAll(true)}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: 'transparent',
+                    color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    margin: '0 auto'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = styles.bgAccent;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  Show {documents.length - 3} more documents
+                </button>
+              </div>
+            )}
+            
+            {/* Show less button when all are displayed */}
+            {showAll && hasMoreDocuments && (
+              <div style={{ textAlign: 'center' }}>
+                <button
+                  onClick={() => setShowAll(false)}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: 'transparent',
+                    color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    margin: '0 auto'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = styles.bgAccent;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  Show less
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <div style={{
