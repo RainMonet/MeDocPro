@@ -722,12 +722,13 @@ const RetentionInfoTooltip = ({ theme }) => {
   return (
     <div style={{ position: 'relative', display: 'inline-block' }}>
       <span
+        onClick={() => setShowTooltip(!showTooltip)}
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
         style={{
           fontSize: '14px',
           color: styles.primaryColor,
-          cursor: 'help',
+          cursor: 'pointer',
           userSelect: 'none',
           display: 'inline-flex',
           alignItems: 'center',
@@ -736,57 +737,80 @@ const RetentionInfoTooltip = ({ theme }) => {
           height: '16px',
           borderRadius: '50%',
           border: `1px solid ${styles.primaryColor}`,
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          transition: 'all 0.2s ease'
         }}
+        onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
+        onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
+        title="Click for more information about document retention"
       >
         ?
       </span>
       
       {showTooltip && (
-        <div style={{
-          position: 'absolute',
-          bottom: '100%',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          marginBottom: '8px',
-          zIndex: 1000,
-          minWidth: '320px',
-          maxWidth: '400px'
-        }}>
-          {/* Tooltip arrow */}
+        <>
+          {/* Modal overlay */}
           <div style={{
-            position: 'absolute',
-            top: '100%',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 0,
-            height: 0,
-            borderLeft: '6px solid transparent',
-            borderRight: '6px solid transparent',
-            borderTop: `6px solid ${styles.bgPrimary}`
-          }} />
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            zIndex: 9998
+          }} onClick={() => setShowTooltip(false)} />
           
-          {/* Tooltip content */}
+          {/* Tooltip modal */}
           <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 9999,
+            minWidth: '340px',
+            maxWidth: '420px',
             backgroundColor: styles.bgPrimary,
             border: `1px solid ${styles.borderColor}`,
-            borderRadius: '8px',
-            padding: '16px',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+            borderRadius: '12px',
+            padding: '20px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
             fontSize: '13px',
             lineHeight: '1.4'
           }}>
+            {/* Header with close button */}
             <div style={{
-              fontWeight: '600',
-              color: styles.textPrimary,
-              marginBottom: '8px'
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              marginBottom: '12px'
             }}>
-              7-Day Document Retention Policy
+              <div style={{
+                fontWeight: '600',
+                color: styles.textPrimary,
+                fontSize: '16px'
+              }}>
+                7-Day Document Retention Policy
+              </div>
+              <button
+                onClick={() => setShowTooltip(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  color: styles.textMuted,
+                  cursor: 'pointer',
+                  padding: '0',
+                  lineHeight: '1',
+                  marginLeft: '12px'
+                }}
+              >
+                ×
+              </button>
             </div>
             
             <div style={{
               color: styles.textSecondary,
-              marginBottom: '12px'
+              marginBottom: '16px'
             }}>
               Documents are automatically stored within MeDocPro for 7 days after finalization to provide quick access for review and reference. This temporary storage helps maintain application performance and manages data efficiently.
             </div>
@@ -794,7 +818,7 @@ const RetentionInfoTooltip = ({ theme }) => {
             <div style={{
               fontWeight: '500',
               color: styles.textPrimary,
-              marginBottom: '6px'
+              marginBottom: '8px'
             }}>
               Long-term Storage Options:
             </div>
@@ -803,31 +827,32 @@ const RetentionInfoTooltip = ({ theme }) => {
               margin: 0,
               paddingLeft: '16px',
               color: styles.textSecondary,
-              marginBottom: '12px'
+              marginBottom: '16px'
             }}>
-              <li style={{ marginBottom: '4px' }}>
+              <li style={{ marginBottom: '6px' }}>
                 <strong>Individual Download:</strong> Click "View" on any document, then save/print from your browser
               </li>
-              <li style={{ marginBottom: '4px' }}>
+              <li style={{ marginBottom: '6px' }}>
                 <strong>Bulk Export:</strong> Select multiple documents and use "View Selected" to review before saving
               </li>
-              <li style={{ marginBottom: '4px' }}>
+              <li style={{ marginBottom: '6px' }}>
                 <strong>ZIP Backup:</strong> Use the document generation preview modal's "Download Files" button to export all documents as a ZIP file
               </li>
             </ul>
             
             <div style={{
-              padding: '8px 10px',
+              padding: '12px',
               backgroundColor: styles.bgSecondary,
-              borderRadius: '4px',
+              borderRadius: '6px',
               fontSize: '12px',
               color: styles.textMuted,
-              fontStyle: 'italic'
+              fontStyle: 'italic',
+              lineHeight: '1.4'
             }}>
               💡 <strong>Tip:</strong> Create regular ZIP backups of important documents to your preferred storage location (local drive, cloud storage, etc.) for permanent retention beyond the 7-day period.
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
