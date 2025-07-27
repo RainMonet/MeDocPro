@@ -395,6 +395,19 @@ const RecentDocuments = ({ theme }) => {
         padding: '20px 20px 16px 20px',
         borderBottom: `1px solid ${styles.borderColor}`
       }}>
+        {/* 7-day retention notice */}
+        <div style={{
+          fontSize: '13px',
+          color: styles.textSecondary,
+          marginBottom: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <span>Finalized documents are stored for 7 days within the application</span>
+          <RetentionInfoTooltip theme={currentTheme} />
+        </div>
+        
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -696,6 +709,125 @@ const RecentDocuments = ({ theme }) => {
           documents={viewingDocuments}
           theme={currentTheme}
         />
+      )}
+    </div>
+  );
+};
+
+// Retention Information Tooltip Component
+const RetentionInfoTooltip = ({ theme }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const styles = getThemeStyles(theme);
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <span
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        style={{
+          fontSize: '14px',
+          color: styles.primaryColor,
+          cursor: 'help',
+          userSelect: 'none',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '16px',
+          height: '16px',
+          borderRadius: '50%',
+          border: `1px solid ${styles.primaryColor}`,
+          fontWeight: 'bold'
+        }}
+      >
+        ?
+      </span>
+      
+      {showTooltip && (
+        <div style={{
+          position: 'absolute',
+          bottom: '100%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          marginBottom: '8px',
+          zIndex: 1000,
+          minWidth: '320px',
+          maxWidth: '400px'
+        }}>
+          {/* Tooltip arrow */}
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 0,
+            height: 0,
+            borderLeft: '6px solid transparent',
+            borderRight: '6px solid transparent',
+            borderTop: `6px solid ${styles.bgPrimary}`
+          }} />
+          
+          {/* Tooltip content */}
+          <div style={{
+            backgroundColor: styles.bgPrimary,
+            border: `1px solid ${styles.borderColor}`,
+            borderRadius: '8px',
+            padding: '16px',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+            fontSize: '13px',
+            lineHeight: '1.4'
+          }}>
+            <div style={{
+              fontWeight: '600',
+              color: styles.textPrimary,
+              marginBottom: '8px'
+            }}>
+              7-Day Document Retention Policy
+            </div>
+            
+            <div style={{
+              color: styles.textSecondary,
+              marginBottom: '12px'
+            }}>
+              Documents are automatically stored within MeDocPro for 7 days after finalization to provide quick access for review and reference. This temporary storage helps maintain application performance and manages data efficiently.
+            </div>
+            
+            <div style={{
+              fontWeight: '500',
+              color: styles.textPrimary,
+              marginBottom: '6px'
+            }}>
+              Long-term Storage Options:
+            </div>
+            
+            <ul style={{
+              margin: 0,
+              paddingLeft: '16px',
+              color: styles.textSecondary,
+              marginBottom: '12px'
+            }}>
+              <li style={{ marginBottom: '4px' }}>
+                <strong>Individual Download:</strong> Click "View" on any document, then save/print from your browser
+              </li>
+              <li style={{ marginBottom: '4px' }}>
+                <strong>Bulk Export:</strong> Select multiple documents and use "View Selected" to review before saving
+              </li>
+              <li style={{ marginBottom: '4px' }}>
+                <strong>ZIP Backup:</strong> Use the document generation preview modal's "Download Files" button to export all documents as a ZIP file
+              </li>
+            </ul>
+            
+            <div style={{
+              padding: '8px 10px',
+              backgroundColor: styles.bgSecondary,
+              borderRadius: '4px',
+              fontSize: '12px',
+              color: styles.textMuted,
+              fontStyle: 'italic'
+            }}>
+              💡 <strong>Tip:</strong> Create regular ZIP backups of important documents to your preferred storage location (local drive, cloud storage, etc.) for permanent retention beyond the 7-day period.
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
