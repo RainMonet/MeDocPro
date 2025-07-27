@@ -372,47 +372,26 @@ const RecentDocuments = ({ theme }) => {
   const hasMoreDocuments = documents.length > 3;
 
   return (
-    <div style={{
-      backgroundColor: styles.bgPrimary,
-      borderRadius: '8px',
-      border: `1px solid ${styles.borderColor}`,
-      overflow: 'hidden',
-      position: 'relative'
-    }}>
-      {/* Gradient top border */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: '2px',
-        background: `linear-gradient(90deg, ${styles.primaryColor}, ${styles.warningColor})`,
-        zIndex: 1
-      }} />
+    <div 
+      data-component="recent-documents"
+      style={{
+        backgroundColor: styles.bgPrimary,
+        borderRadius: '8px',
+        border: `1px solid ${styles.borderColor}`,
+        overflow: 'hidden'
+      }}
+    >
       
       {/* Header */}
       <div style={{
         padding: '20px 20px 16px 20px',
         borderBottom: `1px solid ${styles.borderColor}`
       }}>
-        {/* 7-day retention notice */}
-        <div style={{
-          fontSize: '13px',
-          color: styles.textSecondary,
-          marginBottom: '12px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px'
-        }}>
-          <span>Finalized documents are stored for 7 days within the application</span>
-          <RetentionInfoTooltip theme={currentTheme} />
-        </div>
-        
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '8px'
+          marginBottom: '12px'
         }}>
           <h3 style={{
             margin: 0,
@@ -422,23 +401,28 @@ const RecentDocuments = ({ theme }) => {
           }}>
             Recent Documents
           </h3>
+          
+          {/* Action buttons */}
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            {/* Selection controls when documents are selected */}
             {selectedDocuments.size > 0 && (
               <>
                 <button
                   onClick={handleViewSelected}
                   disabled={loadingContent}
                   style={{
-                    padding: '4px 8px',
+                    padding: '8px 16px',
                     backgroundColor: loadingContent ? styles.bgAccent : styles.primaryColor,
                     color: 'white',
                     border: 'none',
-                    borderRadius: '4px',
-                    fontSize: '12px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
                     cursor: loadingContent ? 'wait' : 'pointer',
                     fontWeight: '500',
-                    opacity: loadingContent ? 0.7 : 1
+                    opacity: loadingContent ? 0.7 : 1,
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
                   }}
                 >
                   {loadingContent ? 'Loading...' : `View Selected (${selectedDocuments.size})`}
@@ -446,19 +430,52 @@ const RecentDocuments = ({ theme }) => {
                 <button
                   onClick={() => setSelectedDocuments(new Set())}
                   style={{
-                    padding: '4px 8px',
+                    padding: '8px 16px',
                     backgroundColor: 'transparent',
-                    color: styles.textMuted,
+                    color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
                     border: `1px solid ${styles.borderColor}`,
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    cursor: 'pointer'
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = styles.bgAccent;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
                   }}
                 >
                   Clear
                 </button>
               </>
             )}
+          </div>
+        </div>
+        
+        {/* Subtitle with retention notice */}
+        <div style={{
+          fontSize: '13px',
+          color: styles.textSecondary,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <span>Finalized documents stored for 7 days within the application</span>
+          <RetentionInfoTooltip theme={currentTheme} />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{ padding: '20px' }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '16px'
+        }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             
             {/* Sort dropdown */}
             <select
@@ -600,7 +617,13 @@ const RecentDocuments = ({ theme }) => {
             </button>
           </div>
         ) : displayedDocuments.length > 0 ? (
-          <>
+          <div style={{
+            maxHeight: '400px',
+            overflowY: 'auto',
+            border: `1px solid ${styles.borderColor}`,
+            borderRadius: '6px',
+            marginBottom: '16px'
+          }}>
             {displayedDocuments.map(document => (
               <DocumentListItem
                 key={document.id}
@@ -612,86 +635,84 @@ const RecentDocuments = ({ theme }) => {
                 loadingContent={loadingContent}
               />
             ))}
+          </div>
             
-            {/* More button */}
-            {hasMoreDocuments && !showAll && (
-              <div style={{
-                padding: '12px 16px',
-                borderTop: `1px solid ${styles.borderColor}`,
-                textAlign: 'center'
-              }}>
-                <button
-                  onClick={() => setShowAll(true)}
-                  style={{
-                    background: 'none',
-                    border: `1px solid ${styles.borderColor}`,
-                    color: styles.textSecondary,
-                    padding: '6px 16px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    fontWeight: '500',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = styles.bgAccent;
-                    e.target.style.borderColor = styles.primaryColor;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = 'transparent';
-                    e.target.style.borderColor = styles.borderColor;
-                  }}
-                >
-                  Show {documents.length - 3} more documents
-                </button>
-              </div>
-            )}
-            
-            {/* Show less button when all are displayed */}
-            {showAll && hasMoreDocuments && (
-              <div style={{
-                padding: '12px 16px',
-                borderTop: `1px solid ${styles.borderColor}`,
-                textAlign: 'center'
-              }}>
-                <button
-                  onClick={() => setShowAll(false)}
-                  style={{
-                    background: 'none',
-                    border: `1px solid ${styles.borderColor}`,
-                    color: styles.textSecondary,
-                    padding: '6px 16px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    fontWeight: '500',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = styles.bgAccent;
-                    e.target.style.borderColor = styles.primaryColor;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = 'transparent';
-                    e.target.style.borderColor = styles.borderColor;
-                  }}
-                >
-                  Show less
-                </button>
-              </div>
-            )}
+          {/* More button */}
+          {hasMoreDocuments && !showAll && (
+            <div style={{ textAlign: 'center' }}>
+              <button
+                onClick={() => setShowAll(true)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'transparent',
+                  color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
+                  border: `1px solid ${styles.borderColor}`,
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  margin: '0 auto'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = styles.bgAccent;
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                }}
+              >
+                Show {documents.length - 3} more documents
+              </button>
+            </div>
+          )}
+          
+          {/* Show less button when all are displayed */}
+          {showAll && hasMoreDocuments && (
+            <div style={{ textAlign: 'center' }}>
+              <button
+                onClick={() => setShowAll(false)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'transparent',
+                  color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
+                  border: `1px solid ${styles.borderColor}`,
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  margin: '0 auto'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = styles.bgAccent;
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                }}
+              >
+                Show less
+              </button>
+            </div>
+          )}
           </>
         ) : (
           <div style={{
-            padding: '40px 20px',
             textAlign: 'center',
+            padding: '40px 20px',
             color: styles.textMuted
           }}>
-            <div style={{ fontSize: '14px' }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.6 }}>📄</div>
+            <div style={{ fontSize: '14px', marginBottom: '6px', fontWeight: '500' }}>
               {filterType ? `No ${getDocumentTypeDisplay(filterType).toLowerCase()} documents found` : 'No recent documents'}
             </div>
-            <div style={{ fontSize: '12px', marginTop: '4px' }}>
-              Documents will appear here after being finalized during document generation
+            <div style={{ fontSize: '12px', lineHeight: '1.4' }}>
+              Finalized documents will appear here after being saved during document generation
             </div>
           </div>
         )}
