@@ -391,7 +391,7 @@ const RecentDocuments = ({ theme }) => {
         left: 0,
         right: 0,
         height: '3px',
-        background: `linear-gradient(90deg, ${styles.primaryColor}, ${styles.warningColor})`,
+        background: `linear-gradient(90deg, ${styles.primaryColor}, ${currentTheme === 'dark' ? '#10b981' : '#d97706'})`,
         zIndex: 1
       }} />
       
