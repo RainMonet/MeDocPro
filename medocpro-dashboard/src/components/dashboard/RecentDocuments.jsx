@@ -378,14 +378,29 @@ const RecentDocuments = ({ theme }) => {
         backgroundColor: styles.bgPrimary,
         borderRadius: '8px',
         border: `1px solid ${styles.borderColor}`,
-        overflow: 'hidden'
+        overflow: 'hidden',
+        position: 'relative',
+        background: `linear-gradient(135deg, ${styles.bgPrimary} 0%, ${styles.bgSecondary} 100%)`,
+        boxShadow: `inset 0 1px 0 rgba(255, 255, 255, ${currentTheme === 'dark' ? '0.05' : '0.1'}), 0 1px 3px rgba(0, 0, 0, ${currentTheme === 'dark' ? '0.2' : '0.1'})`
       }}
     >
+      {/* Gradient top border */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: '3px',
+        background: `linear-gradient(90deg, ${styles.primaryColor}, ${styles.warningColor})`,
+        zIndex: 1
+      }} />
       
       {/* Header */}
       <div style={{
         padding: '20px 20px 16px 20px',
-        borderBottom: `1px solid ${styles.borderColor}`
+        borderBottom: `1px solid ${styles.borderColor}`,
+        background: `linear-gradient(180deg, ${styles.bgPrimary} 0%, ${styles.bgSecondary} 100%)`,
+        position: 'relative'
       }}>
         <div style={{
           display: 'flex',
