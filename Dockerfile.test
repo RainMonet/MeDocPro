@@ -1,0 +1,99 @@
+# Multi-stage Docker build for MeDocPro Testing Environment
+FROM node:18-alpine AS frontend-builder
+
+# Set working directory for frontend
+WORKDIR /app/frontend
+
+# Copy package files
+COPY medocpro-dashboard/package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy frontend source
+COPY medocpro-dashboard/ ./
+
+# Build frontend for testing (development mode with source maps)
+RUN npm run build
+
+# Python backend stage
+FROM python:3.11-slim AS backend-builder
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy Python requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Final stage - combine frontend and backend
+FROM python:3.11-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libpq5 \
+    curl \
+    nginx \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app user for security
+RUN useradd --create-home --shell /bin/bash app
+
+# Set working directory
+WORKDIR /app
+
+# Copy Python dependencies from builder
+COPY --from=backend-builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=backend-builder /usr/local/bin /usr/local/bin
+
+# Copy built frontend
+COPY --from=frontend-builder /app/frontend/build ./frontend/build
+
+# Copy backend source
+COPY app ./app
+COPY config.py manage.py ./
+COPY *.py ./
+
+# Copy configuration files
+COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/logs /var/log/supervisor
+
+# Set permissions
+RUN chown -R app:app /app /var/log/supervisor
+
+# Create startup script
+COPY docker/scripts/start-services.sh /usr/local/bin/start-services.sh
+RUN chmod +x /usr/local/bin/start-services.sh
+
+# Expose ports
+EXPOSE 3000 5000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:5000/health || exit 1
+
+# Switch to app user
+USER app
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV FLASK_APP=app
+ENV NODE_ENV=development
+ENV FLASK_ENV=development
+
+# Start services using supervisor
+CMD ["/usr/local/bin/start-services.sh"]

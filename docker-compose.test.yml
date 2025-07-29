@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  # Main MeDocPro Application
+  medocpro-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: medocpro-app
+    ports:
+      - "3000:3000"  # Frontend (React)
+      - "5000:5000"  # Backend API (Flask)
+    volumes:
+      - ./data:/app/data
+      - medocpro_logs:/app/logs
+    environment:
+      - NODE_ENV=development
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://medocpro:medocpro_dev_pass@postgres:5432/medocpro_test
+      - OLLAMA_URL=http://ollama:11434
+      - CORS_ORIGINS=http://localhost:3000
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - JWT_SECRET_KEY=dev-jwt-secret-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    networks:
+      - medocpro-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: medocpro-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=medocpro_test
+      - POSTGRES_USER=medocpro
+      - POSTGRES_PASSWORD=medocpro_dev_pass
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - medocpro-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medocpro -d medocpro_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Ollama AI Service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: medocpro-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_ORIGINS=http://localhost:3000,http://localhost:5000
+    # Platform compatibility for M1/M2 Macs and Intel
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    networks:
+      - medocpro-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    # Auto-download required models on startup
+    command: >
+      sh -c "
+        ollama serve &
+        OLLAMA_PID=$$!
+        
+        echo 'Waiting for Ollama to start...'
+        sleep 15
+        
+        echo 'Downloading required AI models...'
+        ollama pull mistral:7b-instruct-q4_0 || echo 'Failed to download Mistral'
+        ollama pull llama2:7b-chat-q4_0 || echo 'Failed to download Llama2'
+        
+        echo 'Available models:'
+        ollama list
+        
+        echo 'Ollama setup complete, keeping service running...'
+        wait $$OLLAMA_PID
+      "
+
+  # Redis (for session management and caching)
+  redis:
+    image: redis:7-alpine
+    container_name: medocpro-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - medocpro-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    command: redis-server --appendonly yes --requirepass redis_dev_pass
+
+volumes:
+  postgres_data:
+    driver: local
+  ollama_models:
+    driver: local
+  redis_data:
+    driver: local
+  medocpro_logs:
+    driver: local
+
+networks:
+  medocpro-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
