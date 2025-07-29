@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import apiService from '../../services/api';
 
 const LoginForm = ({ onLogin, theme = 'dark' }) => {
   const [credentials, setCredentials] = useState({
@@ -25,7 +26,7 @@ const LoginForm = ({ onLogin, theme = 'dark' }) => {
 
     try {
       // Make real API call to backend
-      const response = await fetch('http://localhost:5000/auth/login', {
+      const response = await fetch(`${apiService.baseURL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -62,7 +63,7 @@ const LoginForm = ({ onLogin, theme = 'dark' }) => {
     
     try {
       // Make real API call with demo credentials
-      const response = await fetch('http://localhost:5000/auth/login', {
+      const response = await fetch(`${apiService.baseURL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

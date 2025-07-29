@@ -48,6 +48,15 @@ const EditIcon = () => (
   </svg>
 );
 
+const TrashIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="3,6 5,6 21,6"/>
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+    <line x1="10" x2="10" y1="11" y2="17"/>
+    <line x1="14" x2="14" y1="11" y2="17"/>
+  </svg>
+);
+
 const SearchIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <circle cx="11" cy="11" r="8"/>
@@ -102,7 +111,7 @@ const TEMPLATE_CATEGORIES = {
 };
 
 // Template Card Component
-const TemplateCard = ({ template, onEdit, onUse, onView, theme = 'dark' }) => {
+const TemplateCard = ({ template, onEdit, onUse, onView, onDelete, theme = 'dark' }) => {
   const category = TEMPLATE_CATEGORIES[template.category] || TEMPLATE_CATEGORIES.custom;
   const IconComponent = category.icon;
   const styles = getThemeStyles(theme);
@@ -111,6 +120,17 @@ const TemplateCard = ({ template, onEdit, onUse, onView, theme = 'dark' }) => {
   const contentPreview = template.content 
     ? template.content.replace(/{{[^}]+}}/g, '[field]').substring(0, 150) + '...'
     : 'No content preview available';
+
+  const handleDelete = () => {
+    // Show confirmation dialog
+    const isConfirmed = window.confirm(
+      `Are you sure you want to delete the template "${template.name}"?\n\nThis action cannot be undone.`
+    );
+    
+    if (isConfirmed) {
+      onDelete(template);
+    }
+  };
 
   return (
     <div className="card template-card" style={{ 
@@ -132,6 +152,20 @@ const TemplateCard = ({ template, onEdit, onUse, onView, theme = 'dark' }) => {
               }}>
                 {template.name}
               </h3>
+              {template.is_system && (
+                <span style={{
+                  padding: '2px 6px',
+                  borderRadius: '8px',
+                  fontSize: '10px',
+                  fontWeight: '600',
+                  backgroundColor: '#10b98120',
+                  color: '#10b981',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  SYSTEM
+                </span>
+              )}
             </div>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
@@ -188,28 +222,67 @@ const TemplateCard = ({ template, onEdit, onUse, onView, theme = 'dark' }) => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '6px', marginLeft: '12px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
             <button 
-              className="btn btn-sm btn-primary"
-              onClick={() => onUse(template)}
-              style={{ 
-                padding: '6px 12px',
-                fontSize: '12px',
-                fontWeight: '500'
-              }}
-            >
-              Use Template
-            </button>
-            <button 
-              className="btn btn-sm btn-secondary"
               onClick={() => onEdit(template)}
               style={{ 
-                padding: '6px 8px',
-                fontSize: '12px'
+                padding: '8px 12px',
+                fontSize: '12px',
+                fontWeight: '500',
+                backgroundColor: styles.bgSecondary,
+                color: styles.textPrimary,
+                border: `1px solid ${styles.borderColor}`,
+                borderRadius: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
               }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = styles.bgAccent || styles.borderColor + '40';
+                e.target.style.borderColor = styles.primaryColor || '#8b4513';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = styles.bgSecondary;
+                e.target.style.borderColor = styles.borderColor;
+              }}
+              title="Edit template"
             >
               <EditIcon />
+              Edit
             </button>
+            {!template.is_system && (
+              <button 
+                onClick={handleDelete}
+                style={{ 
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  backgroundColor: 'transparent',
+                  color: '#ef4444',
+                  border: '1px solid #ef444430',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#ef444415';
+                  e.target.style.borderColor = '#ef444460';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.borderColor = '#ef444430';
+                }}
+                title="Delete template"
+              >
+                <TrashIcon />
+                Delete
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -277,7 +350,9 @@ const getThemeStyles = (theme) => ({
   textMuted: theme === 'dark' ? '#94a3b8' : '#8b7355',
   bgPrimary: theme === 'dark' ? '#1e293b' : '#faf8f3',
   bgSecondary: theme === 'dark' ? '#0f172a' : '#f4f1eb',
+  bgAccent: theme === 'dark' ? '#374151' : '#ede8df',
   borderColor: theme === 'dark' ? '#334155' : '#d4c4a8',
+  primaryColor: theme === 'dark' ? '#3b82f6' : '#8b4513',
   cardBg: theme === 'dark' ? '#1e293b' : '#faf8f3'
 });
 
@@ -390,6 +465,27 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew, theme = '
 
   const handleUseTemplate = (template) => {
     onUseTemplate(template);
+  };
+
+  const handleDeleteTemplate = async (template) => {
+    try {
+      console.log('Deleting template:', template.id, template.name);
+      
+      await apiService.deleteTemplate(template.id);
+      
+      // Show success message
+      console.log(`Template "${template.name}" deleted successfully`);
+      
+      // Refresh the template list
+      await loadTemplates();
+      
+    } catch (err) {
+      console.error('Failed to delete template:', err);
+      
+      // Show error message to user
+      const errorMessage = err.message || 'Failed to delete template. Please try again.';
+      alert(`Error: ${errorMessage}`);
+    }
   };
 
   if (isLoading) {
@@ -597,6 +693,7 @@ const TemplateLibrary = ({ onEditTemplate, onUseTemplate, onCreateNew, theme = '
                 template={template}
                 onEdit={handleEditTemplate}
                 onUse={handleUseTemplate}
+                onDelete={handleDeleteTemplate}
                 theme={theme}
               />
             ))}

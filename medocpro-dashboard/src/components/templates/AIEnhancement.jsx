@@ -680,7 +680,9 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible, theme = 'dark' }
   if (!isVisible) return null;
 
   return (
-    <div className="ai-enhancement">
+    <div 
+      className="ai-enhancement"
+      data-component="ai-enhancement">
       {/* Status Card */}
       <div style={{ 
         display: 'flex', 
@@ -695,12 +697,14 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible, theme = 'dark' }
         borderRadius: '8px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '12px',
-            height: '12px',
-            borderRadius: '50%',
-            backgroundColor: ollamaStatus === 'online' ? styles.successColor : ollamaStatus === 'offline' ? styles.errorColor : styles.warningColor
-          }} />
+          <div 
+            className={`status-indicator ${ollamaStatus}`}
+            style={{
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              backgroundColor: ollamaStatus === 'online' ? styles.successColor : ollamaStatus === 'offline' ? styles.errorColor : styles.warningColor
+            }} />
           <div>
             <div style={{ fontSize: '14px', fontWeight: '600', color: styles.textPrimary }}>
               Ollama Status: {ollamaStatus === 'online' ? 'Connected' : ollamaStatus === 'offline' ? 'Disconnected' : 'Checking...'}

@@ -579,6 +579,8 @@ Date: {current_date}
 """
     
     elif 'treatment' in template_name:
+        newline = '\n'
+        default_goals = f'1. Maintain psychiatric stability{newline}2. Improve functional capacity{newline}3. Prevent relapse'
         content = f"""TREATMENT PLAN
 
 Date: {current_date}
@@ -589,7 +591,7 @@ PRIMARY DIAGNOSIS:
 {data_fields.get('primary_diagnosis', 'Psychiatric condition requiring ongoing treatment')}
 
 TREATMENT GOALS:
-{data_fields.get('treatment_goals', '1. Maintain psychiatric stability\n2. Improve functional capacity\n3. Prevent relapse')}
+{data_fields.get('treatment_goals', default_goals)}
 
 INTERVENTIONS:
 {data_fields.get('interventions', 'Individual therapy sessions, medication management, group therapy as appropriate')}
@@ -706,7 +708,7 @@ def generate_documents():
     }
 
 if __name__ == '__main__':
-    print('Starting simple backend with CORS on port 5001...')
+    print('Starting simple backend with CORS on port 5000...')
     # Load existing patient data
     load_patient_data()
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

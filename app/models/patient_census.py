@@ -34,8 +34,8 @@ class PatientCensus(db.Model):
     
     @property
     def current_census_count(self):
-        """Count of active patients in census (active + follow-up)"""
-        return len([row for row in self.rows if row.status in ['active', 'follow-up']])
+        """Count of all patients in census (status is irrelevant)"""
+        return len(self.rows)
     
     @property
     def admission_count(self):
@@ -132,8 +132,8 @@ class PatientCensus(db.Model):
             db.session.commit()
             return new_census, 0, 0
         
-        # Check if target census already exists
-        existing_census = cls.query.filter_by(census_date=target_date).first()
+        # Check if target census already exists for this user
+        existing_census = cls.query.filter_by(census_date=target_date, user_id=user_id, is_active=True).first()
         if existing_census:
             return existing_census, 0, 0  # Already exists, no rollover needed
         
@@ -151,41 +151,40 @@ class PatientCensus(db.Model):
         patients_carried_over = 0
         daily_info_carried_over = 0
         
-        # Copy active patients from source census
+        # Copy all patients from source census (status is irrelevant, all patients carry over unless manually deleted)
         for source_row in source_census.rows:
-            if source_row.status in ['active', 'follow-up']:  # Carry over active and follow-up patients
-                # Create new patient row
-                new_row = PatientCensusRow(
-                    census_id=new_census.id,
-                    room_number=source_row.room_number,
-                    patient_name=source_row.patient_name,
-                    patient_id=source_row.patient_id,
-                    status='active',
-                    data_fields=source_row.data_fields  # Carry over any existing data
+            # Create new patient row
+            new_row = PatientCensusRow(
+                census_id=new_census.id,
+                room_number=source_row.room_number,
+                patient_name=source_row.patient_name,
+                patient_id=source_row.patient_id,
+                status=source_row.status,  # Preserve original status
+                data_fields=source_row.data_fields  # Carry over any existing data
+            )
+            db.session.add(new_row)
+            db.session.flush()  # Get the new row ID
+            patients_carried_over += 1
+            
+            # Find and carry over the most recent daily information
+            latest_daily_info = DailyInformation.get_latest_for_patient(
+                source_row.id, 
+                source_census.census_date
+            )
+            
+            if latest_daily_info:
+                # Create new daily information entry for the new day
+                new_daily_info = DailyInformation(
+                    patient_census_row_id=new_row.id,
+                    template_id=latest_daily_info.template_id,
+                    user_id=user_id,
+                    entry_date=target_date,
+                    field_values=latest_daily_info.field_values,  # Carry over previous values
+                    status='draft',  # Reset to draft for new day
+                    notes=f"Carried over from {source_census.census_date}"
                 )
-                db.session.add(new_row)
-                db.session.flush()  # Get the new row ID
-                patients_carried_over += 1
-                
-                # Find and carry over the most recent daily information
-                latest_daily_info = DailyInformation.get_latest_for_patient(
-                    source_row.id, 
-                    source_census.census_date
-                )
-                
-                if latest_daily_info:
-                    # Create new daily information entry for the new day
-                    new_daily_info = DailyInformation(
-                        patient_census_row_id=new_row.id,
-                        template_id=latest_daily_info.template_id,
-                        user_id=user_id,
-                        entry_date=target_date,
-                        field_values=latest_daily_info.field_values,  # Carry over previous values
-                        status='draft',  # Reset to draft for new day
-                        notes=f"Carried over from {source_census.census_date}"
-                    )
-                    db.session.add(new_daily_info)
-                    daily_info_carried_over += 1
+                db.session.add(new_daily_info)
+                daily_info_carried_over += 1
         
         db.session.commit()
         return new_census, patients_carried_over, daily_info_carried_over
@@ -194,13 +193,79 @@ class PatientCensus(db.Model):
     def get_or_create_today(cls, user_id):
         """Get today's census, creating it via rollover if it doesn't exist"""
         today = date.today()
-        today_census = cls.query.filter_by(census_date=today).first()
+        today_census = cls.query.filter_by(census_date=today, user_id=user_id, is_active=True).first()
         
         if not today_census:
             today_census, patients, daily_info = cls.create_daily_rollover(today, user_id)
             return today_census, True, patients, daily_info  # True = created via rollover
         
         return today_census, False, 0, 0  # False = already existed
+    
+    @classmethod
+    def cleanup_old_censuses(cls, days_to_keep=7):
+        """
+        Delete patient censuses older than specified days to prevent database growth.
+        
+        Args:
+            days_to_keep (int): Number of days to keep (default: 7)
+            
+        Returns:
+            dict: Statistics about deleted records
+        """
+        from datetime import timedelta
+        from .daily_information import DailyInformation
+        
+        cutoff_date = date.today() - timedelta(days=days_to_keep)
+        
+        # Find old censuses to delete
+        old_censuses = cls.query.filter(
+            cls.census_date < cutoff_date,
+            cls.is_active == True
+        ).all()
+        
+        if not old_censuses:
+            return {
+                'deleted_censuses': 0,
+                'deleted_rows': 0,
+                'deleted_daily_info': 0,
+                'cutoff_date': cutoff_date.isoformat(),
+                'message': f'No censuses older than {days_to_keep} days found'
+            }
+        
+        deleted_censuses = 0
+        deleted_rows = 0
+        deleted_daily_info = 0
+        
+        for census in old_censuses:
+            # Count rows before deletion
+            row_count = len(census.rows)
+            deleted_rows += row_count
+            
+            # Count and delete associated daily information
+            for row in census.rows:
+                daily_info_count = DailyInformation.query.filter_by(
+                    patient_census_row_id=row.id
+                ).count()
+                deleted_daily_info += daily_info_count
+                
+                # Delete daily information entries
+                DailyInformation.query.filter_by(
+                    patient_census_row_id=row.id
+                ).delete()
+            
+            # Delete the census (cascades to rows)
+            db.session.delete(census)
+            deleted_censuses += 1
+        
+        db.session.commit()
+        
+        return {
+            'deleted_censuses': deleted_censuses,
+            'deleted_rows': deleted_rows,
+            'deleted_daily_info': deleted_daily_info,
+            'cutoff_date': cutoff_date.isoformat(),
+            'message': f'Successfully deleted {deleted_censuses} censuses older than {days_to_keep} days'
+        }
     
     def __repr__(self):
         return f'<PatientCensus {self.census_date} - {self.current_census_count} patients>'

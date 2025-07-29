@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import apiService from '../../services/api';
 
 // Helper function for theme-aware styling (matches PatientCensusCard)
@@ -374,6 +375,7 @@ const RecentDocuments = ({ theme }) => {
   return (
     <div 
       data-component="recent-documents"
+      className="recent-documents-card"
       style={{
         backgroundColor: styles.bgPrimary,
         borderRadius: '8px',
@@ -381,7 +383,8 @@ const RecentDocuments = ({ theme }) => {
         overflow: 'hidden',
         position: 'relative',
         background: `linear-gradient(135deg, ${styles.bgPrimary} 0%, ${styles.bgSecondary} 100%)`,
-        boxShadow: `inset 0 1px 0 rgba(255, 255, 255, ${currentTheme === 'dark' ? '0.05' : '0.1'}), 0 1px 3px rgba(0, 0, 0, ${currentTheme === 'dark' ? '0.2' : '0.1'})`
+        boxShadow: `inset 0 1px 0 rgba(255, 255, 255, ${currentTheme === 'dark' ? '0.05' : '0.1'}), 0 1px 3px rgba(0, 0, 0, ${currentTheme === 'dark' ? '0.2' : '0.1'})`,
+        transition: 'all 0.3s ease'
       }}
     >
       {/* Gradient top border */}
@@ -782,7 +785,7 @@ const RetentionInfoTooltip = ({ theme }) => {
         ?
       </span>
       
-      {showTooltip && (
+      {showTooltip && createPortal(
         <>
           {/* Modal overlay */}
           <div style={{
@@ -792,7 +795,7 @@ const RetentionInfoTooltip = ({ theme }) => {
             right: 0,
             bottom: 0,
             backgroundColor: 'rgba(0, 0, 0, 0.3)',
-            zIndex: 9998
+            zIndex: 10000
           }} onClick={() => setShowTooltip(false)} />
           
           {/* Tooltip modal */}
@@ -801,7 +804,7 @@ const RetentionInfoTooltip = ({ theme }) => {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            zIndex: 9999,
+            zIndex: 10001,
             minWidth: '340px',
             maxWidth: '420px',
             backgroundColor: styles.bgPrimary,
@@ -887,7 +890,8 @@ const RetentionInfoTooltip = ({ theme }) => {
               💡 <strong>Tip:</strong> Create regular ZIP backups of important documents to your preferred storage location (local drive, cloud storage, etc.) for permanent retention beyond the 7-day period.
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );

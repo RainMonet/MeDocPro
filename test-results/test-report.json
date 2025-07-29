@@ -1,0 +1,21 @@
+{
+  "start_time": "2025-07-24T15:26:21.859419",
+  "tests": {
+    "Configuration Validation": {
+      "command": "/usr/bin/python3 scripts/validate-config.py",
+      "duration": 0.68,
+      "success": false,
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"/mnt/c/Users/admin/Desktop/MeDocPro/scripts/validate-config.py\", line 13, in <module>\n    import psycopg2\nModuleNotFoundError: No module named 'psycopg2'\n"
+    }
+  },
+  "summary": {
+    "total_tests": 1,
+    "passed_tests": 0,
+    "failed_tests": 1,
+    "success_rate": 0.0,
+    "total_duration": 0.68
+  },
+  "end_time": "2025-07-24T15:26:22.544982"
+}

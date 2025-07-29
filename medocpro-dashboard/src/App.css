@@ -21,6 +21,51 @@
   z-index: 1000;
 }
 
+/* High contrast mode for header */
+html[data-high-contrast="true"] .header {
+  border-bottom: 4px solid #ffffff !important;
+  background-color: #000000 !important;
+}
+
+html[data-high-contrast="true"] .logo-text {
+  color: #ffffff !important;
+  text-shadow: 0 0 4px #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .logo-icon {
+  border: 3px solid #ffffff !important;
+  background: linear-gradient(135deg, #000000 0%, #333333 100%) !important;
+}
+
+html[data-high-contrast="true"] .logo-symbol {
+  color: #00ffff !important;
+  text-shadow: 0 0 4px #00ffff !important;
+}
+
+html[data-high-contrast="true"] .theme-toggle {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+html[data-high-contrast="true"] .theme-toggle:hover {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+html[data-high-contrast="true"] .user-avatar {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+}
+
+html[data-high-contrast="true"] .user-name,
+html[data-high-contrast="true"] .user-role {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 2px #ffffff !important;
+}
+
 .header-left {
   display: flex;
   align-items: center;
@@ -47,14 +92,16 @@
 .logo-symbol {
   color: white;
   font-weight: bold;
-  font-size: 1.2rem;
+  font-size: var(--font-size-lg);
+  transition: font-size 0.3s ease;
 }
 
 .logo-text {
-  font-size: 1.5rem;
+  font-size: var(--font-size-xl);
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.5px;
+  transition: font-size 0.3s ease;
 }
 
 .header-right {
@@ -69,13 +116,13 @@
   border-radius: 8px;
   padding: 0.5rem;
   cursor: pointer;
-  font-size: 1.2rem;
-  transition: all 0.2s ease;
+  font-size: var(--font-size-lg);
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: calc(40px * var(--text-scale, 1));
+  height: calc(40px * var(--text-scale, 1));
 }
 
 .theme-toggle:hover {
@@ -98,12 +145,14 @@
 .user-name {
   font-weight: 600;
   color: var(--text-primary);
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
+  transition: font-size 0.3s ease;
 }
 
 .user-role {
-  font-size: 0.8rem;
+  font-size: var(--font-size-xs);
   color: var(--text-secondary);
+  transition: font-size 0.3s ease;
 }
 
 .user-avatar {
@@ -122,7 +171,8 @@
   justify-content: center;
   color: white;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
+  transition: font-size 0.3s ease;
 }
 
 /* Main Layout */
@@ -144,6 +194,32 @@
   transition: width 0.3s ease;
   overflow: hidden;
   width: 0; /* Start with zero width */
+}
+
+/* High contrast mode for sidebar */
+html[data-high-contrast="true"] .sidebar {
+  border-right: 4px solid #ffffff !important;
+  background-color: #000000 !important;
+}
+
+html[data-high-contrast="true"] .nav-list .nav-link {
+  border: 2px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  margin: 4px 8px !important;
+}
+
+html[data-high-contrast="true"] .nav-list .nav-link:hover {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  transform: translateX(8px) !important;
+}
+
+html[data-high-contrast="true"] .nav-list .nav-link:focus {
+  outline: 4px solid #00ffff !important;
+  outline-offset: 2px !important;
 }
 
 .sidebar.expanded {
@@ -187,10 +263,10 @@
   border-radius: 8px;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   width: calc(250px - 64px); /* Fixed width minus margins and padding */
   text-align: left;
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -229,11 +305,31 @@
   gap: 1.5rem;
 }
 
+/* High contrast mode for stats row */
+html[data-high-contrast="true"] .stats-row .stat-card {
+  border: 3px solid #ffffff !important;
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+html[data-high-contrast="true"] .stats-row .stat-card::before {
+  background: linear-gradient(90deg, #00ffff, #ffffff) !important;
+  height: 4px !important;
+  opacity: 1 !important;
+}
+
 /* Dashboard Row */
 .dashboard-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2rem;
+}
+
+/* High contrast mode for dashboard row */
+html[data-high-contrast="true"] .dashboard-row > * {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
 }
 
 /* System Status */
@@ -244,17 +340,38 @@
   border: 1px solid var(--border-color);
 }
 
+/* High contrast mode for system status */
+html[data-high-contrast="true"] .system-status {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3) !important;
+}
+
+html[data-high-contrast="true"] .system-status h3 {
+  color: #ffffff !important;
+  border-bottom: 2px solid #ffffff !important;
+  padding-bottom: 8px !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .system-status p {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
 .system-status h3 {
   margin: 0 0 0.5rem 0;
   color: var(--text-primary);
-  font-size: 1.1rem;
+  font-size: var(--font-size-lg);
   font-weight: 600;
+  transition: font-size 0.3s ease;
 }
 
 .system-status p {
   margin: 0 0 1.5rem 0;
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
+  transition: font-size 0.3s ease;
 }
 
 .status-items {
@@ -271,6 +388,35 @@
   background: var(--bg-tertiary);
   border-radius: 8px;
   border: 1px solid var(--border-color);
+}
+
+/* High contrast mode for status items */
+html[data-high-contrast="true"] .status-item {
+  border: 2px solid #ffffff !important;
+  background-color: #111111 !important;
+  color: #ffffff !important;
+}
+
+html[data-high-contrast="true"] .status-label {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .status-badge {
+  border: 2px solid #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .status-badge.connected {
+  background-color: #00ff00 !important;
+  color: #000000 !important;
+  border-color: #00ff00 !important;
+}
+
+html[data-high-contrast="true"] .status-badge.available {
+  background-color: #00ffff !important;
+  color: #000000 !important;
+  border-color: #00ffff !important;
 }
 
 .status-label {
@@ -314,17 +460,38 @@
   border: 1px solid var(--border-color);
 }
 
+/* High contrast mode for quick actions */
+html[data-high-contrast="true"] .quick-actions {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3) !important;
+}
+
+html[data-high-contrast="true"] .quick-actions h3 {
+  color: #ffffff !important;
+  border-bottom: 2px solid #ffffff !important;
+  padding-bottom: 8px !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .quick-actions p {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
 .quick-actions h3 {
   margin: 0 0 0.5rem 0;
   color: var(--text-primary);
-  font-size: 1.1rem;
+  font-size: var(--font-size-lg);
   font-weight: 600;
+  transition: font-size 0.3s ease;
 }
 
 .quick-actions p {
   margin: 0 0 1.5rem 0;
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
+  transition: font-size 0.3s ease;
 }
 
 .action-buttons {
@@ -345,6 +512,27 @@
   cursor: pointer;
   transition: all 0.2s ease;
   color: var(--text-primary);
+}
+
+/* High contrast mode for action buttons */
+html[data-high-contrast="true"] .action-btn {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .action-btn:hover {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 0 0 4px #ffffff !important;
+}
+
+html[data-high-contrast="true"] .action-btn:focus {
+  outline: 4px solid #00ffff !important;
+  outline-offset: 2px !important;
 }
 
 .action-btn:hover {
@@ -371,11 +559,33 @@
   border: 1px solid var(--border-color);
 }
 
+/* High contrast mode for recent documents */
+html[data-high-contrast="true"] .recent-documents,
+html[data-high-contrast="true"] .recent-documents-card {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3) !important;
+}
+
+html[data-high-contrast="true"] .recent-documents-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(255, 255, 255, 0.5) !important;
+  border-color: #00ffff !important;
+}
+
+html[data-high-contrast="true"] .recent-documents h3 {
+  color: #ffffff !important;
+  border-bottom: 2px solid #ffffff !important;
+  padding-bottom: 8px !important;
+  font-weight: 700 !important;
+}
+
 .recent-documents h3 {
   margin: 0 0 1rem 0;
   color: var(--text-primary);
-  font-size: 1.1rem;
+  font-size: var(--font-size-lg);
   font-weight: 600;
+  transition: font-size 0.3s ease;
 }
 
 .document-item {
@@ -386,6 +596,35 @@
   background: var(--bg-tertiary);
   border-radius: 8px;
   border: 1px solid var(--border-color);
+}
+
+/* High contrast mode for document items */
+html[data-high-contrast="true"] .document-item {
+  border: 2px solid #ffffff !important;
+  background-color: #111111 !important;
+  color: #ffffff !important;
+}
+
+html[data-high-contrast="true"] .document-item:hover {
+  background-color: #333333 !important;
+  border-color: #00ffff !important;
+  transform: translateX(4px) !important;
+}
+
+html[data-high-contrast="true"] .document-icon {
+  border: 2px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+html[data-high-contrast="true"] .document-title {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .document-date {
+  color: #ffffff !important;
+  font-weight: 600 !important;
 }
 
 .document-icon {
@@ -408,12 +647,14 @@
 .document-title {
   font-weight: 500;
   color: var(--text-primary);
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
+  transition: font-size 0.3s ease;
 }
 
 .document-date {
-  font-size: 0.8rem;
+  font-size: var(--font-size-xs);
   color: var(--text-secondary);
+  transition: font-size 0.3s ease;
 }
 
 /* Hamburger Menu */

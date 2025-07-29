@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import quotesService from '../../services/quotesService';
 
 const QuoteDisplay = ({ theme = 'dark', onLogin = false }) => {
   const [currentQuote, setCurrentQuote] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const styleRef = useRef(null);
 
   useEffect(() => {
     // Get initial quote on mount
@@ -26,6 +27,41 @@ const QuoteDisplay = ({ theme = 'dark', onLogin = false }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Calculate if scrolling is needed
+  const isSmallScreen = windowWidth < 1024;
+  const shouldScroll = currentQuote && isSmallScreen && currentQuote.quote.length > 60;
+
+  // Inject CSS keyframes for scrolling animation
+  useEffect(() => {
+    if (shouldScroll && !document.getElementById('quote-scroll-keyframes')) {
+      const style = document.createElement('style');
+      style.id = 'quote-scroll-keyframes';
+      style.textContent = `
+        @keyframes scrollText {
+          0%, 3.6% { 
+            transform: translateX(0%); 
+          }
+          92.7%, 96.4% { 
+            transform: translateX(calc(-100% + 200px)); 
+          }
+          96.4%, 100% {
+            transform: translateX(0%);
+          }
+        }
+      `;
+      document.head.appendChild(style);
+      styleRef.current = style;
+    }
+    
+    // Cleanup when component unmounts or scrolling is no longer needed
+    return () => {
+      if (!shouldScroll && styleRef.current) {
+        document.head.removeChild(styleRef.current);
+        styleRef.current = null;
+      }
+    };
+  }, [shouldScroll]);
+
   const getNextQuote = () => {
     // Fade out
     setIsVisible(false);
@@ -45,10 +81,7 @@ const QuoteDisplay = ({ theme = 'dark', onLogin = false }) => {
     return null;
   }
 
-  // Determine if we should show a shortened version
-  const isSmallScreen = windowWidth < 1024;
-  const shouldTruncate = isSmallScreen && currentQuote.quote.length > 60;
-  const displayQuote = shouldTruncate ? currentQuote.quote.substring(0, 60) + '...' : currentQuote.quote;
+  const displayQuote = currentQuote?.quote || '';
 
   const styles = {
     container: {
@@ -63,16 +96,28 @@ const QuoteDisplay = ({ theme = 'dark', onLogin = false }) => {
       transition: 'opacity 0.3s ease-in-out',
       overflow: 'hidden' // Prevent overflow
     },
+    quoteWrapper: {
+      flex: 1,
+      minWidth: 0,
+      overflow: 'hidden',
+      position: 'relative',
+      marginRight: '8px' // Ensure spacing from author
+    },
     quoteText: {
       fontSize: '13px',
       fontStyle: 'italic',
       color: theme === 'dark' ? '#cbd5e1' : '#5d4d3a',
-      flex: 1,
       lineHeight: '1.4',
-      minWidth: 0, // Allow text to shrink
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap'
+      whiteSpace: 'nowrap',
+      ...(shouldScroll ? {
+        animation: 'scrollText 55s ease-in-out infinite',
+        textOverflow: 'clip',
+        width: 'max-content' // Allow text to expand beyond container for scrolling
+      } : {
+        textOverflow: 'ellipsis',
+        overflow: 'hidden',
+        width: '100%'
+      })
     },
     author: {
       fontSize: '12px',
@@ -105,11 +150,13 @@ const QuoteDisplay = ({ theme = 'dark', onLogin = false }) => {
 
   return (
     <div style={styles.container}>
-      <div 
-        style={styles.quoteText}
-        title={shouldTruncate ? `"${currentQuote.quote}" — ${currentQuote.author}` : undefined}
-      >
-        "{displayQuote}"
+      <div style={styles.quoteWrapper}>
+        <div 
+          style={styles.quoteText}
+          title={shouldScroll ? `"${currentQuote.quote}" — ${currentQuote.author}` : undefined}
+        >
+          "{displayQuote}"
+        </div>
       </div>
       <div style={styles.author}>
         — {currentQuote.author}

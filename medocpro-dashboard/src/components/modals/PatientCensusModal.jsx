@@ -271,7 +271,11 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
   const calculateStats = useCallback((patientList) => {
     const total = patientList.length;
     const workflowCounts = patientList.reduce((acc, patient) => {
-      const workflowType = patient.workflow_type || patient.status || 'follow-up';
+      let workflowType = patient.workflow_type || patient.status || 'follow-up';
+      // Treat 'active' patients as 'follow-up' for statistics
+      if (workflowType === 'active') {
+        workflowType = 'follow-up';
+      }
       acc[workflowType] = (acc[workflowType] || 0) + 1;
       return acc;
     }, {});

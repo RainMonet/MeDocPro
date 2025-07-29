@@ -1,0 +1,118 @@
+function getClaudeConfig() {
+  return {
+    API_KEY: PropertiesService.getScriptProperties().getProperty('CLAUDE_API_KEY'),
+    API_URL: 'https://api.anthropic.com/v1/messages'
+  };
+}
+
+// Helper function to get the appropriate tone instruction based on selection
+function getToneInstruction(tone) {
+  switch(tone) {
+    case 'formal':
+      return 'professional tone';
+    case 'concise':
+      return 'concise and direct tone';
+    case 'descriptive':
+      return 'descriptive and detailed tone';
+    case 'educational':
+      return 'educational and informative tone';
+    case 'empathetic':
+      return 'empathetic and compassionate tone';
+    case 'marktwain':
+      return 'literary style reminiscent of Mark Twain, with his wit, vernacular dialogue, and folksy wisdom, while maintaining clinical professionalism';
+    case 'davidfosterwallace':
+      return 'literary style reminiscent of David Foster Wallace, with complex sentence structures and thoughtful digressions, while maintaining clinical professionalism';
+    case 'michaelmcdowell':
+      return 'literary style reminiscent of Michael McDowell, with Southern Gothic elements and precise, evocative descriptions, while maintaining clinical professionalism';
+    default:
+      return 'professional tone';
+  }
+}
+
+function batchProcessWithClaude(items, type, alterationPercentage = 80, writingTone = 'formal') {
+  if (!items || !items.length) {
+    console.error('No items to process');
+    return ['No text to process'];
+  }
+  
+  const config = getClaudeConfig();
+  if (!config.API_KEY) {
+    console.error('Claude API key not configured');
+    return items;
+  }
+  
+  try {
+    console.log('Sending request to Claude API');
+    console.log('Text length:', items[0].length);
+    console.log('Alteration percentage:', alterationPercentage);
+    console.log('Writing tone:', writingTone);
+    
+    // Get the appropriate tone instruction based on the selected writing tone
+    const toneInstruction = getToneInstruction(writingTone);
+    
+    // Updated prompt with clear instructions to not include preamble text or use CurrentDate
+    let combinedPrompt = `Rephrase the following psychiatric clinical note text to be ${alterationPercentage}% different while preserving all medical information, clinical details, and safety information. 
+
+Important: 
+1. DO NOT include any introduction or explanatory text in your response
+2. DO NOT mention the rephrasing instructions or the style you're using
+3. DO NOT use "CurrentDate" - use "today" instead 
+4. Start your response immediately with the rephrased clinical note
+5. Maintain the same length and ${toneInstruction}
+
+Here is the text to rephrase:
+
+${items[0]}`;
+    
+    const response = UrlFetchApp.fetch(config.API_URL, {
+      'method': 'post',
+      'headers': {
+        'anthropic-version': '2023-06-01',
+        'x-api-key': config.API_KEY,
+        'content-type': 'application/json',
+      },
+      'payload': JSON.stringify({
+        'model': 'claude-sonnet-4-20250514',
+        'max_tokens': 4096,
+        'messages': [{
+          'role': 'user',
+          'content': combinedPrompt
+        }]
+      }),
+      'muteHttpExceptions': true
+    });
+    
+    // Log response info for debugging
+    console.log('Claude API response status:', response.getResponseCode());
+    
+    const responseText = response.getContentText();
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Error parsing Claude API response:', parseError);
+      return items;
+    }
+    
+    // Handle different API response structures
+    let processedText;
+    if (result.content && result.content[0] && result.content[0].text) {
+      processedText = result.content[0].text;
+    } else if (result.message && result.message.content) {
+      processedText = result.message.content;
+    } else {
+      console.error('Unexpected Claude API response structure');
+      processedText = items[0]; // Fallback to original text
+    }
+    
+    // Final safeguard to remove any lingering instructions
+    processedText = processedText.replace(/^(Here is|Here's|I've rephrased|The psychiatric).*?\n/i, '');
+    
+    return [processedText];
+    
+  } catch (error) {
+    console.error('Claude API Error:', error);
+    // Return the original text as fallback
+    return items;
+  }
+}

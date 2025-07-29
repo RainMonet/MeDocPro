@@ -38,6 +38,7 @@ function App() {
   // Template editor state
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState(null);
+  const [templateRefreshKey, setTemplateRefreshKey] = useState(0);
   
   // Patient data for daily info entry
   const [patientList, setPatientList] = useState([]);
@@ -279,6 +280,10 @@ function App() {
       }
       setShowTemplateEditor(false);
       setCurrentTemplate(null);
+      
+      // Trigger refresh of template-related components
+      setTemplateRefreshKey(prev => prev + 1);
+      console.log('Template saved successfully, triggering refresh');
     } catch (error) {
       console.error('Failed to save template:', error);
       alert('Failed to save template. Please try again.');
@@ -547,6 +552,7 @@ function App() {
               padding: '0'
             }}>
               <TemplateLibrary
+                key={templateRefreshKey}
                 onEditTemplate={(template) => {
                   setActiveModal(null);
                   handleEditTemplate(template);
@@ -621,7 +627,7 @@ function App() {
                   fontWeight: '600',
                   color: theme === 'dark' ? '#f1f5f9' : '#2d1810'
                 }}>
-                  🤖 AI Assistant Settings
+                  AI Enhancement Settings
                 </h2>
                 <button
                   onClick={handleModalClose}

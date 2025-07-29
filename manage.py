@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Import after path setup
 try:
     from app import create_app
-    from app.models import db, User, Template, AuditLog, ScratchNote, PatientCensus, PatientCensusRow
+    from app.models import db, User, Template, AuditLog, ScratchNote, PatientCensus, PatientCensusRow, DailyInformation, SavedDocument
 except ImportError as e:
     print(f"Error importing modules: {e}")
     print("Please ensure the application factory 'create_app' exists and dependencies are installed.")
@@ -261,7 +261,7 @@ def check_database():
                 click.echo("Database connection successful")
             
             # Check table existence
-            tables = ['user', 'template', 'audit_log', 'scratch_note', 'patient_census', 'patient_census_row']
+            tables = ['user', 'template', 'audit_log', 'scratch_note', 'patient_census', 'patient_census_row', 'daily_information']
             for table in tables:
                 try:
                     db.session.execute(db.text(f'SELECT COUNT(*) FROM {table}')).scalar()
@@ -275,6 +275,7 @@ def check_database():
             audit_count = AuditLog.query.count()
             scratch_note_count = ScratchNote.query.count() if 'scratch_note' in [t.name for t in db.metadata.tables.values()] else 0
             census_count = PatientCensus.query.count() if 'patient_census' in [t.name for t in db.metadata.tables.values()] else 0
+            daily_info_count = DailyInformation.query.count() if 'daily_information' in [t.name for t in db.metadata.tables.values()] else 0
             
             click.echo(f"Database Statistics:")
             click.echo(f"   Users: {user_count}")
@@ -282,6 +283,7 @@ def check_database():
             click.echo(f"   Audit Logs: {audit_count}")
             click.echo(f"   Scratch Notes: {scratch_note_count}")
             click.echo(f"   Patient Censuses: {census_count}")
+            click.echo(f"   Daily Information Entries: {daily_info_count}")
             
         except Exception as e:
             click.echo(f"Database check failed: {e}")
@@ -294,6 +296,214 @@ def show_config():
     click.echo(f"Flask Environment: {os.getenv('FLASK_ENV', 'Not set')}")
     click.echo(f"Debug Mode: {os.getenv('DEBUG', 'Not set')}")
     click.echo(f"Secret Key: {'Set' if os.getenv('SECRET_KEY') else 'Not set'}")
+
+@cli.command()
+@click.option('--target-date', help='Target date for rollover (YYYY-MM-DD). Defaults to today')
+@click.option('--user-id', type=int, help='User ID to perform rollover for. If not specified, performs for all users')
+@click.option('--dry-run', is_flag=True, help='Show what would be done without making changes')
+def daily_rollover(target_date, user_id, dry_run):
+    """Perform daily census and information rollover"""
+    from datetime import datetime as dt
+    click.echo("MeDocPro Daily Rollover Operation")
+    click.echo("=" * 40)
+    
+    with app.app_context():
+        try:
+            # Parse target date
+            if target_date:
+                try:
+                    target_date = dt.strptime(target_date, '%Y-%m-%d').date()
+                except ValueError:
+                    click.echo("Error: Invalid date format. Use YYYY-MM-DD")
+                    return
+            else:
+                target_date = datetime.today().date()
+            
+            click.echo(f"Target date: {target_date}")
+            
+            # Get users to process
+            if user_id:
+                users = [User.query.get(user_id)]
+                if not users[0]:
+                    click.echo(f"Error: User {user_id} not found")
+                    return
+            else:
+                users = User.query.all()
+            
+            click.echo(f"Processing {len(users)} user(s)")
+            
+            total_patients = 0
+            total_daily_info = 0
+            
+            for user in users:
+                click.echo(f"\nProcessing user: {user.username} (ID: {user.id})")
+                
+                if dry_run:
+                    # Check what would happen
+                    existing_census = PatientCensus.query.filter_by(
+                        user_id=user.id,
+                        census_date=target_date
+                    ).first()
+                    
+                    if existing_census:
+                        click.echo(f"  - Census for {target_date} already exists ({len(existing_census.rows)} patients)")
+                        continue
+                    
+                    # Find source census
+                    source_census = PatientCensus.query.filter(
+                        PatientCensus.user_id == user.id,
+                        PatientCensus.census_date < target_date
+                    ).order_by(PatientCensus.census_date.desc()).first()
+                    
+                    if source_census:
+                        active_patients = len([r for r in source_census.rows if r.status == 'active'])
+                        click.echo(f"  - Would rollover {active_patients} patients from {source_census.census_date}")
+                        
+                        # Count daily info that would be carried over
+                        daily_info_count = 0
+                        for row in source_census.rows:
+                            if row.status == 'active':
+                                latest_info = DailyInformation.get_latest_for_patient(row.id, source_census.census_date)
+                                if latest_info:
+                                    daily_info_count += 1
+                        
+                        click.echo(f"  - Would carry over {daily_info_count} daily information entries")
+                    else:
+                        click.echo(f"  - No previous census found, would create empty census")
+                else:
+                    # Perform actual rollover
+                    census, patients_carried, daily_info_carried = PatientCensus.create_daily_rollover(
+                        target_date, user.id
+                    )
+                    
+                    click.echo(f"  - Rollover completed: {patients_carried} patients, {daily_info_carried} daily info entries")
+                    total_patients += patients_carried
+                    total_daily_info += daily_info_carried
+            
+            if not dry_run:
+                click.echo(f"\nRollover Summary:")
+                click.echo(f"  Total patients carried over: {total_patients}")
+                click.echo(f"  Total daily info entries carried over: {total_daily_info}")
+                click.echo("  Operation completed successfully!")
+            else:
+                click.echo(f"\nDry run completed. Use --dry-run=false to perform actual rollover.")
+                
+        except Exception as e:
+            click.echo(f"Rollover failed: {e}")
+            if not dry_run:
+                db.session.rollback()
+
+@cli.command()
+@click.option('--days', default=30, help='Number of days of history to show')
+def census_stats(days):
+    """Show census statistics and rollover history"""
+    click.echo("MeDocPro Census Statistics")
+    click.echo("=" * 30)
+    
+    with app.app_context():
+        try:
+            from datetime import timedelta
+            
+            start_date = datetime.today().date() - timedelta(days=days)
+            
+            # Get census statistics
+            censuses = PatientCensus.query.filter(
+                PatientCensus.census_date >= start_date
+            ).order_by(PatientCensus.census_date.desc()).all()
+            
+            if not censuses:
+                click.echo("No census data found")
+                return
+            
+            click.echo(f"Census history for last {days} days:")
+            click.echo(f"{'Date':<12} {'Patients':<10} {'Users':<8} {'Daily Info':<12}")
+            click.echo("-" * 45)
+            
+            for census in censuses:
+                active_patients = len([r for r in census.rows if r.status == 'active'])
+                daily_info_count = DailyInformation.query.filter_by(entry_date=census.census_date).count()
+                
+                click.echo(f"{census.census_date} {active_patients:>8} {census.user_id:>8} {daily_info_count:>10}")
+            
+            # Summary statistics
+            total_unique_patients = len(set(
+                row.patient_name for census in censuses for row in census.rows
+            ))
+            total_daily_entries = DailyInformation.query.filter(
+                DailyInformation.entry_date >= start_date
+            ).count()
+            
+            click.echo("-" * 45)
+            click.echo(f"Total unique patients: {total_unique_patients}")
+            click.echo(f"Total daily info entries: {total_daily_entries}")
+            
+        except Exception as e:
+            click.echo(f"Error retrieving statistics: {e}")
+
+@cli.command()
+@click.option('--days', default=7, help='Number of days to keep (default: 7)')
+@click.option('--dry-run', is_flag=True, help='Show what would be deleted without making changes')
+def cleanup_census(days, dry_run):
+    """Clean up old patient census data to prevent database growth"""
+    click.echo("MeDocPro Census Cleanup Operation")
+    click.echo("=" * 40)
+    
+    with app.app_context():
+        try:
+            from datetime import timedelta
+            
+            cutoff_date = datetime.today().date() - timedelta(days=days)
+            click.echo(f"Cleaning up censuses older than {days} days (before {cutoff_date})")
+            
+            if dry_run:
+                # Show what would be deleted
+                old_censuses = PatientCensus.query.filter(
+                    PatientCensus.census_date < cutoff_date,
+                    PatientCensus.is_active == True
+                ).all()
+                
+                if not old_censuses:
+                    click.echo(f"No censuses older than {days} days found")
+                    return
+                
+                total_rows = sum(len(census.rows) for census in old_censuses)
+                total_daily_info = 0
+                
+                for census in old_censuses:
+                    for row in census.rows:
+                        daily_info_count = DailyInformation.query.filter_by(
+                            patient_census_row_id=row.id
+                        ).count()
+                        total_daily_info += daily_info_count
+                
+                click.echo(f"\nDry run results:")
+                click.echo(f"  Censuses to delete: {len(old_censuses)}")
+                click.echo(f"  Patient rows to delete: {total_rows}")
+                click.echo(f"  Daily info entries to delete: {total_daily_info}")
+                click.echo(f"\nOld censuses found:")
+                click.echo(f"{'Date':<12} {'User ID':<8} {'Patients':<10}")
+                click.echo("-" * 32)
+                
+                for census in sorted(old_censuses, key=lambda c: c.census_date):
+                    click.echo(f"{census.census_date} {census.user_id:>7} {len(census.rows):>8}")
+                
+                click.echo(f"\nUse --dry-run=false to perform actual cleanup")
+                
+            else:
+                # Perform actual cleanup
+                result = PatientCensus.cleanup_old_censuses(days_to_keep=days)
+                
+                click.echo(f"Cleanup completed successfully!")
+                click.echo(f"  Deleted censuses: {result['deleted_censuses']}")
+                click.echo(f"  Deleted patient rows: {result['deleted_rows']}")
+                click.echo(f"  Deleted daily info entries: {result['deleted_daily_info']}")
+                click.echo(f"  Cutoff date: {result['cutoff_date']}")
+                click.echo(f"  Message: {result['message']}")
+                
+        except Exception as e:
+            click.echo(f"Cleanup failed: {e}")
+            if not dry_run:
+                db.session.rollback()
 
 if __name__ == '__main__':
     cli()

@@ -1,0 +1,58 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MeDocPro Test Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f0f0f0; padding: 20px; border-radius: 5px; }
+        .summary { display: flex; gap: 20px; margin: 20px 0; }
+        .metric { background: #e8f4f8; padding: 15px; border-radius: 5px; text-align: center; }
+        .test { margin: 10px 0; padding: 10px; border-left: 4px solid #ccc; }
+        .test.success { border-color: #4CAF50; background: #f0f8f0; }
+        .test.failure { border-color: #f44336; background: #fdf0f0; }
+        .duration { color: #666; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>MeDocPro Test Report</h1>
+        <p>Generated: 2025-07-24 15:26:22</p>
+    </div>
+    
+    <div class="summary">
+        <div class="metric">
+            <h3>1</h3>
+            <p>Total Tests</p>
+        </div>
+        <div class="metric">
+            <h3>0</h3>
+            <p>Passed</p>
+        </div>
+        <div class="metric">
+            <h3>1</h3>
+            <p>Failed</p>
+        </div>
+        <div class="metric">
+            <h3>0.0%</h3>
+            <p>Success Rate</p>
+        </div>
+        <div class="metric">
+            <h3>N/A%</h3>
+            <p>Coverage</p>
+        </div>
+    </div>
+    
+    <h2>Test Results</h2>
+
+    <div class="test failure">
+        <h3>Configuration Validation ❌ FAILED</h3>
+        <p class="duration">Duration: 0.68s</p>
+        <p><strong>Command:</strong> <code>/usr/bin/python3 scripts/validate-config.py</code></p>
+<p><strong>Error:</strong> <pre>Traceback (most recent call last):
+  File "/mnt/c/Users/admin/Desktop/MeDocPro/scripts/validate-config.py", line 13, in <module>
+    import psycopg2
+ModuleNotFoundError: No module named 'psycopg2'
+</pre></p></div>
+</body>
+</html>

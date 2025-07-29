@@ -282,12 +282,23 @@ class ApiService {
 
   // Ollama AI Enhancement endpoints
   async checkOllamaStatus() {
-    const response = await fetch(`${this.baseURL}/api/ai/ollama/status`, {
+    const response = await fetch(`${this.baseURL}/health/ai`, {
       method: 'GET',
       headers: this.getHeaders(),
     });
     
-    return this.handleResponse(response);
+    const result = await this.handleResponse(response);
+    
+    // Convert health endpoint response to expected format
+    if (result && result.status) {
+      return {
+        status: result.status === 'healthy' ? 'online' : 'offline',
+        models: result.models || [],
+        latency: result.latency_ms || 0
+      };
+    }
+    
+    return { status: 'offline' };
   }
 
   async enhanceContentWithOllama(enhancementRequest) {
@@ -551,6 +562,56 @@ class ApiService {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({ text }),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  // Generic HTTP methods for direct API calls
+  async get(url, params = {}) {
+    const searchParams = new URLSearchParams(params);
+    const queryString = searchParams.toString();
+    const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
+    const finalUrl = queryString ? `${fullUrl}?${queryString}` : fullUrl;
+    
+    const response = await fetch(finalUrl, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async post(url, data = {}) {
+    const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
+    
+    const response = await fetch(fullUrl, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async put(url, data = {}) {
+    const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
+    
+    const response = await fetch(fullUrl, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async delete(url) {
+    const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
+    
+    const response = await fetch(fullUrl, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
     });
     
     return this.handleResponse(response);

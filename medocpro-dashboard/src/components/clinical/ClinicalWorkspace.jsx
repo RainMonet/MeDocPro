@@ -4,6 +4,7 @@ import BatchDocumentationCard from './BatchDocumentationCard';
 import { RecentDocuments } from '../dashboard';
 import DailyInfoEntryModal from '../modals/DailyInfoEntryModal';
 import PreviewDocumentModal from '../modals/PreviewDocumentModal';
+import apiService from '../../services/api';
 
 // Use CSS variables to match dashboard styling
 const getThemeStyles = () => ({
@@ -21,7 +22,7 @@ const getThemeStyles = () => ({
 });
 
 // Header section with date and quick stats - exactly matches dashboard StatCard grid
-const WorkspaceHeader = ({ censusData, userName, onOpenModal, onOpenDailyInfo }) => {
+const WorkspaceHeader = ({ censusData, userName, onOpenModal, onOpenDailyInfo, onOpenTemplateLibrary }) => {
   const [is24HourFormat, setIs24HourFormat] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -60,7 +61,7 @@ const WorkspaceHeader = ({ censusData, userName, onOpenModal, onOpenDailyInfo })
   // Calculate 7-day average daily caseload
   const calculate7DayAverage = () => {
     if (!censusData?.historical_data || censusData.historical_data.length === 0) {
-      return censusData?.current_census_count || 0;
+      return censusData?.rows?.length || 0;
     }
     
     // Get last 7 days of census data
@@ -73,14 +74,16 @@ const WorkspaceHeader = ({ censusData, userName, onOpenModal, onOpenDailyInfo })
 
   return (
     <div style={{ marginBottom: '1rem' }}>
-      {/* Page Title */}
+      {/* Header with integrated stats */}
       <div style={{ marginBottom: '1.5rem' }}>
         <div style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
-          alignItems: 'center' 
+          alignItems: 'center',
+          gap: '2rem'
         }}>
-          <div>
+          {/* Left side - Title and Date */}
+          <div style={{ flex: '1', minWidth: 0 }}>
             <h1 style={{
               margin: 0,
               fontSize: '1.8rem',
@@ -116,79 +119,244 @@ const WorkspaceHeader = ({ censusData, userName, onOpenModal, onOpenDailyInfo })
               </button>
             </div>
           </div>
-          
-          {/* Daily Info Button - positioned to the right of the header */}
-          <button
-            onClick={() => {
-              console.log('Daily Info Entry button clicked!');
-              if (onOpenDailyInfo) {
-                onOpenDailyInfo();
-              }
-            }}
+
+          {/* Right side - Action Buttons */}
+          <div 
+            className="header-action-buttons"
             style={{
-              padding: '8px 16px',
-              background: 'var(--color-success)',
-              color: 'white',
-              border: '1px solid var(--color-success)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '13px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: 'var(--shadow-sm)',
-              letterSpacing: '0.025em'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.transform = 'translateY(-1px)';
-              e.target.style.boxShadow = 'var(--shadow-md)';
-              e.target.style.background = 'var(--color-success)';
-              e.target.style.filter = 'brightness(1.1)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = 'var(--shadow-sm)';
-              e.target.style.background = 'var(--color-success)';
-              e.target.style.filter = 'brightness(1)';
-            }}
-          >
-            Daily Info Entry
-          </button>
-          
+              display: 'flex',
+              gap: '12px',
+              alignItems: 'center',
+              flexShrink: 0
+            }}>
+            <button
+              onClick={() => {
+                console.log('Daily Info Entry button clicked!');
+                if (onOpenDailyInfo) {
+                  onOpenDailyInfo();
+                }
+              }}
+              style={{
+                padding: '8px 16px',
+                background: 'var(--color-success)',
+                color: 'white',
+                border: '1px solid var(--color-success)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '13px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: 'var(--shadow-sm)',
+                letterSpacing: '0.025em',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-1px)';
+                e.target.style.boxShadow = 'var(--shadow-md)';
+                e.target.style.background = 'var(--color-success)';
+                e.target.style.filter = 'brightness(1.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = 'var(--shadow-sm)';
+                e.target.style.background = 'var(--color-success)';
+                e.target.style.filter = 'brightness(1)';
+              }}
+            >
+              Daily Info Entry
+            </button>
+            
+            <button
+              onClick={() => {
+                console.log('Template Library button clicked!');
+                if (onOpenTemplateLibrary) {
+                  onOpenTemplateLibrary();
+                }
+              }}
+              style={{
+                padding: '8px 16px',
+                background: 'var(--bg-tertiary)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '13px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: 'var(--shadow-sm)',
+                letterSpacing: '0.025em',
+                whiteSpace: 'nowrap',
+                outline: '1px solid var(--accent-color)',
+                outlineOffset: '-1px'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-1px)';
+                e.target.style.boxShadow = 'var(--shadow-md)';
+                e.target.style.backgroundColor = 'var(--bg-hover)';
+                e.target.style.borderColor = 'var(--accent-color)';
+                e.target.style.outline = '1px solid var(--accent-color)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = 'var(--shadow-sm)';
+                e.target.style.backgroundColor = 'var(--bg-tertiary)';
+                e.target.style.borderColor = 'var(--border-color)';
+                e.target.style.outline = '1px solid var(--accent-color)';
+              }}
+            >
+              Template Library
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* Stats Cards Row - exactly like dashboard with beautiful gradients */}
-      <div className="stats-row">
-        <div className="stat-card">
-          <div className="stat-value">{censusData?.rows?.length || 0}</div>
-          <div className="stat-label">Total Patients</div>
-          <div className="stat-change positive">
-            All patients in census
+      
+      {/* Centered StatCards Row */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        marginTop: '1.5rem',
+        marginBottom: '1.5rem'
+      }}>
+        <div style={{
+          display: 'flex',
+          gap: '1rem',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          maxWidth: '100%',
+          padding: '0 1rem'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '12px 16px',
+            backgroundColor: 'var(--bg-tertiary)',
+            borderRadius: '8px',
+            border: '1px solid var(--border-color)',
+            minWidth: '140px',
+            boxShadow: 'var(--shadow-sm)',
+            transition: 'all 0.2s ease'
+          }}>
+            <div style={{ textAlign: 'center', width: '100%' }}>
+              <div style={{
+                fontSize: '1.6rem',
+                fontWeight: '700',
+                color: 'var(--color-primary)',
+                lineHeight: '1'
+              }}>
+                {censusData?.rows?.length || 0}
+              </div>
+              <div style={{
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                fontWeight: '500',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                marginTop: '4px'
+              }}>
+                Total Patients
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: 'var(--color-success)' }}>
-            {censusData?.rows?.filter(row => row.workflow_type === 'admission' || row.status === 'admission').length || 0}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '12px 16px',
+            backgroundColor: 'var(--bg-tertiary)',
+            borderRadius: '8px',
+            border: '1px solid var(--border-color)',
+            minWidth: '120px',
+            boxShadow: 'var(--shadow-sm)',
+            transition: 'all 0.2s ease'
+          }}>
+            <div style={{ textAlign: 'center', width: '100%' }}>
+              <div style={{
+                fontSize: '1.6rem',
+                fontWeight: '700',
+                color: 'var(--color-success)',
+                lineHeight: '1'
+              }}>
+                {censusData?.rows?.filter(row => row.workflow_type === 'admission' || row.status === 'admission').length || 0}
+              </div>
+              <div style={{
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                fontWeight: '500',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                marginTop: '4px'
+              }}>
+                Admissions
+              </div>
+            </div>
           </div>
-          <div className="stat-label">Admissions</div>
-          <div className="stat-change positive">Total admission patients</div>
-        </div>
 
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: 'var(--color-info)' }}>
-            {censusData?.rows?.filter(row => row.workflow_type === 'follow-up' || row.status === 'follow-up').length || 0}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '12px 16px',
+            backgroundColor: 'var(--bg-tertiary)',
+            borderRadius: '8px',
+            border: '1px solid var(--border-color)',
+            minWidth: '120px',
+            boxShadow: 'var(--shadow-sm)',
+            transition: 'all 0.2s ease'
+          }}>
+            <div style={{ textAlign: 'center', width: '100%' }}>
+              <div style={{
+                fontSize: '1.6rem',
+                fontWeight: '700',
+                color: 'var(--color-info)',
+                lineHeight: '1'
+              }}>
+                {censusData?.rows?.filter(row => row.workflow_type === 'follow-up' || row.status === 'follow-up' || row.status === 'active').length || 0}
+              </div>
+              <div style={{
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                fontWeight: '500',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                marginTop: '4px'
+              }}>
+                Follow-Ups
+              </div>
+            </div>
           </div>
-          <div className="stat-label">Follow-Ups</div>
-          <div className="stat-change">Total follow-up patients</div>
-        </div>
 
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: 'var(--color-warning)' }}>
-            {censusData?.rows?.filter(row => row.workflow_type === 'discharge' || row.status === 'discharge').length || 0}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            padding: '12px 16px',
+            backgroundColor: 'var(--bg-tertiary)',
+            borderRadius: '8px',
+            border: '1px solid var(--border-color)',
+            minWidth: '120px',
+            boxShadow: 'var(--shadow-sm)',
+            transition: 'all 0.2s ease'
+          }}>
+            <div style={{ textAlign: 'center', width: '100%' }}>
+              <div style={{
+                fontSize: '1.6rem',
+                fontWeight: '700',
+                color: 'var(--color-warning)',
+                lineHeight: '1'
+              }}>
+                {censusData?.rows?.filter(row => row.workflow_type === 'discharge' || row.status === 'discharge').length || 0}
+              </div>
+              <div style={{
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                fontWeight: '500',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                marginTop: '4px'
+              }}>
+                Discharges
+              </div>
+            </div>
           </div>
-          <div className="stat-label">Discharges</div>
-          <div className="stat-change">Total discharge patients</div>
         </div>
       </div>
     </div>
@@ -408,7 +576,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
     
     try {
       // Load today's census data (primary data - required)
-      const todayResponse = await fetch('http://localhost:5000/api/patient-census/today', {
+      const todayResponse = await fetch(`${apiService.baseURL}/api/patient-census/today`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -431,7 +599,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
       // Try to load 7-day historical data (optional - for averages)
       let historicalData = [];
       try {
-        const historyResponse = await fetch('http://localhost:5000/api/patient-census/history?days=7', {
+        const historyResponse = await fetch(`${apiService.baseURL}/api/patient-census/history?days=7`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json'
@@ -512,7 +680,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
     }
     
     try {
-      const response = await fetch('http://localhost:5000/api/scratch-notes', {
+      const response = await fetch(`${apiService.baseURL}/api/scratch-notes`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -583,6 +751,14 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
   // Handle daily info entry
   const handleOpenDailyInfo = () => {
     setDailyInfoModalOpen(true);
+  };
+
+  // Handle daily info modal close with refresh
+  const handleCloseDailyInfo = () => {
+    setDailyInfoModalOpen(false);
+    // Trigger census refresh to update daily info status
+    console.log('Daily info modal closed - triggering census refresh for status update');
+    setCensusRefreshKey(prev => prev + 1);
   };
 
   // Handle selected patients change from census card
@@ -669,7 +845,13 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
       )}
 
       {/* Workspace Header with Stats */}
-      <WorkspaceHeader censusData={censusData} userName={user?.firstName} onOpenModal={onOpenModal} onOpenDailyInfo={handleOpenDailyInfo} />
+      <WorkspaceHeader 
+        censusData={censusData} 
+        userName={user?.firstName} 
+        onOpenModal={onOpenModal} 
+        onOpenDailyInfo={handleOpenDailyInfo}
+        onOpenTemplateLibrary={() => onOpenModal && onOpenModal('template-library')}
+      />
 
       {/* Main Content Row - like dashboard-row */}
       <div className="dashboard-row">
@@ -702,7 +884,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
       {/* Daily Information Entry Modal */}
       <DailyInfoEntryModal
         isOpen={dailyInfoModalOpen}
-        onClose={() => setDailyInfoModalOpen(false)}
+        onClose={handleCloseDailyInfo}
         patients={censusData?.rows || []}
         theme={document.documentElement.getAttribute('data-theme') || 'dark'}
       />

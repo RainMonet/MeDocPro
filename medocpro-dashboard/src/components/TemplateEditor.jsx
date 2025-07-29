@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 import TemplateLibrary from './templates/TemplateLibrary';
+import apiService from '../services/api';
 
 // Utility function to validate template data
 const validateTemplateData = (data, isUpdate = false) => {
@@ -416,18 +417,22 @@ const PlaceholderManager = ({ placeholders, onPlaceholdersChange, theme }) => {
 
 // Main Template Editor Modal Component
 const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'dark' }) => {
-  const [template, setTemplate] = useState({
-    name: '',
-    category: 'progress',
-    version: '1.0',
-    content: '',
-    placeholders: [
+  const [template, setTemplate] = useState(() => {
+    const defaultPlaceholders = [
       { key: 'patient_name', description: "Patient's full name", example: 'Doe, John', type: 'phi' },
       { key: 'date_of_service', description: 'Date of service', example: new Date().toLocaleDateString(), type: 'date' },
       { key: 'provider_name', description: 'Healthcare provider name', example: 'Dr. Smith', type: 'text' }
-    ],
-    aiEnhancementZones: [],
-    ...initialTemplate
+    ];
+    
+    return {
+      name: '',
+      category: 'progress',
+      version: '1.0',
+      content: '',
+      placeholders: initialTemplate?.placeholders || defaultPlaceholders,
+      aiEnhancementZones: [],
+      ...initialTemplate
+    };
   });
 
   const [validationErrors, setValidationErrors] = useState([]);
@@ -443,16 +448,209 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'da
     type: 'text'
   });
 
-  // Text selection and AI transformation states
+  // Text selection and AI enhancement zone states
   const [selectedText, setSelectedText] = useState('');
   const [selectionStart, setSelectionStart] = useState(0);
   const [selectionEnd, setSelectionEnd] = useState(0);
-  const [showAIMenu, setShowAIMenu] = useState(false);
+  const [showAIZoneMenu, setShowAIZoneMenu] = useState(false);
   const [aiMenuPosition, setAIMenuPosition] = useState({ x: 0, y: 0 });
-  const [isProcessingAI, setIsProcessingAI] = useState(false);
-  const [aiTransformType, setAITransformType] = useState('enhance');
+  const [defaultEnhancementIntensity, setDefaultEnhancementIntensity] = useState(50);
+  const [defaultWritingStyle, setDefaultWritingStyle] = useState('professional');
+  const [aiEnhancementZones, setAiEnhancementZones] = useState([]);
+  const [hoveredZoneId, setHoveredZoneId] = useState(null);
+  const [enhancingZoneId, setEnhancingZoneId] = useState(null);
+  const [enhancementResults, setEnhancementResults] = useState({});
 
   const styles = getThemeStyles(theme);
+
+  // Effect to handle initialTemplate changes (when editing existing templates)
+  useEffect(() => {
+    if (initialTemplate) {
+      const defaultPlaceholders = [
+        { key: 'patient_name', description: "Patient's full name", example: 'Doe, John', type: 'phi' },
+        { key: 'date_of_service', description: 'Date of service', example: new Date().toLocaleDateString(), type: 'date' },
+        { key: 'provider_name', description: 'Healthcare provider name', example: 'Dr. Smith', type: 'text' }
+      ];
+      
+      setTemplate({
+        name: '',
+        category: 'progress',
+        version: '1.0',
+        content: '',
+        placeholders: initialTemplate.placeholders || defaultPlaceholders,
+        aiEnhancementZones: [],
+        ...initialTemplate
+      });
+    }
+  }, [initialTemplate]);
+
+  // Function to populate template with placeholder examples for preview
+  const getPopulatedPreview = useCallback(() => {
+    if (!template.content) return 'No content to preview. Switch to Content tab to add template content.';
+    
+    let populatedContent = template.content;
+    
+    // Replace each placeholder with its example value
+    template.placeholders.forEach(placeholder => {
+      const placeholderPattern = new RegExp(`{{${placeholder.key}}}`, 'g');
+      const exampleValue = placeholder.example || `[${placeholder.key}]`;
+      populatedContent = populatedContent.replace(placeholderPattern, exampleValue);
+    });
+    
+    return populatedContent;
+  }, [template.content, template.placeholders]);
+
+  // Function to render preview content with highlighted AI enhancement zones
+  const renderPreviewWithHighlights = useCallback(() => {
+    const populatedContent = getPopulatedPreview();
+    
+    if (!aiEnhancementZones.length || !hoveredZoneId) {
+      return populatedContent;
+    }
+    
+    const hoveredZone = aiEnhancementZones.find(zone => zone.id === hoveredZoneId);
+    if (!hoveredZone) return populatedContent;
+    
+    // Get the populated version of the selected text by replacing placeholders in the zone text
+    let populatedZoneText = hoveredZone.text;
+    template.placeholders.forEach(placeholder => {
+      const placeholderPattern = new RegExp(`{{${placeholder.key}}}`, 'g');
+      const exampleValue = placeholder.example || `[${placeholder.key}]`;
+      populatedZoneText = populatedZoneText.replace(placeholderPattern, exampleValue);
+    });
+    
+    // Find the populated zone text in the populated content and wrap it with highlight
+    const parts = [];
+    let lastIndex = 0;
+    let currentIndex = populatedContent.indexOf(populatedZoneText);
+    
+    while (currentIndex !== -1) {
+      // Add text before the match
+      if (currentIndex > lastIndex) {
+        parts.push(populatedContent.slice(lastIndex, currentIndex));
+      }
+      
+      // Add the highlighted text
+      parts.push(
+        <span 
+          key={`highlight-${currentIndex}`}
+          style={{
+            backgroundColor: theme === 'dark' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(34, 197, 94, 0.2)',
+            padding: '2px 4px',
+            borderRadius: '3px',
+            border: `1px solid ${styles.successColor}`,
+            transition: 'all 0.2s ease',
+            boxShadow: '0 0 4px rgba(34, 197, 94, 0.4)'
+          }}
+        >
+          {populatedZoneText}
+        </span>
+      );
+      
+      lastIndex = currentIndex + populatedZoneText.length;
+      currentIndex = populatedContent.indexOf(populatedZoneText, lastIndex);
+    }
+    
+    // Add remaining text
+    if (lastIndex < populatedContent.length) {
+      parts.push(populatedContent.slice(lastIndex));
+    }
+    
+    return parts.length > 1 ? parts : populatedContent;
+  }, [getPopulatedPreview, aiEnhancementZones, hoveredZoneId, template.placeholders, theme, styles.successColor]);
+
+  // AI Enhancement function
+  const enhanceAIZone = useCallback(async (zoneId) => {
+    const zone = aiEnhancementZones.find(z => z.id === zoneId);
+    if (!zone || enhancingZoneId) return;
+
+    setEnhancingZoneId(zoneId);
+    
+    try {
+      const enhancementData = {
+        text: zone.text,
+        enhancement_type: 'clinical',
+        intensity: zone.intensity,
+        style: zone.style,
+        model: 'mistral:latest'
+      };
+
+      console.log('Enhancing zone:', zoneId, 'with data:', enhancementData);
+      const result = await apiService.enhanceText(enhancementData);
+      
+      if (result.success) {
+        // Store the enhancement result
+        setEnhancementResults(prev => ({
+          ...prev,
+          [zoneId]: {
+            original: zone.text,
+            enhanced: result.enhanced_text,
+            processing_time: result.processing_time_ms,
+            model_used: result.model_used,
+            enhancement_applied: result.enhancement_applied,
+            timestamp: new Date().toISOString()
+          }
+        }));
+
+        // Optionally auto-apply the enhancement to the template content
+        // (for now, just store it - we can add apply/revert functionality later)
+        console.log('Enhancement successful:', result.enhanced_text);
+      } else {
+        console.error('Enhancement failed:', result.error);
+        alert(`Enhancement failed: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Enhancement error:', error);
+      alert('Enhancement failed. Please check your connection and try again.');
+    } finally {
+      setEnhancingZoneId(null);
+    }
+  }, [aiEnhancementZones, enhancingZoneId]);
+
+  // Apply enhancement result to template content
+  const applyEnhancement = useCallback((zoneId) => {
+    const result = enhancementResults[zoneId];
+    const zone = aiEnhancementZones.find(z => z.id === zoneId);
+    
+    if (!result || !zone) return;
+
+    // Replace the original text with enhanced text in template content
+    const newContent = template.content.replace(zone.text, result.enhanced);
+    setTemplate(prev => ({ ...prev, content: newContent }));
+
+    // Update the zone text to match the enhancement
+    setAiEnhancementZones(prev => prev.map(z => 
+      z.id === zoneId ? { ...z, text: result.enhanced } : z
+    ));
+
+    console.log('Applied enhancement for zone:', zoneId);
+  }, [enhancementResults, aiEnhancementZones, template.content]);
+
+  // Revert enhancement (restore original text)
+  const revertEnhancement = useCallback((zoneId) => {
+    const result = enhancementResults[zoneId];
+    const zone = aiEnhancementZones.find(z => z.id === zoneId);
+    
+    if (!result || !zone) return;
+
+    // Replace enhanced text back to original in template content
+    const newContent = template.content.replace(result.enhanced, result.original);
+    setTemplate(prev => ({ ...prev, content: newContent }));
+
+    // Update the zone text back to original
+    setAiEnhancementZones(prev => prev.map(z => 
+      z.id === zoneId ? { ...z, text: result.original } : z
+    ));
+
+    // Remove the enhancement result
+    setEnhancementResults(prev => {
+      const newResults = { ...prev };
+      delete newResults[zoneId];
+      return newResults;
+    });
+
+    console.log('Reverted enhancement for zone:', zoneId);
+  }, [enhancementResults, aiEnhancementZones, template.content]);
 
   // Reset template when modal opens/closes or initialTemplate changes
   useEffect(() => {
@@ -473,12 +671,15 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'da
       
       // If editing existing template, use its data; otherwise use defaults
       if (initialTemplate && initialTemplate.id) {
-        setTemplate({
+        const templateData = {
           ...defaultTemplate,
           ...initialTemplate
-        });
+        };
+        setTemplate(templateData);
+        setAiEnhancementZones(initialTemplate.aiEnhancementZones || []);
       } else {
         setTemplate(defaultTemplate);
+        setAiEnhancementZones([]);
       }
       
       setValidationErrors([]);
@@ -508,18 +709,29 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'da
   // Validate and save template
   const handleSave = useCallback(() => {
     console.log('TemplateEditor handleSave called with template:', template);
+    console.log('Template placeholders being saved:', template.placeholders);
+    console.log('AI enhancement zones:', aiEnhancementZones);
     console.log('initialTemplate:', initialTemplate);
     
-    const errors = validateTemplateData(template);
+    // Ensure AI enhancement zones are synced with template before saving
+    const templateToSave = {
+      ...template,
+      aiEnhancementZones: aiEnhancementZones
+    };
+    
+    console.log('Final template to save:', templateToSave);
+    console.log('Final placeholders to save:', templateToSave.placeholders);
+    
+    const errors = validateTemplateData(templateToSave);
     setValidationErrors(errors);
     
     if (errors.length === 0) {
-      console.log('Validation passed, calling onSave with template:', template);
-      onSave(template);
+      console.log('Validation passed, calling onSave with template:', templateToSave);
+      onSave(templateToSave);
     } else {
       console.log('Validation failed with errors:', errors);
     }
-  }, [template, onSave, initialTemplate]);
+  }, [template, aiEnhancementZones, onSave, initialTemplate]);
 
   // Load sample template content
   const loadSampleTemplate = useCallback((type) => {
@@ -646,7 +858,7 @@ Provider: {{provider_signature}}`
       setSelectionStart(start);
       setSelectionEnd(end);
       
-      // Calculate position for AI menu
+      // Calculate position for AI zone menu
       const rect = textarea.getBoundingClientRect();
       const lines = textarea.value.substring(0, start).split('\n');
       const lineHeight = 20; // Approximate line height
@@ -654,68 +866,64 @@ Provider: {{provider_signature}}`
       const x = rect.left + 10; // Offset from left edge
       
       setAIMenuPosition({ x, y });
-      setShowAIMenu(true);
+      setShowAIZoneMenu(true);
     } else {
-      setShowAIMenu(false);
+      setShowAIZoneMenu(false);
       setSelectedText('');
     }
   };
 
-  // AI transformation function
-  const transformWithAI = async (transformType) => {
+  // Add AI enhancement zone
+  const addAIEnhancementZone = () => {
     if (!selectedText.trim()) return;
     
-    setIsProcessingAI(true);
-    setShowAIMenu(false);
+    const newZone = {
+      id: Date.now(), // Simple ID generation
+      start: selectionStart,
+      end: selectionEnd,
+      text: selectedText,
+      intensity: defaultEnhancementIntensity,
+      style: defaultWritingStyle,
+      label: `AI Zone ${aiEnhancementZones.length + 1}`
+    };
     
-    try {
-      const response = await fetch('http://localhost:5000/api/ai-enhancement/enhance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          text: selectedText,
-          enhancement_type: transformType,
-          model: 'mistral:latest',
-          clinical_context: true
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.success && data.enhanced_text) {
-        // Replace selected text with AI-enhanced version
-        const newContent = 
-          template.content.substring(0, selectionStart) +
-          data.enhanced_text +
-          template.content.substring(selectionEnd);
-        
-        setTemplate(prev => ({ ...prev, content: newContent }));
-        setSelectedText('');
-      } else {
-        console.error('AI enhancement failed:', data.error);
-        alert('AI enhancement failed. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error calling AI enhancement API:', error);
-      alert(`AI enhancement error: ${error.message}`);
-    } finally {
-      setIsProcessingAI(false);
-    }
+    const updatedZones = [...aiEnhancementZones, newZone];
+    setAiEnhancementZones(updatedZones);
+    
+    // Update template with zones
+    setTemplate(prev => ({
+      ...prev,
+      aiEnhancementZones: updatedZones
+    }));
+    
+    setShowAIZoneMenu(false);
+    setSelectedText('');
   };
 
-  // Close AI menu when clicking outside
+  // Remove AI enhancement zone
+  const removeAIEnhancementZone = (zoneId) => {
+    const updatedZones = aiEnhancementZones.filter(zone => zone.id !== zoneId);
+    setAiEnhancementZones(updatedZones);
+    
+    setTemplate(prev => ({
+      ...prev,
+      aiEnhancementZones: updatedZones
+    }));
+  };
+
+  // Check if current selection overlaps with existing zones
+  const hasOverlappingZone = () => {
+    return aiEnhancementZones.some(zone => 
+      (selectionStart < zone.end && selectionEnd > zone.start)
+    );
+  };
+
+  // Close AI zone menu when clicking outside
   const handleDocumentClick = useCallback((e) => {
-    if (showAIMenu && !e.target.closest('.ai-transformation-menu')) {
-      setShowAIMenu(false);
+    if (showAIZoneMenu && !e.target.closest('.ai-transformation-menu')) {
+      setShowAIZoneMenu(false);
     }
-  }, [showAIMenu]);
+  }, [showAIZoneMenu]);
 
   useEffect(() => {
     document.addEventListener('click', handleDocumentClick);
@@ -964,12 +1172,77 @@ Provider: {{provider_signature}}`
                   onMouseUp={handleTextSelect}
                   onKeyUp={handleTextSelect}
                 />
+                
+                {/* AI Enhancement Zones Display */}
+                {aiEnhancementZones.length > 0 && (
+                  <div style={{
+                    marginTop: '16px',
+                    padding: '12px',
+                    backgroundColor: styles.bgSecondary,
+                    borderRadius: '6px',
+                    border: `1px solid ${styles.borderColor}`
+                  }}>
+                    <h4 style={{
+                      margin: '0 0 8px 0',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      color: styles.textPrimary
+                    }}>
+                      AI Enhancement Zones ({aiEnhancementZones.length})
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {aiEnhancementZones.map((zone, index) => (
+                        <div key={zone.id} style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '6px 8px',
+                          backgroundColor: styles.bgPrimary,
+                          borderRadius: '4px',
+                          border: `1px solid ${styles.borderColor}`
+                        }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              color: styles.textPrimary,
+                              marginBottom: '2px'
+                            }}>
+                              Zone {index + 1}: {zone.style} ({zone.intensity}%)
+                            </div>
+                            <div style={{
+                              fontSize: '10px',
+                              color: styles.textMuted,
+                              fontFamily: 'monospace'
+                            }}>
+                              "{zone.text.substring(0, 50)}{zone.text.length > 50 ? '...' : ''}"
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => removeAIEnhancementZone(zone.id)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: styles.errorColor || '#ef4444',
+                              cursor: 'pointer',
+                              padding: '2px 4px',
+                              fontSize: '12px'
+                            }}
+                            title="Remove AI zone"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
 
-          {/* AI Transformation Menu */}
-          {showAIMenu && selectedText && (
+          {/* AI Enhancement Zone Menu */}
+          {showAIZoneMenu && selectedText && (
             <div
               className="ai-transformation-menu"
               style={{
@@ -980,88 +1253,132 @@ Provider: {{provider_signature}}`
                 backgroundColor: styles.bgPrimary,
                 border: `1px solid ${styles.borderColor}`,
                 borderRadius: '8px',
-                padding: '8px',
+                padding: '12px',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
-                minWidth: '200px'
+                minWidth: '280px',
+                maxWidth: '320px'
               }}
             >
               <div style={{
-                marginBottom: '8px',
+                marginBottom: '12px',
                 fontSize: '12px',
                 color: styles.textMuted,
                 borderBottom: `1px solid ${styles.borderColor}`,
-                paddingBottom: '6px'
+                paddingBottom: '8px'
               }}>
-                AI Transform: "{selectedText.substring(0, 30)}{selectedText.length > 30 ? '...' : ''}"
+                Mark AI Enhancement Zone: "{selectedText.substring(0, 40)}{selectedText.length > 40 ? '...' : ''}"
               </div>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <button
-                  onClick={() => transformWithAI('enhance')}
-                  disabled={isProcessingAI}
+              {hasOverlappingZone() && (
+                <div style={{
+                  marginBottom: '12px',
+                  padding: '8px',
+                  backgroundColor: styles.warningColor || '#f59e0b',
+                  color: 'white',
+                  borderRadius: '4px',
+                  fontSize: '11px'
+                }}>
+                  ⚠️ This selection overlaps with an existing AI zone
+                </div>
+              )}
+              
+              {/* Default Writing Style for new zones */}
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  color: styles.textPrimary,
+                  marginBottom: '4px'
+                }}>
+                  Default Writing Style:
+                </label>
+                <select
+                  value={defaultWritingStyle}
+                  onChange={(e) => setDefaultWritingStyle(e.target.value)}
                   style={{
-                    padding: '6px 10px',
+                    width: '100%',
+                    padding: '4px 8px',
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '4px',
+                    backgroundColor: styles.bgSecondary,
+                    color: styles.textPrimary,
+                    fontSize: '11px'
+                  }}
+                >
+                  <option value="professional">Professional</option>
+                  <option value="formal">Formal</option>
+                  <option value="empathetic">Empathetic</option>
+                  <option value="educational">Educational</option>
+                  <option value="verbose">Verbose</option>
+                  <option value="concise">Concise</option>
+                  <option value="objective">Objective</option>
+                  <option value="detailed">Detailed</option>
+                </select>
+              </div>
+
+              {/* Default Enhancement Intensity */}
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  color: styles.textPrimary,
+                  marginBottom: '4px'
+                }}>
+                  Default Intensity: {defaultEnhancementIntensity}%
+                </label>
+                <input
+                  type="range"
+                  min="10"
+                  max="90"
+                  value={defaultEnhancementIntensity}
+                  onChange={(e) => setDefaultEnhancementIntensity(parseInt(e.target.value))}
+                  style={{
+                    width: '100%',
+                    height: '4px',
+                    borderRadius: '2px',
+                    background: `linear-gradient(to right, ${styles.primaryColor} 0%, ${styles.primaryColor} ${defaultEnhancementIntensity}%, ${styles.borderColor} ${defaultEnhancementIntensity}%, ${styles.borderColor} 100%)`,
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  onClick={addAIEnhancementZone}
+                  disabled={hasOverlappingZone()}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
                     border: 'none',
                     borderRadius: '4px',
-                    backgroundColor: styles.primaryColor,
-                    color: 'white',
+                    backgroundColor: hasOverlappingZone() ? styles.bgAccent : styles.primaryColor,
+                    color: hasOverlappingZone() ? styles.textMuted : 'white',
                     fontSize: '12px',
-                    cursor: isProcessingAI ? 'not-allowed' : 'pointer',
-                    opacity: isProcessingAI ? 0.6 : 1
+                    fontWeight: '600',
+                    cursor: hasOverlappingZone() ? 'not-allowed' : 'pointer',
+                    opacity: hasOverlappingZone() ? 0.6 : 1
                   }}
                 >
-                  {isProcessingAI ? '🔄 Processing...' : '✨ Enhance Clinical Language'}
+                  🎯 Mark AI Zone
                 </button>
                 
                 <button
-                  onClick={() => transformWithAI('simplify')}
-                  disabled={isProcessingAI}
+                  onClick={() => setShowAIZoneMenu(false)}
                   style={{
-                    padding: '6px 10px',
+                    padding: '8px 12px',
                     border: `1px solid ${styles.borderColor}`,
                     borderRadius: '4px',
                     backgroundColor: styles.bgSecondary,
                     color: styles.textPrimary,
                     fontSize: '12px',
-                    cursor: isProcessingAI ? 'not-allowed' : 'pointer',
-                    opacity: isProcessingAI ? 0.6 : 1
+                    cursor: 'pointer'
                   }}
                 >
-                  {isProcessingAI ? '🔄 Processing...' : '📝 Simplify Language'}
-                </button>
-                
-                <button
-                  onClick={() => transformWithAI('medical_analysis')}
-                  disabled={isProcessingAI}
-                  style={{
-                    padding: '6px 10px',
-                    border: `1px solid ${styles.borderColor}`,
-                    borderRadius: '4px',
-                    backgroundColor: styles.bgSecondary,
-                    color: styles.textPrimary,
-                    fontSize: '12px',
-                    cursor: isProcessingAI ? 'not-allowed' : 'pointer',
-                    opacity: isProcessingAI ? 0.6 : 1
-                  }}
-                >
-                  {isProcessingAI ? '🔄 Processing...' : '🩺 Clinical Analysis'}
-                </button>
-                
-                <button
-                  onClick={() => transformWithAI('decision_support')}
-                  disabled={isProcessingAI}
-                  style={{
-                    padding: '6px 10px',
-                    border: `1px solid ${styles.borderColor}`,
-                    borderRadius: '4px',
-                    backgroundColor: styles.bgSecondary,
-                    color: styles.textPrimary,
-                    fontSize: '12px',
-                    cursor: isProcessingAI ? 'not-allowed' : 'pointer',
-                    opacity: isProcessingAI ? 0.6 : 1
-                  }}
-                >
-                  {isProcessingAI ? '🔄 Processing...' : '🎯 Decision Support'}
+                  Cancel
                 </button>
               </div>
             </div>
@@ -1486,10 +1803,15 @@ Provider: {{provider_signature}}`
                           type: newPlaceholder.type
                         };
 
-                        setTemplate(prev => ({
-                          ...prev,
-                          placeholders: [...(prev.placeholders || []), placeholder]
-                        }));
+                        setTemplate(prev => {
+                          const updatedTemplate = {
+                            ...prev,
+                            placeholders: [...(prev.placeholders || []), placeholder]
+                          };
+                          console.log('Adding new placeholder:', placeholder);
+                          console.log('Updated template placeholders:', updatedTemplate.placeholders);
+                          return updatedTemplate;
+                        });
 
                         // Reset form and close
                         setNewPlaceholder({
@@ -1708,7 +2030,13 @@ Provider: {{provider_signature}}`
                         // Update the placeholder in the template
                         const updatedPlaceholders = [...template.placeholders];
                         updatedPlaceholders[editingIndex] = editingPlaceholder;
-                        setTemplate(prev => ({ ...prev, placeholders: updatedPlaceholders }));
+                        setTemplate(prev => {
+                          const updatedTemplate = { ...prev, placeholders: updatedPlaceholders };
+                          console.log('Updating placeholder at index:', editingIndex);
+                          console.log('Updated placeholder:', editingPlaceholder);
+                          console.log('All placeholders after update:', updatedTemplate.placeholders);
+                          return updatedTemplate;
+                        });
                         
                         // Clear editing state
                         setEditingPlaceholder(null);
@@ -1754,59 +2082,179 @@ Provider: {{provider_signature}}`
                   minHeight: '300px',
                   color: styles.textPrimary
                 }}>
-                  {template.content || 'No content to preview. Switch to Content tab to add template content.'}
+                  {renderPreviewWithHighlights()}
                 </div>
                 
-                {template.placeholders.length > 0 && (
+                {/* AI Enhancement Zones Display */}
+                {aiEnhancementZones.length > 0 && (
                   <div style={{ marginTop: '16px' }}>
                     <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: styles.textPrimary }}>
-                      Available Placeholders:
+                      AI Enhancement Zones: ({aiEnhancementZones.length})
                     </h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
-                      {template.placeholders.map((placeholder, index) => (
-                        <div key={index} style={{
-                          padding: '12px',
-                          background: styles.bgAccent,
-                          border: `1px solid ${styles.borderColor}`,
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          borderLeft: `3px solid ${placeholder.type === 'phi' ? styles.errorColor : styles.primaryColor}`
-                        }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '8px', marginBottom: '16px' }}>
+                      {aiEnhancementZones.map((zone, index) => (
+                        <div 
+                          key={zone.id} 
+                          onMouseEnter={() => setHoveredZoneId(zone.id)}
+                          onMouseLeave={() => setHoveredZoneId(null)}
+                          style={{
+                            padding: '12px',
+                            background: hoveredZoneId === zone.id 
+                              ? (theme === 'dark' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.1)')
+                              : styles.bgAccent,
+                            border: `1px solid ${styles.successColor}`,
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            borderLeft: `3px solid ${styles.successColor}`,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            transform: hoveredZoneId === zone.id ? 'translateY(-1px)' : 'translateY(0)',
+                            boxShadow: hoveredZoneId === zone.id 
+                              ? '0 4px 8px rgba(0, 0, 0, 0.1)' 
+                              : 'none'
+                          }}>
                           <div style={{ 
                             fontWeight: '600', 
-                            color: styles.primaryColor,
-                            fontFamily: 'monospace',
-                            marginBottom: '4px'
+                            color: styles.successColor,
+                            marginBottom: '4px',
+                            fontSize: '11px'
                           }}>
-                            {`{{${placeholder.key}}}`}
+                            {zone.label}
                           </div>
                           <div style={{ 
                             color: styles.textSecondary,
-                            fontSize: '11px',
-                            marginBottom: '4px'
+                            fontSize: '10px',
+                            marginBottom: '6px',
+                            fontFamily: 'monospace',
+                            background: styles.bgSecondary,
+                            padding: '4px 6px',
+                            borderRadius: '3px',
+                            maxHeight: '40px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
                           }}>
-                            {placeholder.description}
+                            "{zone.text.substring(0, 60)}{zone.text.length > 60 ? '...' : ''}"
                           </div>
                           <div style={{ 
+                            display: 'flex',
+                            gap: '4px',
                             fontSize: '10px',
-                            padding: '2px 6px',
-                            borderRadius: '10px',
-                            background: placeholder.type === 'phi' 
-                              ? (theme === 'dark' ? 'rgba(239, 68, 68, 0.2)' : '#fee2e2') 
-                              : (theme === 'dark' ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe'),
-                            color: placeholder.type === 'phi' ? styles.errorColor : styles.primaryColor,
-                            textAlign: 'center',
-                            fontWeight: '600',
-                            textTransform: 'uppercase',
-                            display: 'inline-block'
+                            color: styles.textMuted,
+                            marginBottom: '8px'
                           }}>
-                            {placeholder.type}
+                            <span>Style: {zone.style}</span>
+                            <span>Intensity: {zone.intensity}%</span>
+                          </div>
+
+                          {/* Enhancement Results Display */}
+                          {enhancementResults[zone.id] && (
+                            <div style={{
+                              marginBottom: '8px',
+                              padding: '6px',
+                              background: theme === 'dark' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(34, 197, 94, 0.05)',
+                              border: `1px solid ${styles.successColor}`,
+                              borderRadius: '4px',
+                              fontSize: '9px'
+                            }}>
+                              <div style={{ fontWeight: '600', color: styles.successColor, marginBottom: '2px' }}>
+                                ✓ Enhanced ({enhancementResults[zone.id].processing_time}ms)
+                              </div>
+                              <div style={{ 
+                                color: styles.textSecondary,
+                                maxHeight: '40px',
+                                overflow: 'hidden',
+                                fontFamily: 'monospace',
+                                fontSize: '8px'
+                              }}>
+                                "{enhancementResults[zone.id].enhanced.substring(0, 80)}{enhancementResults[zone.id].enhanced.length > 80 ? '...' : ''}"
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Enhancement Controls */}
+                          <div style={{ 
+                            display: 'flex',
+                            gap: '4px',
+                            fontSize: '9px'
+                          }}>
+                            {!enhancementResults[zone.id] ? (
+                              <button
+                                onClick={() => enhanceAIZone(zone.id)}
+                                disabled={enhancingZoneId === zone.id}
+                                style={{
+                                  padding: '4px 8px',
+                                  backgroundColor: enhancingZoneId === zone.id 
+                                    ? 'transparent' 
+                                    : (theme === 'dark' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)'),
+                                  color: enhancingZoneId === zone.id 
+                                    ? styles.textMuted 
+                                    : (theme === 'dark' ? '#60a5fa' : '#2563eb'),
+                                  border: `1px solid ${enhancingZoneId === zone.id ? styles.borderColor : (theme === 'dark' ? '#60a5fa' : '#2563eb')}`,
+                                  borderRadius: '3px',
+                                  cursor: enhancingZoneId === zone.id ? 'not-allowed' : 'pointer',
+                                  fontSize: '9px',
+                                  fontWeight: '500',
+                                  opacity: enhancingZoneId === zone.id ? 0.6 : 1
+                                }}
+                              >
+                                {enhancingZoneId === zone.id ? '⏳ Enhancing...' : '🤖 Enhance'}
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => applyEnhancement(zone.id)}
+                                  style={{
+                                    padding: '4px 8px',
+                                    backgroundColor: theme === 'dark' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(34, 197, 94, 0.1)',
+                                    color: styles.successColor,
+                                    border: `1px solid ${styles.successColor}`,
+                                    borderRadius: '3px',
+                                    cursor: 'pointer',
+                                    fontSize: '9px',
+                                    fontWeight: '500'
+                                  }}
+                                >
+                                  ✓ Apply
+                                </button>
+                                <button
+                                  onClick={() => revertEnhancement(zone.id)}
+                                  style={{
+                                    padding: '4px 8px',
+                                    backgroundColor: 'transparent',
+                                    color: styles.textMuted,
+                                    border: `1px solid ${styles.borderColor}`,
+                                    borderRadius: '3px',
+                                    cursor: 'pointer',
+                                    fontSize: '9px'
+                                  }}
+                                >
+                                  ↺ Revert
+                                </button>
+                              </>
+                            )}
+                            
+                            <button
+                              onClick={() => removeAIEnhancementZone(zone.id)}
+                              style={{
+                                marginLeft: 'auto',
+                                padding: '4px 8px',
+                                fontSize: '9px',
+                                backgroundColor: 'transparent',
+                                color: styles.errorColor,
+                                border: `1px solid ${styles.errorColor}`,
+                                borderRadius: '3px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              🗑 Remove
+                            </button>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
+
               </div>
             </div>
           )}

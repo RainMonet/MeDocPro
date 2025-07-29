@@ -65,9 +65,12 @@ def create_app(config_class=Config):
         from .routes.ai_enhancement import ai_bp
         app.register_blueprint(ai_bp, url_prefix='/api/ai')
         
-        # Monitoring endpoints
-        from .routes.monitoring import monitoring_bp
-        app.register_blueprint(monitoring_bp)
+        # Monitoring endpoints (disabled temporarily for database init)
+        try:
+            from .routes.monitoring import monitoring_bp
+            app.register_blueprint(monitoring_bp)
+        except ImportError as e:
+            app.logger.warning(f"Monitoring endpoints disabled due to missing dependencies: {e}")
 
         # Import models here to ensure they are registered with SQLAlchemy
         from . import models

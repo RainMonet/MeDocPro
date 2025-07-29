@@ -63,6 +63,25 @@
   /* Typography */
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   --base-font-size: 14px;
+  
+  /* Text Size Scale Variables - 4 sizes: small, medium, large, extra-large */
+  --text-scale-small: 0.875;
+  --text-scale-medium: 1;
+  --text-scale-large: 1.125;
+  --text-scale-extra-large: 1.25;
+  
+  /* Current text scale (will be updated by accessibility settings) */
+  --text-scale: var(--text-scale-medium);
+  
+  /* Dynamic font sizes based on scale */
+  --font-size-xs: calc(var(--base-font-size) * 0.75 * var(--text-scale));
+  --font-size-sm: calc(var(--base-font-size) * 0.875 * var(--text-scale));
+  --font-size-base: calc(var(--base-font-size) * var(--text-scale));
+  --font-size-lg: calc(var(--base-font-size) * 1.125 * var(--text-scale));
+  --font-size-xl: calc(var(--base-font-size) * 1.25 * var(--text-scale));
+  --font-size-2xl: calc(var(--base-font-size) * 1.5 * var(--text-scale));
+  --font-size-3xl: calc(var(--base-font-size) * 1.875 * var(--text-scale));
+  --font-size-4xl: calc(var(--base-font-size) * 2.25 * var(--text-scale));
 }
 
 /* Light Theme Variables - Antique Book Inspired */
@@ -135,9 +154,9 @@ body {
   font-family: var(--font-family);
   background-color: var(--bg-secondary);
   color: var(--text-primary);
-  font-size: 0.875rem;
+  font-size: var(--font-size-base);
   line-height: 1.6;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.3s ease, color 0.3s ease, font-size 0.3s ease;
   overflow-x: hidden;
 }
 
@@ -145,11 +164,21 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
   line-height: 1.25;
+  transition: font-size 0.3s ease;
 }
+
+h1 { font-size: var(--font-size-4xl); }
+h2 { font-size: var(--font-size-3xl); }
+h3 { font-size: var(--font-size-2xl); }
+h4 { font-size: var(--font-size-xl); }
+h5 { font-size: var(--font-size-lg); }
+h6 { font-size: var(--font-size-base); }
 
 p {
   color: var(--text-secondary);
   line-height: 1.6;
+  font-size: var(--font-size-base);
+  transition: font-size 0.3s ease;
 }
 
 /* Layout Utilities */
@@ -217,20 +246,36 @@ p {
   width: 100%;
 }
 
+.text-xs {
+  font-size: var(--font-size-xs);
+}
+
 .text-sm {
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
+}
+
+.text-base {
+  font-size: var(--font-size-base);
 }
 
 .text-lg {
-  font-size: 1.125rem;
+  font-size: var(--font-size-lg);
+}
+
+.text-xl {
+  font-size: var(--font-size-xl);
 }
 
 .text-2xl {
-  font-size: 1.5rem;
+  font-size: var(--font-size-2xl);
 }
 
 .text-3xl {
-  font-size: 1.875rem;
+  font-size: var(--font-size-3xl);
+}
+
+.text-4xl {
+  font-size: var(--font-size-4xl);
 }
 
 .font-medium {
@@ -318,7 +363,7 @@ p {
   text-decoration: none;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
 }
 
 .btn:disabled {
@@ -352,12 +397,12 @@ p {
 
 .btn-sm {
   padding: var(--space-2) var(--space-3);
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
 }
 
 .btn-lg {
   padding: var(--space-4) var(--space-6);
-  font-size: 1rem;
+  font-size: var(--font-size-base);
 }
 
 /* Form Elements */
@@ -370,7 +415,8 @@ p {
   margin-bottom: var(--space-2);
   font-weight: 500;
   color: var(--text-primary);
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
+  transition: font-size 0.3s ease;
 }
 
 .form-input {
@@ -380,7 +426,7 @@ p {
   border-radius: var(--radius-md);
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 0.875rem;
+  font-size: var(--font-size-base);
   transition: all 0.2s ease;
 }
 
@@ -951,6 +997,12 @@ p {
   box-shadow: var(--shadow-lg);
 }
 
+/* Recent Documents Card 3D Hover Effect - matching system-status and quick-actions */
+.recent-documents-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
 .quick-actions h3 {
   font-size: 1.125rem;
   font-weight: 600;
@@ -1507,84 +1559,231 @@ p {
   }
 }
 
+/* Responsive StatCards for Clinical Workspace */
+@media (max-width: 1200px) {
+  /* Large tablets and small desktops - reduce gaps */
+  .clinical-workspace .stats-row {
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 992px) {
+  /* Medium tablets - wrap to 2 rows */
+  .clinical-workspace .stats-container {
+    max-width: 600px;
+  }
+  
+  .clinical-workspace .stat-card {
+    min-width: 140px;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Small tablets and large phones - 2 cards per row */
+  .clinical-workspace .stats-container {
+    max-width: 400px;
+    gap: 0.75rem;
+  }
+  
+  .clinical-workspace .stat-card {
+    min-width: 130px;
+    padding: 10px 12px;
+  }
+  
+  .clinical-workspace .stat-number {
+    font-size: 1.4rem;
+  }
+  
+  .clinical-workspace .stat-label {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Mobile phones - single column */
+  .clinical-workspace .stats-container {
+    max-width: 280px;
+    gap: 0.5rem;
+  }
+  
+  .clinical-workspace .stat-card {
+    min-width: 200px;
+    padding: 12px 16px;
+  }
+  
+  .clinical-workspace .stat-number {
+    font-size: 1.6rem;
+  }
+  
+  .clinical-workspace .stat-label {
+    font-size: 12px;
+  }
+}
+
 /* Accessibility Features */
 
-/* High Contrast Mode */
+/* Enhanced High Contrast Mode - WCAG AAA Compliant */
 [data-high-contrast="true"] {
+  /* Ultra high contrast backgrounds */
   --bg-primary: #000000 !important;
-  --bg-secondary: #1a1a1a !important;
-  --bg-tertiary: #333333 !important;
+  --bg-secondary: #111111 !important;
+  --bg-tertiary: #222222 !important;
+  --bg-accent: #333333 !important;
+  --bg-hover: #444444 !important;
   
+  /* High contrast text colors */
   --text-primary: #ffffff !important;
-  --text-secondary: #e0e0e0 !important;
-  --text-muted: #cccccc !important;
+  --text-secondary: #ffffff !important;
+  --text-muted: #ffffff !important;
   
-  --border-light: #666666 !important;
-  --border-medium: #888888 !important;
-  --border-dark: #aaaaaa !important;
+  /* Bold, visible borders */
+  --border-light: #ffffff !important;
+  --border-medium: #ffffff !important;
+  --border-dark: #ffffff !important;
+  --border-color: #ffffff !important;
   
-  --color-primary: #00aaff !important;
-  --color-primary-light: #33bbff !important;
-  --color-primary-dark: #0088cc !important;
+  /* High contrast accent colors */
+  --color-primary: #00ffff !important;
+  --color-primary-light: #66ffff !important;
+  --color-primary-dark: #00cccc !important;
   
+  /* Status colors with maximum contrast */
   --color-success: #00ff00 !important;
-  --color-warning: #ffaa00 !important;
+  --color-warning: #ffff00 !important;
   --color-danger: #ff0000 !important;
-  --color-info: #00aaff !important;
+  --color-info: #00ffff !important;
+  
+  /* Enhanced shadow and effects */
+  --shadow-sm: 0 2px 4px rgba(255, 255, 255, 0.3) !important;
+  --shadow-md: 0 4px 8px rgba(255, 255, 255, 0.4) !important;
+  --shadow-lg: 0 8px 16px rgba(255, 255, 255, 0.5) !important;
+  --shadow-xl: 0 12px 24px rgba(255, 255, 255, 0.6) !important;
 }
 
-/* Dynamic Font Size and Family */
-body {
-  font-size: var(--base-font-size);
-  font-family: var(--font-family);
+/* Enhanced Dynamic Font Size and Family System */
+
+/* Apply consistent font sizing to all elements */
+*, *::before, *::after {
+  font-family: inherit;
+  transition: font-size 0.3s ease;
 }
 
-/* Apply base font size scaling to all text elements */
-p, span, div, button, input, select, textarea, label {
-  font-size: inherit;
+/* Base text elements use the font size variables */
+span, div, label, td, th {
+  font-size: var(--font-size-base);
 }
 
-/* Scale headings relative to base font size */
-h1 { font-size: calc(var(--base-font-size) * 2.25); }
-h2 { font-size: calc(var(--base-font-size) * 1.875); }
-h3 { font-size: calc(var(--base-font-size) * 1.5); }
-h4 { font-size: calc(var(--base-font-size) * 1.25); }
-h5 { font-size: calc(var(--base-font-size) * 1.125); }
-h6 { font-size: calc(var(--base-font-size) * 1); }
-
-/* Scale common UI elements relative to base font size */
-.btn, button {
-  font-size: calc(var(--base-font-size) * 1);
+/* Button elements */
+button:not(.btn):not(.btn-sm):not(.btn-lg) {
+  font-size: var(--font-size-base);
 }
 
-.btn-sm {
-  font-size: calc(var(--base-font-size) * 0.875);
+/* Input elements */
+input, select, textarea, option {
+  font-size: var(--font-size-base) !important;
 }
 
-.btn-lg {
-  font-size: calc(var(--base-font-size) * 1.125);
+/* Navigation and sidebar elements */
+.sidebar .nav-link { 
+  font-size: var(--font-size-sm) !important; 
 }
 
-/* Form elements */
-.form-input, input, select, textarea {
-  font-size: calc(var(--base-font-size) * 1);
+.header .logo-text { 
+  font-size: var(--font-size-xl) !important; 
 }
 
-/* Text size utilities */
-.text-sm { font-size: calc(var(--base-font-size) * 0.875); }
-.text-lg { font-size: calc(var(--base-font-size) * 1.125); }
-.text-xl { font-size: calc(var(--base-font-size) * 1.25); }
-.text-2xl { font-size: calc(var(--base-font-size) * 1.5); }
-.text-3xl { font-size: calc(var(--base-font-size) * 1.875); }
+/* Modal content */
+.modal-content h1 { font-size: var(--font-size-3xl) !important; }
+.modal-content h2 { font-size: var(--font-size-2xl) !important; }
+.modal-content h3 { font-size: var(--font-size-xl) !important; }
+.modal-content h4 { font-size: var(--font-size-lg) !important; }
+.modal-content p { font-size: var(--font-size-base) !important; }
+.modal-content label { font-size: var(--font-size-sm) !important; }
+.modal-content button { font-size: var(--font-size-sm) !important; }
+.modal-content input { font-size: var(--font-size-base) !important; }
+.modal-content textarea { font-size: var(--font-size-base) !important; }
 
-/* Override any hardcoded font sizes in the application */
-.sidebar .nav-link { font-size: calc(var(--base-font-size) * 0.9) !important; }
-.header .logo-text { font-size: calc(var(--base-font-size) * 1.2) !important; }
-.modal-content h2 { font-size: calc(var(--base-font-size) * 1.5) !important; }
-.modal-content h3 { font-size: calc(var(--base-font-size) * 1.25) !important; }
-.modal-content p { font-size: calc(var(--base-font-size) * 1) !important; }
-.card h3 { font-size: calc(var(--base-font-size) * 1.25) !important; }
-.card p { font-size: calc(var(--base-font-size) * 0.9) !important; }
+/* Card content */
+.card h1 { font-size: var(--font-size-2xl) !important; }
+.card h2 { font-size: var(--font-size-xl) !important; }
+.card h3 { font-size: var(--font-size-lg) !important; }
+.card h4 { font-size: var(--font-size-base) !important; }
+.card p { font-size: var(--font-size-sm) !important; }
+.card label { font-size: var(--font-size-xs) !important; }
+.card button { font-size: var(--font-size-sm) !important; }
+
+/* Dashboard and workspace elements */
+.dashboard-grid h1 { font-size: var(--font-size-3xl) !important; }
+.dashboard-grid h2 { font-size: var(--font-size-2xl) !important; }
+.dashboard-grid h3 { font-size: var(--font-size-xl) !important; }
+.dashboard-grid p { font-size: var(--font-size-base) !important; }
+
+/* Table elements */
+table { font-size: var(--font-size-sm); }
+th { font-size: var(--font-size-sm); font-weight: 600; }
+td { font-size: var(--font-size-sm); }
+
+/* Status and badge elements */
+.status-badge { font-size: var(--font-size-xs) !important; }
+.badge { font-size: var(--font-size-xs) !important; }
+
+/* Dropdown and select elements */
+.dropdown-item { font-size: var(--font-size-base) !important; }
+.select-option { font-size: var(--font-size-base) !important; }
+
+/* List elements */
+li { font-size: var(--font-size-base); }
+
+/* Code and pre elements */
+code, pre { font-size: var(--font-size-sm); }
+
+/* Tooltip and popover content */
+.tooltip { font-size: var(--font-size-xs) !important; }
+.popover { font-size: var(--font-size-sm) !important; }
+
+/* Tab content */
+.tab-content { font-size: var(--font-size-base); }
+.tab-button { font-size: var(--font-size-sm); }
+
+/* Alert content */
+.alert { font-size: var(--font-size-base); }
+.alert h4 { font-size: var(--font-size-lg); }
+
+/* Specific component overrides */
+.clinical-workspace h1 { font-size: var(--font-size-3xl) !important; }
+.clinical-workspace h2 { font-size: var(--font-size-2xl) !important; }
+.clinical-workspace h3 { font-size: var(--font-size-xl) !important; }
+.clinical-workspace p { font-size: var(--font-size-base) !important; }
+.clinical-workspace button { font-size: var(--font-size-sm) !important; }
+
+/* Patient census and form elements */
+.patient-census-table th { font-size: var(--font-size-sm) !important; }
+.patient-census-table td { font-size: var(--font-size-sm) !important; }
+.form-row label { font-size: var(--font-size-sm) !important; }
+.form-row input { font-size: var(--font-size-base) !important; }
+
+/* Template editor elements */
+.template-editor h1 { font-size: var(--font-size-2xl) !important; }
+.template-editor h2 { font-size: var(--font-size-xl) !important; }
+.template-editor h3 { font-size: var(--font-size-lg) !important; }
+.template-editor p { font-size: var(--font-size-base) !important; }
+.template-editor textarea { font-size: var(--font-size-base) !important; }
+.template-editor button { font-size: var(--font-size-sm) !important; }
+
+/* Recent documents card */
+.recent-documents h3 { font-size: var(--font-size-xl) !important; }
+.recent-documents p { font-size: var(--font-size-base) !important; }
+.recent-documents button { font-size: var(--font-size-sm) !important; }
+.document-item { font-size: var(--font-size-sm) !important; }
+
+/* Ensure accessibility modal content scales properly */
+.accessibility-modal h1 { font-size: var(--font-size-2xl) !important; }
+.accessibility-modal h2 { font-size: var(--font-size-xl) !important; }
+.accessibility-modal p { font-size: var(--font-size-base) !important; }
+.accessibility-modal button { font-size: var(--font-size-sm) !important; }
+.accessibility-modal label { font-size: var(--font-size-sm) !important; }
 
 /* Accessibility: Improved focus indicators */
 button:focus,
@@ -1602,29 +1801,295 @@ input[type="button"],
 input[type="submit"],
 input[type="reset"],
 [role="button"] {
-  min-height: 44px;
-  min-width: 44px;
+  min-height: calc(44px * var(--text-scale, 1));
+  min-width: calc(44px * var(--text-scale, 1));
+  transition: min-height 0.3s ease, min-width 0.3s ease;
 }
 
-/* Accessibility: High contrast mode button styles - selective targeting */
-/* Exclude header navigation buttons specifically */
-html[data-high-contrast="true"] .sidebar button,
-html[data-high-contrast="true"] .modal-content button,
+/* Comprehensive High Contrast Mode Styling */
+
+/* === BUTTONS AND INTERACTIVE ELEMENTS === */
+html[data-high-contrast="true"] button,
 html[data-high-contrast="true"] .btn,
-html[data-high-contrast="true"] button.theme-toggle,
-html[data-high-contrast="true"] .user-avatar,
-html[data-high-contrast="true"] .nav-button {
-  border: 2px solid var(--text-primary) !important;
+html[data-high-contrast="true"] .nav-link,
+html[data-high-contrast="true"] .action-button,
+html[data-high-contrast="true"] .toggle-switch {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  outline: 2px solid transparent !important;
+  outline-offset: 2px !important;
 }
 
-html[data-high-contrast="true"] .sidebar button:hover,
-html[data-high-contrast="true"] .modal-content button:hover,
+html[data-high-contrast="true"] button:hover,
 html[data-high-contrast="true"] .btn:hover,
-html[data-high-contrast="true"] button.theme-toggle:hover,
-html[data-high-contrast="true"] .user-avatar:hover,
-html[data-high-contrast="true"] .nav-button:hover {
-  background-color: var(--text-primary) !important;
-  color: var(--bg-primary) !important;
+html[data-high-contrast="true"] .nav-link:hover,
+html[data-high-contrast="true"] .action-button:hover {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  outline: 2px solid #ffffff !important;
+  box-shadow: 0 0 0 4px #ffffff !important;
+}
+
+html[data-high-contrast="true"] button:focus,
+html[data-high-contrast="true"] .btn:focus,
+html[data-high-contrast="true"] .nav-link:focus {
+  outline: 4px solid #00ffff !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 8px rgba(0, 255, 255, 0.3) !important;
+}
+
+/* === CARDS AND CONTAINERS === */
+html[data-high-contrast="true"] .card,
+html[data-high-contrast="true"] .stat-card,
+html[data-high-contrast="true"] .system-status,
+html[data-high-contrast="true"] .quick-actions,
+html[data-high-contrast="true"] .recent-documents,
+html[data-high-contrast="true"] .clinical-workspace > div,
+html[data-high-contrast="true"] .patient-census-card,
+html[data-high-contrast="true"] .batch-documentation-card {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.3) !important;
+}
+
+html[data-high-contrast="true"] .card::before,
+html[data-high-contrast="true"] .stat-card::before,
+html[data-high-contrast="true"] .system-status::before,
+html[data-high-contrast="true"] .quick-actions::before {
+  background: linear-gradient(90deg, #00ffff, #ffffff) !important;
+  height: 4px !important;
+  opacity: 1 !important;
+}
+
+/* === MODAL COMPONENTS === */
+html[data-high-contrast="true"] .modal-overlay {
+  background: rgba(0, 0, 0, 0.95) !important;
+}
+
+html[data-high-contrast="true"] .modal-content {
+  border: 4px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 32px rgba(255, 255, 255, 0.4) !important;
+}
+
+html[data-high-contrast="true"] .modal-content h1,
+html[data-high-contrast="true"] .modal-content h2,
+html[data-high-contrast="true"] .modal-content h3,
+html[data-high-contrast="true"] .modal-content h4,
+html[data-high-contrast="true"] .modal-content h5,
+html[data-high-contrast="true"] .modal-content h6 {
+  color: #ffffff !important;
+  border-bottom: 2px solid #ffffff !important;
+  padding-bottom: 8px !important;
+}
+
+html[data-high-contrast="true"] .modal-content p,
+html[data-high-contrast="true"] .modal-content span,
+html[data-high-contrast="true"] .modal-content div {
+  color: #ffffff !important;
+}
+
+/* === FORM ELEMENTS === */
+html[data-high-contrast="true"] input,
+html[data-high-contrast="true"] textarea,
+html[data-high-contrast="true"] select {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+html[data-high-contrast="true"] input:focus,
+html[data-high-contrast="true"] textarea:focus,
+html[data-high-contrast="true"] select:focus {
+  outline: 4px solid #00ffff !important;
+  outline-offset: 2px !important;
+  border-color: #00ffff !important;
+  box-shadow: 0 0 0 8px rgba(0, 255, 255, 0.3) !important;
+}
+
+html[data-high-contrast="true"] input::placeholder {
+  color: #cccccc !important;
+  font-weight: 600 !important;
+}
+
+html[data-high-contrast="true"] label {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* === TABLES === */
+html[data-high-contrast="true"] table {
+  border: 3px solid #ffffff !important;
+}
+
+html[data-high-contrast="true"] th,
+html[data-high-contrast="true"] td {
+  border: 2px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+html[data-high-contrast="true"] th {
+  background-color: #333333 !important;
+  font-weight: 700 !important;
+}
+
+/* === STATUS INDICATORS === */
+html[data-high-contrast="true"] .status-badge {
+  border: 2px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .status-badge.connected {
+  background-color: #00ff00 !important;
+  color: #000000 !important;
+  border-color: #00ff00 !important;
+}
+
+html[data-high-contrast="true"] .status-badge.available {
+  background-color: #00ffff !important;
+  color: #000000 !important;
+  border-color: #00ffff !important;
+}
+
+html[data-high-contrast="true"] .status-badge.warning {
+  background-color: #ffff00 !important;
+  color: #000000 !important;
+  border-color: #ffff00 !important;
+}
+
+/* === NAVIGATION === */
+html[data-high-contrast="true"] .sidebar {
+  border-right: 4px solid #ffffff !important;
+  background-color: #000000 !important;
+}
+
+html[data-high-contrast="true"] .header {
+  border-bottom: 4px solid #ffffff !important;
+  background-color: #000000 !important;
+}
+
+html[data-high-contrast="true"] .nav-link.active {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-left: 6px solid #00ffff !important;
+}
+
+/* === DROPDOWNS AND TOOLTIPS === */
+html[data-high-contrast="true"] .dropdown-menu,
+html[data-high-contrast="true"] .tooltip,
+html[data-high-contrast="true"] .popover {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.4) !important;
+}
+
+/* === ICONS AND SYMBOLS === */
+html[data-high-contrast="true"] .icon,
+html[data-high-contrast="true"] .symbol {
+  color: #ffffff !important;
+  filter: brightness(1.5) contrast(2) !important;
+}
+
+/* === SCROLLBARS === */
+html[data-high-contrast="true"] ::-webkit-scrollbar {
+  width: 12px !important;
+  background: #000000 !important;
+  border: 2px solid #ffffff !important;
+}
+
+html[data-high-contrast="true"] ::-webkit-scrollbar-thumb {
+  background: #ffffff !important;
+  border: 2px solid #000000 !important;
+  border-radius: 0 !important;
+}
+
+html[data-high-contrast="true"] ::-webkit-scrollbar-thumb:hover {
+  background: #00ffff !important;
+}
+
+/* === LINKS === */
+html[data-high-contrast="true"] a {
+  color: #00ffff !important;
+  text-decoration: underline !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] a:hover {
+  color: #ffffff !important;
+  background-color: #00ffff !important;
+  padding: 2px 4px !important;
+}
+
+html[data-high-contrast="true"] a:focus {
+  outline: 4px solid #ffff00 !important;
+  outline-offset: 2px !important;
+}
+
+/* === SPECIFIC COMPONENT HIGH CONTRAST OVERRIDES === */
+
+/* Clinical Workspace Components */
+html[data-high-contrast="true"] .clinical-workspace .stat-card {
+  border: 3px solid #ffffff !important;
+  background: linear-gradient(135deg, #000000 0%, #111111 100%) !important;
+}
+
+html[data-high-contrast="true"] .clinical-workspace .stat-value {
+  color: #00ffff !important;
+  text-shadow: 0 0 4px #00ffff !important;
+}
+
+html[data-high-contrast="true"] .clinical-workspace .stat-label {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* Patient Census and Document Cards */
+html[data-high-contrast="true"] .patient-census-table tr:nth-child(even) {
+  background-color: #111111 !important;
+}
+
+html[data-high-contrast="true"] .patient-census-table tr:nth-child(odd) {
+  background-color: #000000 !important;
+}
+
+html[data-high-contrast="true"] .document-item {
+  border: 2px solid #ffffff !important;
+  background-color: #000000 !important;
+}
+
+html[data-high-contrast="true"] .document-item:hover {
+  background-color: #333333 !important;
+  border-color: #00ffff !important;
+}
+
+/* Template Editor Components */
+html[data-high-contrast="true"] .template-editor textarea {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  font-family: 'Courier New', monospace !important;
+  font-weight: 600 !important;
+}
+
+html[data-high-contrast="true"] .template-editor .tab-button {
+  border: 2px solid #ffffff !important;
+  background-color: #000000 !important;
+}
+
+html[data-high-contrast="true"] .template-editor .tab-button.active {
+  background-color: #ffffff !important;
+  color: #000000 !important;
 }
 
 /* Force reset navigation buttons when high contrast is disabled */
@@ -1665,6 +2130,59 @@ html:not([data-high-contrast="true"]) .header-left button:hover {
   background: none !important;
   box-shadow: none !important;
   outline: none !important;
+}
+
+/* === THEME TOGGLE AND USER INTERFACE ELEMENTS === */
+html[data-high-contrast="true"] .theme-toggle {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+}
+
+html[data-high-contrast="true"] .user-avatar {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+}
+
+html[data-high-contrast="true"] .user-name,
+html[data-high-contrast="true"] .user-role {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* Logo and branding elements */
+html[data-high-contrast="true"] .logo-text {
+  color: #ffffff !important;
+  text-shadow: 0 0 4px #ffffff !important;
+}
+
+html[data-high-contrast="true"] .logo-icon {
+  border: 3px solid #ffffff !important;
+  background: linear-gradient(135deg, #000000 0%, #333333 100%) !important;
+}
+
+html[data-high-contrast="true"] .logo-symbol {
+  color: #00ffff !important;
+  text-shadow: 0 0 4px #00ffff !important;
+}
+
+/* === ALERT AND NOTIFICATION COMPONENTS === */
+html[data-high-contrast="true"] .alert {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .alert-warning {
+  border-color: #ffff00 !important;
+  background-color: #000000 !important;
+  color: #ffff00 !important;
+}
+
+html[data-high-contrast="true"] .alert-danger {
+  border-color: #ff0000 !important;
+  background-color: #000000 !important;
+  color: #ff0000 !important;
 }
 
 /* Nuclear option: Remove all borders from nav buttons always unless high contrast is on - v2025-07-03-15:57 */
@@ -1716,4 +2234,326 @@ html:not([data-high-contrast="true"]) .header-left .nav-button {
   border-width: 0 !important;
   border-style: none !important;
   border-color: transparent !important;
+}
+
+/* Enhanced Accessibility Modal Animations and Effects */
+.accessibility-updating {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.accessibility-updating * {
+  transition: font-size 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Accessibility modal specific styles */
+.accessibility-modal {
+  animation: accessibility-modal-enter 0.3s ease-out;
+}
+
+@keyframes accessibility-modal-enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Text size preview animation */
+.text-size-preview {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Smooth transitions for all text elements when accessibility settings change */
+html.accessibility-updating h1,
+html.accessibility-updating h2,
+html.accessibility-updating h3,
+html.accessibility-updating h4,
+html.accessibility-updating h5,
+html.accessibility-updating h6,
+html.accessibility-updating p,
+html.accessibility-updating span,
+html.accessibility-updating div,
+html.accessibility-updating button,
+html.accessibility-updating input,
+html.accessibility-updating textarea,
+html.accessibility-updating label,
+html.accessibility-updating td,
+html.accessibility-updating th {
+  transition: font-size 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Pulse effect for text size changes */
+@keyframes text-size-change-pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+html.accessibility-updating {
+  animation: text-size-change-pulse 0.4s ease-in-out;
+}
+
+/* Enhanced focus indicators for accessibility */
+.accessibility-modal button:focus,
+.accessibility-modal input:focus,
+.accessibility-modal [tabindex]:focus {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.1);
+}
+
+/* Enhanced high contrast mode for accessibility modal */
+html[data-high-contrast="true"] .accessibility-modal {
+  border: 4px solid #ffffff !important;
+  background-color: #000000 !important;
+  box-shadow: 0 8px 32px rgba(255, 255, 255, 0.5) !important;
+}
+
+html[data-high-contrast="true"] .accessibility-modal .text-size-button,
+html[data-high-contrast="true"] .accessibility-modal button {
+  border: 3px solid #ffffff !important;
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .accessibility-modal button:hover,
+html[data-high-contrast="true"] .accessibility-modal .text-size-button:hover {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 4px #ffffff !important;
+}
+
+html[data-high-contrast="true"] .accessibility-modal button:focus {
+  outline: 4px solid #00ffff !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 8px rgba(0, 255, 255, 0.3) !important;
+}
+
+/* Accessibility modal responsive design */
+@media (max-width: 768px) {
+  .accessibility-modal {
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+    margin: 20px !important;
+  }
+  
+  /* Ensure clinical workspace header buttons stack properly on mobile */
+  .clinical-workspace .workspace-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .clinical-workspace .header-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .accessibility-modal {
+    max-width: 98vw !important;
+    max-height: 95vh !important;
+    margin: 10px !important;
+  }
+}
+
+/* Text size control button animations */
+.text-size-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.text-size-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.text-size-button:hover::before {
+  left: 100%;
+}
+
+/* Improved loading states for text size changes */
+.accessibility-loading {
+  position: relative;
+}
+
+.accessibility-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid transparent;
+  border-top: 2px solid var(--color-primary);
+  border-radius: 50%;
+  animation: accessibility-spinner 1s linear infinite;
+}
+
+@keyframes accessibility-spinner {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive design for header action buttons */
+@media (max-width: 768px) {
+  /* Stack title and buttons vertically on tablets */
+  .header-action-buttons {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+    margin-top: 12px;
+  }
+  
+  .header-action-buttons button {
+    width: 100%;
+    max-width: 160px;
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Smaller buttons for mobile screens */
+  .header-action-buttons {
+    gap: 6px;
+  }
+  
+  .header-action-buttons button {
+    font-size: 11px;
+    padding: 5px 10px;
+    max-width: 140px;
+  }
+}
+
+/* === COMPONENT-SPECIFIC HIGH CONTRAST ENHANCEMENTS === */
+
+/* Patient Census Card specific styling */
+html[data-high-contrast="true"] [data-component="patient-census"] .patient-list-item {
+  border-bottom: 2px solid #ffffff !important;
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+html[data-high-contrast="true"] [data-component="patient-census"] .patient-checkbox {
+  border: 3px solid #ffffff !important;
+  background: #000000 !important;
+  accent-color: #00ff00 !important;
+}
+
+html[data-high-contrast="true"] [data-component="patient-census"] .workflow-indicator {
+  border: 2px solid #ffffff !important;
+  background: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] [data-component="patient-census"] .status-complete {
+  background: #00ff00 !important;
+  color: #000000 !important;
+  border: 2px solid #00ff00 !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] [data-component="patient-census"] .status-in-progress {
+  background: #ffff00 !important;
+  color: #000000 !important;
+  border: 2px solid #ffff00 !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] [data-component="patient-census"] .status-incomplete {
+  background: #ff0000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ff0000 !important;
+  font-weight: 700 !important;
+}
+
+/* Batch Documentation Card specific styling */
+html[data-high-contrast="true"] [data-component="batch-documentation"] select {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] [data-component="batch-documentation"] input[type="checkbox"] {
+  border: 3px solid #ffffff !important;
+  background: #000000 !important;
+  accent-color: #00ff00 !important;
+}
+
+html[data-high-contrast="true"] [data-component="batch-documentation"] .progress-bar {
+  background: #000000 !important;
+  border: 2px solid #ffffff !important;
+}
+
+html[data-high-contrast="true"] [data-component="batch-documentation"] .progress-fill {
+  background: #00ff00 !important;
+}
+
+/* AI Enhancement Modal specific styling */
+html[data-high-contrast="true"] [data-component="ai-enhancement"] .model-selector {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] [data-component="ai-enhancement"] .status-indicator.online {
+  background: #00ff00 !important;
+  color: #000000 !important;
+  border: 2px solid #00ff00 !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] [data-component="ai-enhancement"] .status-indicator.offline {
+  background: #ff0000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ff0000 !important;
+  font-weight: 700 !important;
+}
+
+/* Accessibility Modal enhancements */
+html[data-high-contrast="true"] .accessibility-modal .text-size-button {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .accessibility-modal .text-size-button.selected {
+  background: #00ffff !important;
+  color: #000000 !important;
+  border: 2px solid #00ffff !important;
+}
+
+html[data-high-contrast="true"] .accessibility-modal .toggle-switch.checked {
+  background: #00ff00 !important;
+  border: 2px solid #00ff00 !important;
 }

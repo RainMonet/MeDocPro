@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import apiService from '../../services/api';
 
 // Helper function for theme-aware styling
 const getThemeStyles = (theme = 'dark') => ({
@@ -26,6 +27,25 @@ const getWorkflowDisplay = (workflowType) => {
   return workflowConfig[workflowType] || workflowConfig['follow-up'];
 };
 
+// Daily info status helper functions
+const getDailyInfoStatusText = (status) => {
+  const statusMap = {
+    'complete': 'Complete',
+    'in_progress': 'In Progress',
+    'incomplete': 'Incomplete'
+  };
+  return statusMap[status] || 'Incomplete';
+};
+
+const getDailyInfoStatusColor = (status) => {
+  const colorMap = {
+    'complete': '#10b981',      // Green
+    'in_progress': '#f59e0b',   // Orange
+    'incomplete': '#ef4444'     // Red
+  };
+  return colorMap[status] || '#ef4444';
+};
+
 // Individual patient row component
 const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -40,6 +60,7 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
 
   return (
     <div
+      className="patient-list-item"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -55,6 +76,7 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
     >
       {/* Selection Checkbox */}
       <div
+        className={`patient-checkbox ${isSelected ? 'selected' : ''}`}
         style={{
           width: '18px',
           height: '18px',
@@ -88,23 +110,18 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
           }}>
             {patient.patient_name || 'Unknown Patient'}
           </span>
-          <span style={{
-            fontSize: '12px',
-            color: styles.textMuted,
-            backgroundColor: styles.bgSecondary,
-            padding: '2px 6px',
-            borderRadius: '10px'
-          }}>
-            {patient.patient_id || 'No ID'}
-          </span>
-          {patient.room_number && (
-            <span style={{
+          <span 
+            className={`status-${patient.daily_info_status || 'incomplete'}`}
+            style={{
               fontSize: '12px',
-              color: styles.textMuted
+              color: getDailyInfoStatusColor(patient.daily_info_status),
+              backgroundColor: styles.bgSecondary,
+              padding: '2px 6px',
+              borderRadius: '10px',
+              fontWeight: '500'
             }}>
-              Room {patient.room_number}
-            </span>
-          )}
+            {getDailyInfoStatusText(patient.daily_info_status)}
+          </span>
         </div>
         
         {/* Additional patient data */}
@@ -123,6 +140,7 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
 
       {/* Workflow Type Indicator */}
       <div
+        className="workflow-indicator"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -229,7 +247,101 @@ const PatientCensusCard = ({
     });
   };
 
-  // Load patient census data
+  // Function to fetch daily info status for all patients
+  const fetchDailyInfoStatus = async (token) => {
+    try {
+      // First, get the template structure to know ALL expected fields
+      const templateResponse = await fetch(`${apiService.baseURL}/api/templates/top-used`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      let expectedFields = [];
+      if (templateResponse.ok) {
+        const templateData = await templateResponse.json();
+        if (templateData.success && templateData.templates.length > 0) {
+          // Get the most used template's placeholders
+          const template = templateData.templates[0];
+          expectedFields = template.placeholders ? template.placeholders.map(p => p.key) : [];
+        }
+      }
+      
+      // If we couldn't get template structure, fall back to common expected fields
+      if (expectedFields.length === 0) {
+        expectedFields = [
+          'last_name', 'first_name', 'chief_complaint', 'clinical_observations',
+          'medication_compliance', 'reported_side_effects', 'current_mood',
+          'suicidal_ideation', 'homicidal_ideation', 'perceptual_disturbances',
+          'sleep_quality', 'energy_level', 'clinical_assessment'
+        ];
+      }
+      
+      const response = await fetch(`${apiService.baseURL}/api/daily-info/today`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // Create a map of patient_id -> status
+          const statusMap = {};
+          data.entries.forEach(entry => {
+            const patientId = entry.patient_census_row_id;
+            const fieldValues = entry.field_values || {};
+            
+            // Check completion against ALL expected template fields
+            const completedFields = expectedFields.filter(fieldKey => {
+              const value = fieldValues[fieldKey];
+              return value && typeof value === 'string' && value.trim().length > 0;
+            });
+            
+            const totalExpectedFields = expectedFields.length;
+            const completedCount = completedFields.length;
+            
+            // Debug logging for status determination
+            console.log(`Patient ${patientId}: ${completedCount}/${totalExpectedFields} expected fields completed`);
+            console.log(`Patient ${patientId} completed fields:`, completedFields);
+            console.log(`Patient ${patientId} missing fields:`, expectedFields.filter(f => !completedFields.includes(f)));
+            
+            // More reasonable completion logic:
+            // Complete = At least 80% of expected fields completed AND key fields filled
+            const completionPercentage = totalExpectedFields > 0 ? (completedCount / totalExpectedFields) : 0;
+            const keyFields = ['chief_complaint', 'clinical_observations', 'clinical_assessment'];
+            const keyFieldsCompleted = keyFields.filter(field => {
+              const value = fieldValues[field];
+              return value && typeof value === 'string' && value.trim().length > 0;
+            });
+            const hasKeyFields = keyFieldsCompleted.length >= 2; // At least 2 of 3 key fields
+            
+            if (completionPercentage >= 0.8 && hasKeyFields && totalExpectedFields > 0) {
+              statusMap[patientId] = 'complete';
+              console.log(`Patient ${patientId}: COMPLETE - ${(completionPercentage * 100).toFixed(1)}% completion with key fields`);
+            } else if (completedCount > 0 || hasKeyFields) {
+              // Has some meaningful data
+              statusMap[patientId] = 'in_progress';
+              console.log(`Patient ${patientId}: IN PROGRESS - ${completedCount}/${totalExpectedFields} fields filled (${(completionPercentage * 100).toFixed(1)}%)`);
+            } else {
+              // No meaningful content
+              statusMap[patientId] = 'incomplete';
+              console.log(`Patient ${patientId}: INCOMPLETE - no meaningful content`);
+            }
+          });
+          return statusMap;
+        }
+      }
+      return {};
+    } catch (error) {
+      console.warn('Failed to fetch daily info status:', error);
+      return {};
+    }
+  };
+
+  // Load patient census data with daily info status
   const loadPatients = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -242,7 +354,8 @@ const PatientCensusCard = ({
       setLoading(true);
       setError('');
       
-      const response = await fetch('http://localhost:5000/api/patient-census/today', {
+      // Load patient census data
+      const response = await fetch(`${apiService.baseURL}/api/patient-census/today`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -252,7 +365,10 @@ const PatientCensusCard = ({
       const data = await response.json();
       
       if (data.success && data.census) {
-        // Use existing workflow_type or status, ensure consistency
+        // Fetch daily info status for all patients
+        const dailyInfoStatusMap = await fetchDailyInfoStatus(token);
+        
+        // Use existing workflow_type or status, ensure consistency and add daily info status
         const patientsWithStatus = data.census.rows.map(patient => {
           const workflowType = patient.workflow_type || patient.status || 'follow-up';
           
@@ -262,7 +378,8 @@ const PatientCensusCard = ({
           
           return {
             ...patient,
-            workflow_type: normalizedWorkflowType
+            workflow_type: normalizedWorkflowType,
+            daily_info_status: dailyInfoStatusMap[patient.id] || 'incomplete'
           };
         });
         
@@ -272,6 +389,13 @@ const PatientCensusCard = ({
           return acc;
         }, {});
         console.log('Workflow type distribution:', workflowCounts);
+        
+        // Debug: Log daily info status distribution
+        const statusCounts = patientsWithStatus.reduce((acc, patient) => {
+          acc[patient.daily_info_status] = (acc[patient.daily_info_status] || 0) + 1;
+          return acc;
+        }, {});
+        console.log('Daily info status distribution:', statusCounts);
         
         setPatients(sortPatients(patientsWithStatus));
       } else {
@@ -332,7 +456,7 @@ const PatientCensusCard = ({
 
     try {
       // Update in backend
-      const response = await fetch(`http://localhost:5000/api/patient-census/rows/${patientId}`, {
+      const response = await fetch(`${apiService.baseURL}/api/patient-census/rows/${patientId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
