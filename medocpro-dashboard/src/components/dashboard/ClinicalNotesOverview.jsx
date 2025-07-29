@@ -1,294 +1,164 @@
 import React, { useState, useEffect } from 'react';
 
-// Visual aging color system matching scratch pad
-const getAgeStageDisplay = (ageStage) => {
-  const stageConfig = {
-    fresh: { 
-      color: '#10b981', 
-      bgColor: 'rgba(16, 185, 129, 0.1)', 
-      icon: '🟢', 
-      label: 'Fresh',
-      description: 'Just created'
-    },
-    aging: { 
-      color: '#f59e0b', 
-      bgColor: 'rgba(245, 158, 11, 0.1)', 
-      icon: '🟡', 
-      label: 'Aging',
-      description: '2-3 days old'
-    },
-    mature: { 
-      color: '#ea580c', 
-      bgColor: 'rgba(234, 88, 12, 0.1)', 
-      icon: '🟠', 
-      label: 'Mature',
-      description: '4-5 days old'
-    },
-    expiring: { 
-      color: '#ef4444', 
-      bgColor: 'rgba(239, 68, 68, 0.1)', 
-      icon: '🔴', 
-      label: 'Expiring',
-      description: 'Burns soon!'
-    },
-    expired: { 
-      color: '#b91c1c', 
-      bgColor: 'rgba(185, 28, 28, 0.1)', 
-      icon: '💀', 
-      label: 'Expired',
-      description: 'Auto-deleted'
-    }
-  };
-  return stageConfig[ageStage] || stageConfig.fresh;
-};
-
-// Group notes by day
-const groupNotesByDay = (notes) => {
-  const groups = {};
-  const today = new Date();
-  
-  notes.forEach(note => {
-    const createdDate = new Date(note.created_at);
-    const daysDiff = Math.floor((today - createdDate) / (1000 * 60 * 60 * 24));
-    
-    let dayKey;
-    if (daysDiff === 0) {
-      dayKey = 'Today';
-    } else if (daysDiff === 1) {
-      dayKey = 'Yesterday';
-    } else {
-      dayKey = `${daysDiff} days ago`;
-    }
-    
-    if (!groups[dayKey]) {
-      groups[dayKey] = [];
-    }
-    groups[dayKey].push(note);
-  });
-  
-  return groups;
-};
-
-// Individual day row component
-const DayRow = ({ dayLabel, notes, onClick }) => {
-  if (!notes || notes.length === 0) return null;
-  
-  // Group notes by age stage for this day
-  const stageGroups = {};
-  notes.forEach(note => {
-    const stage = note.visual_age_stage;
-    if (!stageGroups[stage]) {
-      stageGroups[stage] = [];
-    }
-    stageGroups[stage].push(note);
-  });
-  
-  // Get the most critical stage for this day
-  const stages = ['expired', 'expiring', 'mature', 'aging', 'fresh'];
-  const criticalStage = stages.find(stage => stageGroups[stage]?.length > 0) || 'fresh';
-  const stageDisplay = getAgeStageDisplay(criticalStage);
-  
-  return (
-    <div 
-      onClick={() => onClick && onClick(notes)}
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '12px 16px',
-        marginBottom: '8px',
-        backgroundColor: stageDisplay.bgColor,
-        borderLeft: `4px solid ${stageDisplay.color}`,
-        borderRadius: '6px',
-        cursor: onClick ? 'pointer' : 'default',
-        transition: 'all 0.2s ease'
-      }}
-      onMouseEnter={(e) => {
-        if (onClick) {
-          e.target.style.backgroundColor = stageDisplay.bgColor.replace('0.1', '0.15');
-          e.target.style.transform = 'translateX(2px)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (onClick) {
-          e.target.style.backgroundColor = stageDisplay.bgColor;
-          e.target.style.transform = 'translateX(0)';
-        }
-      }}
-    >
-      <div style={{ flex: 1 }}>
-        <div style={{
-          fontSize: '14px',
-          fontWeight: '500',
-          color: 'var(--text-primary)',
-          marginBottom: '2px'
-        }}>
-          {dayLabel} ({notes.length} note{notes.length !== 1 ? 's' : ''})
-        </div>
-        <div style={{
-          fontSize: '11px',
-          color: 'var(--text-muted)'
-        }}>
-          {Object.entries(stageGroups).map(([stage, stageNotes]) => (
-            <span key={stage} style={{ marginRight: '8px' }}>
-              {getAgeStageDisplay(stage).icon} {stageNotes.length}
-            </span>
-          ))}
-        </div>
-      </div>
-      
+// AI Analysis Metrics Component
+const AnalysisMetrics = ({ analysisData }) => {
+  if (!analysisData || Object.keys(analysisData).length === 0) {
+    return (
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px'
+        textAlign: 'center',
+        padding: '40px 20px',
+        color: 'var(--text-muted)'
       }}>
-        <span style={{
-          fontSize: '12px',
-          fontWeight: '500',
-          color: stageDisplay.color
-        }}>
-          {stageDisplay.icon} {stageDisplay.label}
-        </span>
-        {onClick && (
-          <span style={{
-            fontSize: '12px',
-            color: 'var(--text-muted)'
-          }}>
-            →
-          </span>
-        )}
+        <div style={{ fontSize: '32px', marginBottom: '12px' }}>🤖</div>
+        <div style={{ fontSize: '14px', marginBottom: '8px' }}>No analysis data available</div>
+        <div style={{ fontSize: '12px' }}>
+          AI analysis will appear here once clinical notes are processed
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  }
 
-// Summary stats component
-const SummaryStats = ({ notes }) => {
-  const totalNotes = notes.length;
-  const expiringToday = notes.filter(n => n.days_until_expiration === 0).length;
-  const expiringSoon = notes.filter(n => n.days_until_expiration <= 1 && n.days_until_expiration > 0).length;
-  const transferred = notes.filter(n => n.transferred_to_census).length;
-  
   return (
     <div style={{
-      padding: '12px 16px',
-      backgroundColor: 'rgba(59, 130, 246, 0.05)',
-      borderRadius: '6px',
-      marginTop: '8px'
+      display: 'grid',
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gap: '12px',
+      marginBottom: '16px'
     }}>
+      {/* Documentation Completeness */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
-        gap: '8px',
-        fontSize: '12px'
+        padding: '12px 16px',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        borderLeft: '4px solid #10b981',
+        borderRadius: '6px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '16px' }}>📝</span>
-          <span style={{ color: 'var(--text-primary)' }}>
-            <strong>{totalNotes}</strong> total notes
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '4px'
+        }}>
+          <span style={{ fontSize: '16px' }}>📋</span>
+          <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
+            Avg. Completeness
           </span>
         </div>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '16px' }}>📊</span>
-          <span style={{ color: 'var(--text-primary)' }}>
-            <strong>{transferred}</strong> transferred
+        <div style={{ fontSize: '20px', fontWeight: '700', color: '#10b981' }}>
+          {analysisData.avgCompleteness || '--'}%
+        </div>
+      </div>
+
+      {/* Risk Flags */}
+      <div style={{
+        padding: '12px 16px',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        borderLeft: '4px solid #ef4444',
+        borderRadius: '6px'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '4px'
+        }}>
+          <span style={{ fontSize: '16px' }}>⚠️</span>
+          <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
+            Risk Flags
           </span>
         </div>
-        
-        {expiringToday > 0 && (
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '6px',
-            gridColumn: '1 / -1',
-            padding: '4px 8px',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            borderRadius: '4px'
-          }}>
-            <span style={{ fontSize: '16px' }}>🔥</span>
-            <span style={{ color: '#ef4444', fontWeight: '500' }}>
-              <strong>{expiringToday}</strong> note{expiringToday !== 1 ? 's' : ''} expire{expiringToday === 1 ? 's' : ''} today!
-            </span>
-          </div>
-        )}
-        
-        {expiringSoon > 0 && expiringToday === 0 && (
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '6px',
-            gridColumn: '1 / -1',
-            padding: '4px 8px',
-            backgroundColor: 'rgba(245, 158, 11, 0.1)',
-            borderRadius: '4px'
-          }}>
-            <span style={{ fontSize: '16px' }}>⚠️</span>
-            <span style={{ color: '#f59e0b', fontWeight: '500' }}>
-              <strong>{expiringSoon}</strong> note{expiringSoon !== 1 ? 's' : ''} expire{expiringSoon === 1 ? 's' : ''} tomorrow
-            </span>
-          </div>
-        )}
+        <div style={{ fontSize: '20px', fontWeight: '700', color: '#ef4444' }}>
+          {analysisData.riskFlags || 0}
+        </div>
+      </div>
+
+      {/* Trend Analysis */}
+      <div style={{
+        padding: '12px 16px',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderLeft: '4px solid #3b82f6',
+        borderRadius: '6px'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '4px'
+        }}>
+          <span style={{ fontSize: '16px' }}>📈</span>
+          <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
+            Trends Detected
+          </span>
+        </div>
+        <div style={{ fontSize: '20px', fontWeight: '700', color: '#3b82f6' }}>
+          {analysisData.trendsDetected || 0}
+        </div>
+      </div>
+
+      {/* Care Gaps */}
+      <div style={{
+        padding: '12px 16px',
+        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+        borderLeft: '4px solid #f59e0b',
+        borderRadius: '6px'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '4px'
+        }}>
+          <span style={{ fontSize: '16px' }}>🔍</span>
+          <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
+            Care Gaps
+          </span>
+        </div>
+        <div style={{ fontSize: '20px', fontWeight: '700', color: '#f59e0b' }}>
+          {analysisData.careGaps || 0}
+        </div>
       </div>
     </div>
   );
 };
 
-// Main Clinical Notes Overview component
-const ClinicalNotesOverview = ({ onOpenClinicalWorkflow }) => {
-  const [notes, setNotes] = useState([]);
+// AI Analysis Overview Component
+const AIAnalysisOverview = ({ onOpenClinicalWorkflow }) => {
+  const [analysisData, setAnalysisData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Load scratch notes
-  const loadNotes = async () => {
+  // Load AI analysis data
+  const loadAnalysisData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/scratch-notes');
-      const data = await response.json();
-      
-      if (data.success) {
-        setNotes(data.scratch_notes || []);
-      } else {
-        setError(data.error || 'Failed to load notes');
-      }
+      // This will connect to our AI analysis endpoints once implemented
+      // For now, simulate loading
+      setTimeout(() => {
+        setAnalysisData({
+          // Placeholder data - will be replaced with real AI analysis
+          avgCompleteness: null,
+          riskFlags: 0,
+          trendsDetected: 0,
+          careGaps: 0
+        });
+        setLoading(false);
+      }, 1000);
     } catch (err) {
-      setError('Network error loading notes');
-    } finally {
+      setError('Failed to load AI analysis data');
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadNotes();
-    // Refresh every 2 minutes
-    const interval = setInterval(loadNotes, 2 * 60 * 1000);
+    loadAnalysisData();
+    // Refresh every 5 minutes when AI analysis is active
+    const interval = setInterval(loadAnalysisData, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
-
-  const handleDayClick = (dayNotes) => {
-    if (onOpenClinicalWorkflow) {
-      onOpenClinicalWorkflow('scratch');
-    }
-  };
-
-  const groupedNotes = groupNotesByDay(notes);
-  const dayKeys = Object.keys(groupedNotes).sort((a, b) => {
-    // Sort by recency (Today, Yesterday, 2 days ago, etc.)
-    if (a === 'Today') return -1;
-    if (b === 'Today') return 1;
-    if (a === 'Yesterday') return -1;
-    if (b === 'Yesterday') return 1;
-    
-    const daysA = parseInt(a.match(/(\d+) days ago/)?.[1] || '0');
-    const daysB = parseInt(b.match(/(\d+) days ago/)?.[1] || '0');
-    return daysA - daysB;
-  });
 
   if (loading) {
     return (
       <div className="system-status" style={{ minHeight: '200px' }}>
-        <h3>📝 Clinical Notes Overview</h3>
+        <h3>🧠 AI Clinical Analysis</h3>
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
@@ -297,7 +167,7 @@ const ClinicalNotesOverview = ({ onOpenClinicalWorkflow }) => {
           color: 'var(--text-muted)'
         }}>
           <div className="loading-spinner" style={{ width: '20px', height: '20px', marginRight: '8px' }}></div>
-          Loading notes...
+          Analyzing clinical data...
         </div>
       </div>
     );
@@ -305,8 +175,8 @@ const ClinicalNotesOverview = ({ onOpenClinicalWorkflow }) => {
 
   return (
     <div className="system-status" style={{ minHeight: '200px' }}>
-      <h3>📝 Clinical Notes Overview</h3>
-      <p>Daily scratch notes with visual burn indicators</p>
+      <h3>🧠 AI Clinical Analysis</h3>
+      <p>Automated insights from clinical documentation</p>
       
       {error && (
         <div style={{
@@ -323,56 +193,36 @@ const ClinicalNotesOverview = ({ onOpenClinicalWorkflow }) => {
       )}
 
       <div className="status-grid">
-        {notes.length === 0 ? (
-          <div style={{
-            textAlign: 'center',
-            padding: '40px 20px',
-            color: 'var(--text-muted)'
-          }}>
-            <div style={{ fontSize: '32px', marginBottom: '12px' }}>📝</div>
-            <div style={{ fontSize: '14px', marginBottom: '8px' }}>No clinical notes yet</div>
-            <div style={{ fontSize: '12px' }}>
-              Create your first scratch note to track clinical observations
-            </div>
-            {onOpenClinicalWorkflow && (
-              <button
-                onClick={() => onOpenClinicalWorkflow('scratch')}
-                style={{
-                  marginTop: '12px',
-                  padding: '6px 12px',
-                  backgroundColor: '#059669',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  cursor: 'pointer'
-                }}
-              >
-                Create First Note
-              </button>
-            )}
+        <AnalysisMetrics analysisData={analysisData} />
+        
+        {/* Development Notice */}
+        <div style={{
+          padding: '12px 16px',
+          backgroundColor: 'rgba(59, 130, 246, 0.05)',
+          border: '1px solid rgba(59, 130, 246, 0.2)',
+          borderRadius: '6px',
+          fontSize: '12px',
+          color: 'var(--text-primary)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <span style={{ fontSize: '16px' }}>🚧</span>
+            <strong>AI Analysis Features In Development</strong>
           </div>
-        ) : (
-          <>
-            {dayKeys.map(dayKey => (
-              <DayRow
-                key={dayKey}
-                dayLabel={dayKey}
-                notes={groupedNotes[dayKey]}
-                onClick={handleDayClick}
-              />
-            ))}
-            
-            <SummaryStats notes={notes} />
-          </>
-        )}
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+            • Documentation completeness scoring<br/>
+            • Symptom tracking and extraction<br/>
+            • Risk flag detection<br/>
+            • Care gap identification<br/>
+            • Clinical trend analysis
+          </div>
+        </div>
       </div>
 
       <div className="last-checked">
-        Last updated: {new Date().toLocaleTimeString()}
+        Last analysis: {new Date().toLocaleTimeString()}
       </div>
     </div>
   );
 };
 
-export default ClinicalNotesOverview;
+export default AIAnalysisOverview;

@@ -4,7 +4,7 @@ import Header from './components/layout/Header';
 import Sidebar from './components/layout/Sidebar';
 import SidebarToggle from './components/layout/SidebarToggle';
 import StatCard from './components/ui/StatCard';
-import { SystemStatus, ClinicalNotesOverview, RecentDocuments } from './components/dashboard';
+import { SystemStatus, AIAnalysisOverview, RecentDocuments } from './components/dashboard';
 import { PatientCensusModal } from './components/modals';
 import DailyInfoEntryModal from './components/modals/DailyInfoEntryModal';
 import AccessibilityModal from './components/modals/AccessibilityModal';
@@ -402,7 +402,7 @@ function App() {
               {/* Dashboard Content Row */}
               <div className="dashboard-row">
                 <SystemStatus />
-                <ClinicalNotesOverview onOpenClinicalWorkflow={(view) => {
+                <AIAnalysisOverview onOpenClinicalWorkflow={(view) => {
                   setViewMode('workspace');
                   // Switch to workspace view instead of modal
                 }} />
