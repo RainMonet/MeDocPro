@@ -898,8 +898,13 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
           </div>
         )}
 
-        {/* Patient List */}
-        <div style={{ flex: 1, overflow: 'auto' }}>
+        {/* Patient List with Sticky Headers */}
+        <div style={{ 
+          flex: 1, 
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
           {loading ? (
             <div style={{
               padding: '40px',
@@ -913,121 +918,151 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
               <div style={{ color: styles.textMuted }}>Loading patient census...</div>
             </div>
           ) : (
-            <table style={{
-              width: '100%',
-              borderCollapse: 'collapse'
-            }}>
-              <thead>
-                <tr style={{
-                  backgroundColor: styles.bgSecondary,
-                  borderBottom: `2px solid ${styles.borderColor}`
+            <>
+              {/* Sticky Header */}
+              <div style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                backgroundColor: styles.bgSecondary,
+                borderBottom: `2px solid ${styles.borderColor}`,
+                flexShrink: 0
+              }}>
+                <table style={{
+                  width: '100%',
+                  borderCollapse: 'collapse'
                 }}>
-                  <th 
-                    style={{
-                      padding: '12px 16px',
-                      textAlign: 'left',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      color: styles.textPrimary,
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      position: 'relative'
-                    }}
-                    onClick={() => handleSort('type')}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      Workflow Type
-                      <span style={{ 
-                        opacity: sortBy === 'type' ? 1 : 0.3,
-                        fontSize: '10px'
+                  <thead>
+                    <tr>
+                      <th 
+                        style={{
+                          padding: '12px 16px',
+                          textAlign: 'left',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: styles.textPrimary,
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                          width: '140px',
+                          minWidth: '140px'
+                        }}
+                        onClick={() => handleSort('type')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          Workflow Type
+                          <span style={{ 
+                            opacity: sortBy === 'type' ? 1 : 0.3,
+                            fontSize: '10px'
+                          }}>
+                            {sortBy === 'type' && sortOrder === 'asc' ? '↑' : '↓'}
+                          </span>
+                        </div>
+                      </th>
+                      <th 
+                        style={{
+                          padding: '12px 16px',
+                          textAlign: 'left',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: styles.textPrimary,
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                          width: '250px',
+                          minWidth: '250px'
+                        }}
+                        onClick={() => handleSort('name')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          Patient Name
+                          <span style={{ 
+                            opacity: sortBy === 'name' ? 1 : 0.3,
+                            fontSize: '10px'
+                          }}>
+                            {sortBy === 'name' && sortOrder === 'asc' ? '↑' : '↓'}
+                          </span>
+                        </div>
+                      </th>
+                      <th style={{
+                        padding: '12px 16px',
+                        textAlign: 'left',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: styles.textPrimary,
+                        width: '120px',
+                        minWidth: '120px'
                       }}>
-                        {sortBy === 'type' && sortOrder === 'asc' ? '↑' : '↓'}
-                      </span>
-                    </div>
-                  </th>
-                  <th 
-                    style={{
-                      padding: '12px 16px',
-                      textAlign: 'left',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      color: styles.textPrimary,
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      position: 'relative'
-                    }}
-                    onClick={() => handleSort('name')}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      Patient Name
-                      <span style={{ 
-                        opacity: sortBy === 'name' ? 1 : 0.3,
-                        fontSize: '10px'
+                        Patient ID
+                      </th>
+                      <th style={{
+                        padding: '12px 16px',
+                        textAlign: 'left',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: styles.textPrimary,
+                        width: '80px',
+                        minWidth: '80px'
                       }}>
-                        {sortBy === 'name' && sortOrder === 'asc' ? '↑' : '↓'}
-                      </span>
-                    </div>
-                  </th>
-                  <th style={{
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    color: styles.textPrimary
-                  }}>
-                    Patient ID
-                  </th>
-                  <th style={{
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    color: styles.textPrimary
-                  }}>
-                    Room
-                  </th>
-                  <th style={{
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    color: styles.textPrimary
-                  }}>
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedPatients.length > 0 ? (
-                  sortedPatients.map(patient => (
-                    <EditablePatientRow
-                      key={patient.id}
-                      patient={patient}
-                      onUpdate={handleUpdatePatient}
-                      onDelete={handleDeletePatient}
-                      theme={theme}
-                    />
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      style={{
-                        padding: '40px',
-                        textAlign: 'center',
-                        color: styles.textMuted
-                      }}
-                    >
-                      <div style={{ fontSize: '16px', marginBottom: '12px', fontWeight: '500', color: styles.textMuted }}>No Data</div>
-                      <div>No patients in census</div>
-                      <div style={{ fontSize: '12px', marginTop: '4px' }}>
-                        Add patients using the form above
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                        Room
+                      </th>
+                      <th style={{
+                        padding: '12px 16px',
+                        textAlign: 'left',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: styles.textPrimary,
+                        width: '120px',
+                        minWidth: '120px'
+                      }}>
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                </table>
+              </div>
+
+              {/* Scrollable Body */}
+              <div style={{
+                flex: 1,
+                overflow: 'auto',
+                maxHeight: 'calc(90vh - 320px)' // Adjust based on modal height minus header/form sections
+              }}>
+                <table style={{
+                  width: '100%',
+                  borderCollapse: 'collapse'
+                }}>
+                  <tbody>
+                    {sortedPatients.length > 0 ? (
+                      sortedPatients.map(patient => (
+                        <EditablePatientRow
+                          key={patient.id}
+                          patient={patient}
+                          onUpdate={handleUpdatePatient}
+                          onDelete={handleDeletePatient}
+                          theme={theme}
+                        />
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          style={{
+                            padding: '40px',
+                            textAlign: 'center',
+                            color: styles.textMuted
+                          }}
+                        >
+                          <div style={{ fontSize: '16px', marginBottom: '12px', fontWeight: '500', color: styles.textMuted }}>No Data</div>
+                          <div>No patients in census</div>
+                          <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                            Add patients using the form above
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>

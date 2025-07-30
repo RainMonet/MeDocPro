@@ -65,6 +65,10 @@ def create_app(config_class=Config):
         from .routes.ai_enhancement import ai_bp
         app.register_blueprint(ai_bp, url_prefix='/api/ai')
         
+        # AI analysis endpoints
+        from .routes.ai_analysis import ai_analysis_bp
+        app.register_blueprint(ai_analysis_bp)
+        
         # Monitoring endpoints (disabled temporarily for database init)
         try:
             from .routes.monitoring import monitoring_bp

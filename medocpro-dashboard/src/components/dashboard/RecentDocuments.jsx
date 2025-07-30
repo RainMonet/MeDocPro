@@ -47,6 +47,43 @@ const getDocumentTypeDisplay = (type) => {
   }
 };
 
+// Helper function to calculate days remaining before deletion
+const getDaysRemaining = (finalizedAt) => {
+  const finalizedDate = new Date(finalizedAt);
+  const deletionDate = new Date(finalizedDate);
+  deletionDate.setDate(deletionDate.getDate() + 7); // Add 7 days
+  
+  const now = new Date();
+  const timeDiff = deletionDate.getTime() - now.getTime();
+  const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
+  
+  return Math.max(0, daysRemaining); // Don't return negative days
+};
+
+// Helper function to get color coding for days remaining
+const getDaysRemainingColor = (daysRemaining, styles) => {
+  if (daysRemaining <= 1) {
+    return styles.errorColor; // Red for urgent (1 day or less)
+  } else if (daysRemaining <= 2) {
+    return styles.warningColor; // Orange/yellow for warning (2 days)
+  } else if (daysRemaining <= 4) {
+    return '#f59e0b'; // Amber for caution (3-4 days)
+  } else {
+    return styles.successColor; // Green for safe (5+ days)
+  }
+};
+
+// Helper function to get deletion urgency text
+const getDaysRemainingText = (daysRemaining) => {
+  if (daysRemaining === 0) {
+    return 'Expires today';
+  } else if (daysRemaining === 1) {
+    return '1 day left';
+  } else {
+    return `${daysRemaining} days left`;
+  }
+};
+
 // Individual document row component
 const DocumentListItem = ({ document, theme, isSelected, onSelect, onView, loadingContent }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -148,17 +185,42 @@ const DocumentListItem = ({ document, theme, isSelected, onSelect, onView, loadi
         </div>
       </div>
 
-      {/* Status Indicator */}
+      {/* Days Remaining Indicator */}
       <div style={{
-        fontSize: '11px',
-        fontWeight: '500',
-        color: getStatusColor(document.status),
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
         marginLeft: '12px',
-        marginRight: '12px'
+        marginRight: '12px',
+        minWidth: '80px'
       }}>
-        {getStatusDisplay(document.status)}
+        {/* Days remaining badge */}
+        <div style={{
+          fontSize: '10px',
+          fontWeight: '600',
+          color: 'white',
+          backgroundColor: getDaysRemainingColor(getDaysRemaining(document.finalized_at), styles),
+          padding: '3px 8px',
+          borderRadius: '12px',
+          textAlign: 'center',
+          marginBottom: '2px',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+          minWidth: '65px'
+        }}>
+          {getDaysRemainingText(getDaysRemaining(document.finalized_at))}
+        </div>
+        
+        {/* Status indicator (smaller) */}
+        <div style={{
+          fontSize: '9px',
+          fontWeight: '500',
+          color: getStatusColor(document.status),
+          textTransform: 'uppercase',
+          letterSpacing: '0.3px',
+          opacity: 0.8
+        }}>
+          {getStatusDisplay(document.status)}
+        </div>
       </div>
 
       {/* View Button */}

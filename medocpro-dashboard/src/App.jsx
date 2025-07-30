@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/layout/Header';
 import Sidebar from './components/layout/Sidebar';
 import SidebarToggle from './components/layout/SidebarToggle';
-import StatCard from './components/ui/StatCard';
 import { SystemStatus, AIAnalysisOverview, RecentDocuments } from './components/dashboard';
 import { PatientCensusModal } from './components/modals';
 import DailyInfoEntryModal from './components/modals/DailyInfoEntryModal';
@@ -371,34 +370,6 @@ function App() {
             />
           ) : (
             <div className="dashboard-grid">
-              {/* Statistics Cards */}
-              <div className="stats-row">
-                <StatCard 
-                  value="24" 
-                  label="Active Templates" 
-                  change="+3 this week" 
-                  trend="positive" 
-                />
-                <StatCard 
-                  value="156" 
-                  label="Documents Created" 
-                  change="+12 today" 
-                  trend="positive" 
-                />
-                <StatCard 
-                  value="89%" 
-                  label="AI Efficiency" 
-                  change="+5% this month" 
-                  trend="positive" 
-                />
-                <StatCard 
-                  value="42" 
-                  label="Patient Records" 
-                  change="+8 today" 
-                  trend="positive" 
-                />
-              </div>
-
               {/* Dashboard Content Row */}
               <div className="dashboard-row">
                 <SystemStatus />

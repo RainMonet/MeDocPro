@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import apiService from '../../services/api';
 
+// Custom toggle switch implemented with pure div styling - no CSS conflicts
+
 // Helper function for theme-aware styling
 const getThemeStyles = (theme = 'dark') => ({
   textPrimary: theme === 'dark' ? '#f1f5f9' : '#2d1810',
@@ -617,15 +619,6 @@ const BatchDocumentationCard = ({
           <div>
             {/* Template Selection */}
             <div style={{ marginBottom: '16px' }}>
-              <div style={{ marginBottom: '8px' }}>
-                <label style={{
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  color: styles.textSecondary
-                }}>
-                  Select Template
-                </label>
-              </div>
               <TemplateSelector 
                 onSelect={handleTemplateSelect}
                 theme={currentTheme}
@@ -647,12 +640,6 @@ const BatchDocumentationCard = ({
               )}
             </div>
 
-            {/* Export Format */}
-            <ExportFormatSelector
-              value={exportFormat}
-              onChange={setExportFormat}
-              theme={currentTheme}
-            />
 
             {/* AI Enhancement Toggle */}
             <div style={{
@@ -660,12 +647,11 @@ const BatchDocumentationCard = ({
               justifyContent: 'space-between',
               alignItems: 'center',
               marginBottom: '20px',
-              padding: '16px',
+              padding: '12px 16px',
               backgroundColor: styles.bgSecondary,
               borderRadius: '8px',
               border: `1px solid ${aiEnhancement && aiEnhancementAvailable ? styles.successColor : styles.borderColor}`,
               opacity: aiEnhancementAvailable ? 1 : 0.6,
-              minHeight: '64px',
               transition: 'all 0.3s ease',
               boxShadow: aiEnhancement && aiEnhancementAvailable ? `0 2px 8px ${styles.successColor}20` : 'none'
             }}>
@@ -688,85 +674,51 @@ const BatchDocumentationCard = ({
                 </div>
               </div>
               <div style={{ flexShrink: 0 }}>
-                <button
+                {/* Custom toggle switch component */}
+                <div 
                   onClick={() => aiEnhancementAvailable && setAiEnhancement(!aiEnhancement)}
-                  disabled={!aiEnhancementAvailable}
                   style={{
-                    width: '56px',
-                    height: '32px',
-                    backgroundColor: aiEnhancement && aiEnhancementAvailable ? styles.successColor : styles.bgAccent,
-                    border: `2px solid ${aiEnhancement && aiEnhancementAvailable ? styles.successColor : styles.borderColor}`,
-                    borderRadius: '16px',
+                    width: '44px',
+                    height: '24px',
+                    backgroundColor: aiEnhancement && aiEnhancementAvailable ? styles.successColor : '#64748b',
+                    borderRadius: '12px',
                     position: 'relative',
                     cursor: aiEnhancementAvailable ? 'pointer' : 'not-allowed',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transition: 'all 0.2s ease',
                     opacity: aiEnhancementAvailable ? 1 : 0.5,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    outline: 'none',
-                    boxShadow: aiEnhancement && aiEnhancementAvailable ? 
-                      `0 4px 12px ${styles.successColor}30, inset 0 1px 0 rgba(255, 255, 255, 0.1)` : 
-                      `0 2px 4px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)`
-                  }}
-                  onMouseOver={(e) => {
-                    if (aiEnhancementAvailable) {
-                      e.target.style.transform = 'scale(1.05)';
-                    }
-                  }}
-                  onMouseOut={(e) => {
-                    if (aiEnhancementAvailable) {
-                      e.target.style.transform = 'scale(1)';
-                    }
+                    boxShadow: 'rgba(0, 0, 0, 0.2) 0px 1px 2px inset',
+                    transform: 'translateZ(0)' // Force hardware acceleration
                   }}
                 >
-                  <div style={{
-                    width: '24px',
-                    height: '24px',
-                    backgroundColor: 'white',
-                    borderRadius: '50%',
-                    position: 'absolute',
-                    top: '2px',
-                    left: aiEnhancement && aiEnhancementAvailable ? '28px' : '2px',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15), 0 1px 2px rgba(0, 0, 0, 0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    color: aiEnhancement && aiEnhancementAvailable ? styles.successColor : styles.textMuted
-                  }}>
-                    {aiEnhancement && aiEnhancementAvailable ? '✓' : ''}
+                  {/* Toggle thumb */}
+                  <div 
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      backgroundColor: 'white',
+                      borderRadius: '50%',
+                      position: 'absolute',
+                      top: '2px',
+                      left: aiEnhancement && aiEnhancementAvailable ? '22px' : '2px',
+                      transition: 'all 0.2s ease',
+                      boxShadow: 'rgba(0, 0, 0, 0.3) 0px 1px 3px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transform: 'translateZ(0)' // Force hardware acceleration
+                    }}>
+                    {/* Optional checkmark */}
+                    {aiEnhancement && aiEnhancementAvailable && (
+                      <div style={{
+                        fontSize: '10px',
+                        color: styles.successColor,
+                        fontWeight: 'bold'
+                      }}>
+                        ✓
+                      </div>
+                    )}
                   </div>
-                  {/* Track indicator for ON state */}
-                  {aiEnhancement && aiEnhancementAvailable && (
-                    <div style={{
-                      position: 'absolute',
-                      left: '6px',
-                      fontSize: '9px',
-                      fontWeight: '600',
-                      color: 'white',
-                      textShadow: '0 1px 1px rgba(0, 0, 0, 0.3)',
-                      opacity: 0.9
-                    }}>
-                      ON
-                    </div>
-                  )}
-                  {/* Track indicator for OFF state */}
-                  {(!aiEnhancement || !aiEnhancementAvailable) && (
-                    <div style={{
-                      position: 'absolute',
-                      right: '8px',
-                      fontSize: '9px',
-                      fontWeight: '600',
-                      color: styles.textMuted,
-                      opacity: 0.7
-                    }}>
-                      OFF
-                    </div>
-                  )}
-                </button>
+                </div>
               </div>
             </div>
 

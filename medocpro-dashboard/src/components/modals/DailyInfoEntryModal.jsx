@@ -379,6 +379,29 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
     return () => observer.disconnect();
   }, []);
 
+  // CRITICAL: Prevent data loss on page unload
+  useEffect(() => {
+    if (isOpen) {
+      const handleBeforeUnload = (event) => {
+        // Check if there's unsaved data
+        const hasUnsavedData = Object.keys(fieldValues).some(patientId => 
+          Object.keys(fieldValues[patientId] || {}).some(field => 
+            field !== 'last_name' && field !== 'first_name' && fieldValues[patientId][field]
+          )
+        );
+        
+        if (hasUnsavedData) {
+          preserveAllDataToLocalStorage();
+          event.preventDefault();
+          event.returnValue = 'You have unsaved daily information. Your data will be preserved, but are you sure you want to leave?';
+        }
+      };
+      
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }
+  }, [isOpen, fieldValues]);
+
   // Load available templates only when modal is open to avoid overloading backend
   useEffect(() => {
     if (!isOpen) return;
@@ -679,6 +702,21 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
   useEffect(() => {
     if (isOpen) {
       console.log('Modal opened - clearing state for fresh data load');
+      
+      // CRITICAL: Check for session expiration recovery
+      const sessionExpiredData = localStorage.getItem('sessionExpiredData');
+      if (sessionExpiredData) {
+        try {
+          const expiredData = JSON.parse(sessionExpiredData);
+          if (expiredData.preserved) {
+            alert(`🔄 Data Recovery: Your daily information for ${expiredData.patientCount} patients has been preserved from your previous session. Data was saved at ${new Date(expiredData.timestamp).toLocaleString()}.`);
+            localStorage.removeItem('sessionExpiredData'); // Clear the flag
+          }
+        } catch (error) {
+          console.error('Error checking session expiration data:', error);
+        }
+      }
+      
       setFieldValues({});
       setCompletionStatus({});
       setCurrentPatientIndex(0);
@@ -831,6 +869,31 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
     alert('Cleared localStorage and reset modal state');
   };
 
+  // CRITICAL: Preserve all current data to localStorage
+  const preserveAllDataToLocalStorage = () => {
+    try {
+      const allData = {
+        fieldValues: fieldValues,
+        completionStatus: completionStatus,
+        selectedTemplate: selectedTemplate,
+        currentPatientIndex: currentPatientIndex,
+        timestamp: new Date().toISOString(),
+        preserved: true // Flag to indicate data was preserved due to session expiration
+      };
+      
+      localStorage.setItem('dailyInfoEntryData', JSON.stringify(allData));
+      localStorage.setItem('sessionExpiredData', JSON.stringify({
+        preserved: true,
+        timestamp: new Date().toISOString(),
+        patientCount: Object.keys(fieldValues).length
+      }));
+      
+      console.log('🔒 Data preserved to localStorage due to session expiration');
+    } catch (error) {
+      console.error('Failed to preserve data to localStorage:', error);
+    }
+  };
+
   // Handle save
   const handleSave = async () => {
     try {
@@ -840,8 +903,11 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
       const currentPatientValues = fieldValues[currentPatient.id] || {};
       const token = localStorage.getItem('token');
       
+      // CRITICAL: Preserve data BEFORE checking auth
+      preserveAllDataToLocalStorage();
+      
       if (!token) {
-        alert('❌ Authentication required. Please log in again.');
+        alert('❌ Session expired. Your data has been preserved locally. Please log in again to save to server.');
         return;
       }
       
@@ -882,13 +948,25 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
         } else {
           throw new Error(result.error || 'Failed to save');
         }
+      } else if (response.status === 401 || response.status === 403) {
+        // CRITICAL: Session expired - preserve data and inform user
+        preserveAllDataToLocalStorage();
+        alert('❌ Session expired. Your data has been preserved locally. Please log in again to save to server.');
+        return;
       } else {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Server error: ${response.status}`);
       }
     } catch (error) {
       console.error('Error saving daily info:', error);
-      alert(`❌ Error saving daily information: ${error.message}`);
+      
+      // Check if it's a network/auth error
+      if (error.message.includes('401') || error.message.includes('403') || error.message.includes('Unauthorized')) {
+        preserveAllDataToLocalStorage();
+        alert('❌ Session expired. Your data has been preserved locally. Please log in again to save to server.');
+      } else {
+        alert(`❌ Error saving daily information: ${error.message}`);
+      }
     }
   };
 
@@ -939,13 +1017,25 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
         setLastSaved(new Date());
         setBackendErrors(0); // Reset error count on success
         setIsBackendDown(false);
+      } else if (response.status === 401 || response.status === 403) {
+        // Session expired during auto-save - silently preserve data
+        console.warn('Session expired during auto-save, preserving data locally');
+        setIsBackendDown(true); // Stop further auto-save attempts
+        return;
       } else {
         throw new Error(`HTTP ${response.status}`);
       }
     } catch (error) {
       console.error('Auto-save failed:', error);
       
-      // Track backend errors
+      // Check for authentication errors
+      if (error.message.includes('401') || error.message.includes('403')) {
+        console.warn('Session expired during auto-save, stopping auto-save');
+        setIsBackendDown(true);
+        return;
+      }
+      
+      // Track other backend errors
       const newErrorCount = backendErrors + 1;
       setBackendErrors(newErrorCount);
       
@@ -1002,6 +1092,9 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
     console.log('handleClose called');
     
     try {
+      // CRITICAL: Always preserve data before closing
+      preserveAllDataToLocalStorage();
+      
       // Save any unsaved data before closing
       const hasUnsavedData = Object.keys(fieldValues).some(patientId => 
         Object.keys(fieldValues[patientId] || {}).some(field => 
@@ -1011,6 +1104,14 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
 
       if (hasUnsavedData) {
         console.log('Saving data before closing modal...');
+        
+        // Check for valid token first
+        const token = localStorage.getItem('token');
+        if (!token) {
+          alert('⚠️ Session expired. Your data has been preserved locally and will be restored when you log back in.');
+          onClose();
+          return;
+        }
         
         // Save all patient data with timeout
         const savePromises = Object.keys(fieldValues).map(patientId => {

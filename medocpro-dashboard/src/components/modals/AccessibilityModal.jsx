@@ -251,22 +251,23 @@ const ToggleSwitch = ({ checked, onChange, label, description, theme }) => {
           {description}
         </div>
       </div>
-      <button
-        className={`toggle-switch ${checked ? 'checked' : ''}`}
+      {/* Custom toggle switch component */}
+      <div 
         onClick={() => onChange(!checked)}
         style={{
           width: '48px',
           height: '24px',
           backgroundColor: checked ? styles.successColor : styles.bgAccent,
-          border: 'none',
           borderRadius: '12px',
           position: 'relative',
           cursor: 'pointer',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
+          boxShadow: 'rgba(0, 0, 0, 0.2) 0px 1px 2px inset',
+          transform: 'translateZ(0)' // Force hardware acceleration
         }}
       >
+        {/* Toggle thumb */}
         <div 
-          className="toggle-thumb"
           style={{
             width: '20px',
             height: '20px',
@@ -276,9 +277,11 @@ const ToggleSwitch = ({ checked, onChange, label, description, theme }) => {
             top: '2px',
             left: checked ? '26px' : '2px',
             transition: 'all 0.2s ease',
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
-          }} />
-      </button>
+            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+            transform: 'translateZ(0)' // Force hardware acceleration
+          }} 
+        />
+      </div>
     </div>
   );
 };
