@@ -606,17 +606,60 @@ Enhanced Text (detailed version only):`
   }
 ];
 
-// Main AI Enhancement Component
-const AIEnhancement = ({ content, onEnhancedContent, isVisible, theme = 'dark' }) => {
-  const styles = getThemeStyles(theme);
-  const [settings, setSettings] = useState({
+// Function to load settings synchronously from localStorage
+const loadSettingsFromStorage = () => {
+  try {
+    const savedSettings = localStorage.getItem('aiAssistantSettings');
+    if (savedSettings) {
+      const parsed = JSON.parse(savedSettings);
+      console.log('AIEnhancement: Loading settings synchronously:', parsed);
+      return {
+        computeMode: parsed.computeMode || 'cpu',
+        model: parsed.model || 'mistral:latest',
+        systemPrompt: parsed.systemPrompt || DEFAULT_SYSTEM_PROMPT,
+        selectedPromptId: parsed.selectedPromptId || 'default'
+      };
+    }
+  } catch (e) {
+    console.error('Failed to load AI settings from localStorage:', e);
+  }
+  
+  return {
     computeMode: 'cpu',
     model: 'mistral:latest',
     systemPrompt: DEFAULT_SYSTEM_PROMPT,
     selectedPromptId: 'default'
-  });
+  };
+};
 
-  const [savedPrompts, setSavedPrompts] = useState(DEFAULT_SAVED_PROMPTS);
+// Function to load saved prompts synchronously from localStorage  
+const loadPromptsFromStorage = () => {
+  try {
+    const savedPromptsData = localStorage.getItem('aiSavedPrompts');
+    if (savedPromptsData) {
+      return JSON.parse(savedPromptsData);
+    }
+  } catch (e) {
+    console.error('Failed to load saved prompts from localStorage:', e);
+  }
+  
+  return DEFAULT_SAVED_PROMPTS;
+};
+
+// Main AI Enhancement Component
+const AIEnhancement = ({ content, onEnhancedContent, isVisible, theme = 'dark' }) => {
+  const styles = getThemeStyles(theme);
+  
+  // Generate a unique instance ID for debugging
+  const [instanceId] = useState(() => Math.random().toString(36).substr(2, 9));
+  
+  const [settings, setSettings] = useState(() => {
+    const loaded = loadSettingsFromStorage();
+    console.log(`AIEnhancement [${instanceId}]: Component created with settings:`, loaded);
+    return loaded;
+  });
+  
+  const [savedPrompts, setSavedPrompts] = useState(() => loadPromptsFromStorage());
 
   const [ollamaStatus, setOllamaStatus] = useState('checking');
 
@@ -632,52 +675,51 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible, theme = 'dark' }
     }
   };
 
-  // Load saved settings from localStorage
-  useEffect(() => {
-    const savedSettings = localStorage.getItem('aiAssistantSettings');
-    const savedPromptsData = localStorage.getItem('aiSavedPrompts');
-    
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        setSettings({
-          computeMode: parsed.computeMode || 'cpu',
-          model: parsed.model || 'mistral:latest',
-          systemPrompt: parsed.systemPrompt || DEFAULT_SYSTEM_PROMPT,
-          selectedPromptId: parsed.selectedPromptId || 'default'
-        });
-      } catch (e) {
-        console.error('Failed to load AI settings:', e);
-      }
-    }
-
-    if (savedPromptsData) {
-      try {
-        const parsedPrompts = JSON.parse(savedPromptsData);
-        setSavedPrompts(parsedPrompts);
-      } catch (e) {
-        console.error('Failed to load saved prompts:', e);
-        setSavedPrompts(DEFAULT_SAVED_PROMPTS);
-      }
-    }
-  }, []);
+  // Settings are now loaded synchronously during component initialization
 
   // Save settings to localStorage when changed
   useEffect(() => {
+    console.log(`AIEnhancement [${instanceId}]: Saving settings to localStorage:`, settings);
     localStorage.setItem('aiAssistantSettings', JSON.stringify(settings));
-  }, [settings]);
+  }, [settings, instanceId]);
 
   // Save prompts to localStorage when changed
   useEffect(() => {
     localStorage.setItem('aiSavedPrompts', JSON.stringify(savedPrompts));
   }, [savedPrompts]);
 
-  // Check Ollama status on mount
-  useEffect(() => {
-    checkOllamaStatus();
-  }, []);
+  // Manual refresh function for debugging (declare before useEffect)
+  const refreshSettingsFromStorage = () => {
+    const fresh = loadSettingsFromStorage();
+    console.log(`AIEnhancement [${instanceId}]: Manually refreshing settings:`, fresh);
+    setSettings(fresh);
+  };
 
-  if (!isVisible) return null;
+  // Check Ollama status on mount and track component lifecycle
+  useEffect(() => {
+    console.log(`AIEnhancement [${instanceId}]: Component mounted`);
+    checkOllamaStatus();
+    
+    // Expose debug functions globally for testing
+    window.aiEnhancementDebug = {
+      instanceId,
+      getCurrentSettings: () => settings,
+      refreshSettings: refreshSettingsFromStorage,
+      setGPUMode: () => setSettings(prev => ({ ...prev, computeMode: 'gpu' })),
+      setCPUMode: () => setSettings(prev => ({ ...prev, computeMode: 'cpu' })),
+      getStorageSettings: () => {
+        const stored = localStorage.getItem('aiAssistantSettings');
+        return stored ? JSON.parse(stored) : null;
+      }
+    };
+    
+    return () => {
+      console.log(`AIEnhancement [${instanceId}]: Component unmounting`);
+      delete window.aiEnhancementDebug;
+    };
+  }, [instanceId, settings, refreshSettingsFromStorage]);
+
+  console.log(`AIEnhancement [${instanceId}]: Rendering with compute mode:`, settings.computeMode, 'isVisible:', isVisible);
 
   return (
     <div 
@@ -715,32 +757,52 @@ const AIEnhancement = ({ content, onEnhancedContent, isVisible, theme = 'dark' }
           </div>
         </div>
         
-        <button
-          onClick={checkOllamaStatus}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: styles.bgSecondary,
-            color: styles.textPrimary,
-            border: `1px solid ${styles.borderColor}`,
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.backgroundColor = styles.bgAccent;
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.backgroundColor = styles.bgSecondary;
-          }}
-        >
-          <RefreshIcon />
-          Refresh Status
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={checkOllamaStatus}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: styles.bgSecondary,
+              color: styles.textPrimary,
+              border: `1px solid ${styles.borderColor}`,
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = styles.bgAccent;
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = styles.bgSecondary;
+            }}
+          >
+            <RefreshIcon />
+            Refresh Status
+          </button>
+          
+          <button
+            onClick={refreshSettingsFromStorage}
+            style={{
+              padding: '8px 12px',
+              backgroundColor: styles.warningColor,
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title="Debug: Refresh settings from localStorage"
+          >
+            🔧 Debug
+          </button>
+        </div>
       </div>
 
       {/* AI Settings */}

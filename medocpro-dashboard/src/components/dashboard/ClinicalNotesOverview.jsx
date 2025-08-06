@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import SymptomTrendChart from './SymptomTrendChart';
 
 // AI Analysis Metrics Component
 const AnalysisMetrics = ({ analysisData }) => {
@@ -367,6 +368,14 @@ const AIAnalysisOverview = ({ onOpenClinicalWorkflow }) => {
 
       <div className="status-grid">
         <AnalysisMetrics analysisData={analysisData} />
+        
+        {/* Symptom Trends Visualization */}
+        <div style={{ gridColumn: '1 / -1', marginBottom: '16px' }}>
+          <SymptomTrendChart 
+            timeRange="7d"
+            className="clinical-dashboard-chart"
+          />
+        </div>
         
         {/* Development Notice */}
         <div style={{

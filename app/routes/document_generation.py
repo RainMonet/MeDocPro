@@ -111,11 +111,12 @@ def test_ai_enhancement():
         text = data.get('text', 'Test text for enhancement')
         intensity = data.get('intensity', 50)
         style = data.get('style', 'professional')
+        compute_mode = data.get('compute_mode', 'cpu')
         
         current_app.logger.info(f"Testing AI enhancement with text: '{text[:100]}...'")
         
         # Test direct AI enhancement
-        enhanced = call_ai_enhancement(text, intensity, style)
+        enhanced = call_ai_enhancement(text, intensity, style, compute_mode)
         
         return jsonify({
             'success': True,
@@ -135,7 +136,7 @@ def test_ai_enhancement():
             'ollama_available': False
         }), 500
 
-def apply_ai_enhancement_zones(content, ai_zones):
+def apply_ai_enhancement_zones(content, ai_zones, compute_mode='cpu'):
     """Apply AI enhancement to specific zones in the content"""
     if not ai_zones or not isinstance(ai_zones, list):
         current_app.logger.info("No AI enhancement zones provided")
@@ -220,7 +221,7 @@ def apply_ai_enhancement_zones(content, ai_zones):
             
             # Call AI enhancement API
             current_app.logger.info(f"Enhancing text: '{text_to_enhance[:50]}...'")
-            enhanced_text = call_ai_enhancement(text_to_enhance, intensity, style)
+            enhanced_text = call_ai_enhancement(text_to_enhance, intensity, style, compute_mode)
             
             if enhanced_text and enhanced_text.strip() != text_to_enhance.strip():
                 # Clean up AI enhancement metadata from the enhanced text
@@ -309,7 +310,7 @@ def apply_ai_enhancement_zones(content, ai_zones):
     
     return enhanced_content
 
-def call_ai_enhancement(text, intensity, style):
+def call_ai_enhancement(text, intensity, style, compute_mode='cpu'):
     """Call the AI enhancement API with improved connection handling"""
     global ai_enhancement_failures, ai_enhancement_disabled_until
     
@@ -325,7 +326,7 @@ def call_ai_enhancement(text, intensity, style):
             return text
             
         base_url = current_app.config.get('OLLAMA_BASE_URL', 'http://localhost:11434')
-        current_app.logger.info(f"Calling AI enhancement API at {base_url}")
+        current_app.logger.info(f"Calling AI enhancement API at {base_url} with {compute_mode.upper()} mode")
         
         # Generate enhancement prompt
         prompt = f"""You are a medical documentation assistant. Enhance the following clinical text while preserving its exact meaning and clinical content.
@@ -359,6 +360,7 @@ Enhanced Text (ONLY the enhanced text, no explanations):"""
                 result = ai_enhancement.call_ollama_api(
                     prompt=prompt,
                     model="mistral:latest",
+                    compute_mode=compute_mode,
                     temperature=min(0.7, intensity / 100),
                     max_tokens=min(500, len(text) * 2)
                 )
@@ -813,6 +815,7 @@ def generate_batch_documents():
         patients = data.get('patients', [])
         export_format = data.get('exportFormat', 'pdf')
         ai_enhancement = data.get('aiEnhancement', False)
+        compute_mode = data.get('computeMode', 'cpu')
         
         if not template_data:
             return jsonify({'success': False, 'error': 'Template is required'}), 400
@@ -954,7 +957,8 @@ def generate_batch_documents():
                         try:
                             enhanced_content = apply_ai_enhancement_zones(
                                 document['populated_content'], 
-                                template.aiEnhancementZones
+                                template.aiEnhancementZones,
+                                compute_mode
                             )
                             document['ai_enhanced'] = True
                             document['populated_content'] = enhanced_content

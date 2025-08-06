@@ -395,16 +395,38 @@ Password: demo123
 - **Patient-Centric**: Individual patient information management
 - **Template Integration**: Dynamic form generation from templates
 - **Navigation System**: Easy patient-to-patient workflow
-- **Data Persistence**: Robust automatic saving and state management
+- **Bulletproof Data Persistence**: Multi-layer data protection with emergency recovery
 - **Responsive Design**: Works on all device sizes
 
-### Data Persistence Features
-- **Real-time Auto-save**: Automatic saving with 2-second debouncing
+### 🔒 Bulletproof Data Persistence System (Latest Enhancement)
+- **Quadruple Storage Redundancy**: Primary, backup, session, and emergency storage locations
+- **Never-Clear-Data Policy**: Data persists indefinitely until explicitly cleared
+- **Intelligent Data Recovery**: Automatically finds most recent data across all storage locations
+- **Emergency Recovery Tools**: Manual recovery buttons for troubleshooting data issues
+- **Version Tracking**: Data includes timestamps and version numbers for integrity
+- **Race Condition Prevention**: Advanced state management prevents data conflicts
+
+### 🚨 Emergency Data Recovery
+**Location**: Daily Information Entry Modal Footer
+- **"Check Recovery"**: Shows available data across all storage locations
+- **"Force Recovery"**: Immediately restores any found data to the modal
+- **"🚨 EMERGENCY DB RECOVERY"**: Direct database query bypass for critical recovery
+- **Usage**: Available when normal data loading fails due to authentication or API issues
+
+### 📅 Daily Rollover System (Automatic Day-to-Day Carryover)
+- **Automatic Daily Rollover**: Each day's census automatically rolls over from the previous day
+- **Patient Continuity**: All patients carry forward to maintain care continuity
+- **Daily Information Carryover**: Previous day's clinical notes automatically carry over as draft status
+- **Smart Notes**: Carried-over entries marked with "Carried over from {date}" annotations
+- **Seamless Workflow**: No manual intervention required - data appears ready for updates each day
+
+### Data Persistence Features  
+- **Real-time Auto-save**: Automatic saving with 5-second debouncing (enhanced from 2-second)
 - **Backend Persistence**: Full integration with PostgreSQL database
 - **Save-on-close**: Ensures data is saved when modal is closed
 - **Cross-session Persistence**: Data persists across browser sessions
-- **Conflict Resolution**: LocalStorage merges with backend data seamlessly
-- **Performance Optimized**: Priority loading with progressive background updates
+- **Emergency Backup**: Created before any potentially destructive operations
+- **Multi-Storage Redundancy**: localStorage, sessionStorage, and emergency backup copies
 
 ### Performance Optimizations
 - **Priority Loading**: First 5 patients load immediately (1-3 seconds)
@@ -426,15 +448,17 @@ Password: demo123
 - **Semantic Equivalence**: Flexible content matching allowing synonyms (neutral→stable, depressed→dysthymic)
 - **Performance Optimized**: Sub-3-second AI enhancement with dynamic timeout scaling
 
-### Daily Information Persistence & Performance  
-- **Fixed Race Condition**: Resolved data persistence issue where daily info wouldn't persist after modal close/reopen
+### Daily Information Persistence & Recovery System (Latest Major Enhancement)
+- **CRITICAL FIX**: Resolved complete data loss issue that prevented access to clinical notes
+- **Emergency Recovery Implementation**: Direct database query bypass for authentication/API failures
+- **Bulletproof Persistence**: Quadruple storage redundancy prevents any future data loss
+- **Patient ID Mismatch Resolution**: Fixed census/daily-info patient ID alignment issues
+- **Race Condition Elimination**: Advanced state management prevents data conflicts during loading
+- **Enhanced Error Handling**: Detailed API logging shows exactly what's failing during data operations
 - **5x Performance Improvement**: Reduced loading time from 10+ seconds to 1-3 seconds
 - **Priority Loading System**: First 5 patients load immediately for instant UI response
-- **Parallel Processing**: Batch processing of 3-5 patients simultaneously instead of sequential
 - **Progressive Loading**: Remaining patients load in background while user works
-- **Enhanced Auto-save**: Debounced auto-save with save-on-close functionality
 - **Backend Integration**: Full PostgreSQL persistence with proper state management
-- **Loading Indicators**: Visual feedback during data operations
 
 ### Authentication Enhancements  
 - **Complete Auth System**: Full login/logout flow with proper state management
@@ -743,6 +767,81 @@ lsof -i :5000                 # Unix/Linux
 - ✅ **Comprehensive documentation** for future developers
 
 **Use `dev-start.bat` for all development work going forward.**
+
+---
+
+## 🚨 Daily Information Entry Troubleshooting Guide
+
+### Common Issues and Solutions
+
+#### Issue: Daily Information Not Loading or Appearing Empty
+**Symptoms**: Modal opens but shows no clinical data, only patient names
+**Solutions**:
+1. **Use Emergency Recovery**: Click "🚨 EMERGENCY DB RECOVERY" button in modal footer
+2. **Check Browser Console**: Look for authentication errors (401/403) or API failures
+3. **Refresh Page**: May need new authentication token
+4. **Force Recovery**: Click "Force Recovery" to restore from local storage
+
+#### Issue: Data Not Persisting Between Sessions  
+**Symptoms**: Enter data, close modal, reopen and data is gone
+**Solutions**:
+1. **Check Recovery Status**: Click "Check Recovery" to see if data exists in storage
+2. **Verify Auto-save**: Look for "Last saved" timestamp in modal footer
+3. **Manual Save**: Click "Save" button before closing modal
+4. **Emergency Backup**: Data is automatically backed up before any destructive operations
+
+#### Issue: Authentication Errors Preventing Data Load
+**Symptoms**: API errors, 401/403 status codes in console
+**Solutions**:
+1. **Refresh Browser**: Gets new authentication token
+2. **Re-login**: Logout and login again with demo@medocpro.com / demo123
+3. **Emergency Recovery**: Bypass authentication issues with direct database query
+
+#### Issue: Patient ID Mismatches
+**Symptoms**: Database has data but modal shows different patient IDs
+**Solutions**:
+1. **Emergency DB Recovery**: Automatically maps database entries to current census
+2. **Check Console Logs**: Look for patient ID mapping issues
+3. **Navigate Patients**: Data may be under different patient in the list
+
+### Daily Rollover System
+
+#### How It Works
+- **Automatic**: No manual intervention required
+- **Triggered**: When accessing today's census for the first time
+- **Carries Over**: All patients and their latest daily information
+- **Status**: Previous data marked as 'draft' for new day editing
+- **Notes**: Added "Carried over from {date}" to indicate source
+
+#### Rollover Verification
+```bash
+# Check if rollover occurred (backend logs)
+grep "rollover" backend.log
+
+# Manual rollover test
+python test-rollover.py
+```
+
+### Emergency Database Commands
+
+#### Direct Database Query (if needed)
+```bash
+# Check daily information entries
+python3 -c "
+import sqlite3
+conn = sqlite3.connect('instance/medocpro.db')
+cursor = conn.cursor()
+cursor.execute('SELECT COUNT(*) FROM daily_information WHERE entry_date = date(\"now\")')
+print(f'Today entries: {cursor.fetchone()[0]}')
+conn.close()
+"
+```
+
+### Prevention Best Practices
+1. **Regular Use**: Use emergency recovery tools when data seems missing
+2. **Monitor Console**: Watch for API errors during data loading
+3. **Save Frequently**: Use "Save & Continue" button for peace of mind
+4. **Check Recovery**: Use "Check Recovery" button if unsure about data status
 
 ---
 

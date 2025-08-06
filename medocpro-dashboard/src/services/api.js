@@ -499,7 +499,7 @@ class ApiService {
   // Audit endpoints (admin only)
   async getAuditLogs(params = {}) {
     const searchParams = new URLSearchParams(params);
-    const response = await fetch(`${this.baseURL}/api/audit/logs?${searchParams}`, {
+    const response = await fetch(`${this.baseURL}/api/audit-logs?${searchParams}`, {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -538,6 +538,7 @@ class ApiService {
         intensity: enhancementData.intensity || 50,
         style: enhancementData.style || 'professional',
         model: enhancementData.model || 'mistral:latest',
+        compute_mode: enhancementData.compute_mode || 'cpu',
         include_spell_check: enhancementData.include_spell_check || true,
         include_grammar_check: enhancementData.include_grammar_check || true,
         preserve_structure: enhancementData.preserve_structure || true
@@ -545,6 +546,22 @@ class ApiService {
     });
     
     return this.handleResponse(response);
+  }
+
+  async checkOllamaStatus() {
+    const response = await fetch(`${this.baseURL}/health/ai`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+    
+    const result = await this.handleResponse(response);
+    
+    // Transform the health response to match expected format
+    return {
+      status: result.status === 'healthy' ? 'online' : 'offline',
+      models: result.models || [],
+      latency_ms: result.latency_ms || 0
+    };
   }
 
   async spellCheck(text) {

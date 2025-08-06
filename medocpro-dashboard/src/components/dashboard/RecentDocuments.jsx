@@ -20,7 +20,12 @@ const getThemeStyles = (theme = 'dark') => ({
 
 // Helper function to format date/time for display
 const formatDocumentDate = (dateString) => {
-  const date = new Date(dateString);
+  // Treat timestamp as UTC by appending 'Z' if missing
+  const utcString = dateString && !dateString.endsWith('Z') && !dateString.includes('+') 
+    ? dateString + 'Z' 
+    : dateString;
+  
+  const date = new Date(utcString);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today);
@@ -49,7 +54,12 @@ const getDocumentTypeDisplay = (type) => {
 
 // Helper function to calculate days remaining before deletion
 const getDaysRemaining = (finalizedAt) => {
-  const finalizedDate = new Date(finalizedAt);
+  // Treat timestamp as UTC by appending 'Z' if missing
+  const utcString = finalizedAt && !finalizedAt.endsWith('Z') && !finalizedAt.includes('+') 
+    ? finalizedAt + 'Z' 
+    : finalizedAt;
+  
+  const finalizedDate = new Date(utcString);
   const deletionDate = new Date(finalizedDate);
   deletionDate.setDate(deletionDate.getDate() + 7); // Add 7 days
   
@@ -446,7 +456,10 @@ const RecentDocuments = ({ theme }) => {
         position: 'relative',
         background: `linear-gradient(135deg, ${styles.bgPrimary} 0%, ${styles.bgSecondary} 100%)`,
         boxShadow: `inset 0 1px 0 rgba(255, 255, 255, ${currentTheme === 'dark' ? '0.05' : '0.1'}), 0 1px 3px rgba(0, 0, 0, ${currentTheme === 'dark' ? '0.2' : '0.1'})`,
-        transition: 'all 0.3s ease'
+        transition: 'all 0.3s ease',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%'
       }}
     >
       {/* Gradient top border */}
@@ -659,8 +672,9 @@ const RecentDocuments = ({ theme }) => {
 
       {/* Document List */}
       <div style={{
-        maxHeight: '300px',
-        overflowY: 'auto'
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column'
       }}>
         {loading ? (
           <div style={{
@@ -699,13 +713,17 @@ const RecentDocuments = ({ theme }) => {
         ) : displayedDocuments.length > 0 ? (
           <>
             <div style={{
-              maxHeight: '400px',
-              overflowY: 'auto',
+              flex: showAll ? 1 : 'none',
+              maxHeight: showAll ? 'none' : '200px',
+              overflowY: showAll ? 'visible' : 'scroll', // Force scroll when collapsed
               border: `1px solid ${styles.borderColor}`,
               borderRadius: '6px',
-              marginBottom: '16px'
+              marginBottom: '16px',
+              // Always show scrollbar when collapsed
+              scrollbarWidth: showAll ? 'none' : 'thin',
+              scrollbarColor: showAll ? 'transparent transparent' : `${styles.borderColor} ${styles.bgSecondary}`
             }}>
-              {displayedDocuments.map(document => (
+              {documents.map(document => (
                 <DocumentListItem
                   key={document.id}
                   document={document}
@@ -718,11 +736,17 @@ const RecentDocuments = ({ theme }) => {
               ))}
             </div>
             
-            {/* More button */}
-            {hasMoreDocuments && !showAll && (
-              <div style={{ textAlign: 'center' }}>
+            {/* More button - centered vertically in remaining space */}
+            {hasMoreDocuments && (
+              <div style={{ 
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flex: 1,
+                minHeight: '60px'
+              }}>
                 <button
-                  onClick={() => setShowAll(true)}
+                  onClick={() => setShowAll(!showAll)}
                   style={{
                     padding: '8px 16px',
                     backgroundColor: 'transparent',
@@ -745,39 +769,7 @@ const RecentDocuments = ({ theme }) => {
                     e.target.style.backgroundColor = 'transparent';
                   }}
                 >
-                  Show {documents.length - 3} more documents
-                </button>
-              </div>
-            )}
-            
-            {/* Show less button when all are displayed */}
-            {showAll && hasMoreDocuments && (
-              <div style={{ textAlign: 'center' }}>
-                <button
-                  onClick={() => setShowAll(false)}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: 'transparent',
-                    color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
-                    border: `1px solid ${styles.borderColor}`,
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                    fontWeight: '500',
-                    transition: 'all 0.2s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    margin: '0 auto'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = styles.bgAccent;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = 'transparent';
-                  }}
-                >
-                  Show less
+                  {showAll ? 'Collapse view' : 'Expand view'}
                 </button>
               </div>
             )}
@@ -1000,7 +992,7 @@ const ViewDocumentsModal = ({ isOpen, onClose, documents, theme }) => {
     setCurrentDocIndex(prev => (prev < documents.length - 1 ? prev + 1 : 0));
   };
 
-  return (
+  return createPortal(
     <div style={{
       position: 'fixed',
       top: 0,
@@ -1011,7 +1003,7 @@ const ViewDocumentsModal = ({ isOpen, onClose, documents, theme }) => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1050
+      zIndex: 10010
     }}>
       <div style={{
         backgroundColor: styles.bgPrimary,
@@ -1250,7 +1242,8 @@ const ViewDocumentsModal = ({ isOpen, onClose, documents, theme }) => {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

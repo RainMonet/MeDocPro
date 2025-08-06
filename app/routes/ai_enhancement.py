@@ -255,6 +255,7 @@ def enhance_text():
         intensity = data.get('intensity', 50)
         style = data.get('style', 'professional')
         model = data.get('model')
+        compute_mode = data.get('compute_mode', 'cpu')  # New: CPU or GPU mode
         include_spell_check = data.get('include_spell_check', True)
         include_grammar_check = data.get('include_grammar_check', True)
         preserve_structure = data.get('preserve_structure', True)
@@ -275,6 +276,12 @@ def enhance_text():
         # Get current user
         current_user_id = get_jwt_identity()
         current_user = User.query.get(current_user_id)
+        
+        # Log the enhancement request with compute mode
+        current_app.logger.info(f"AI Enhancement Request - User: {current_user.id}, "
+                              f"Mode: {compute_mode.upper()}, Model: {model}, "
+                              f"Style: {style}, Intensity: {intensity}%, "
+                              f"Text Length: {len(text)} chars")
         
         # Detect PHI in original text
         phi_detected = detect_phi_patterns(text)
@@ -324,6 +331,7 @@ def enhance_text():
         ai_result = call_ollama_api(
             prompt=prompt,
             model=model,
+            compute_mode=compute_mode,
             temperature=min(0.9, intensity / 100),
             max_tokens=min(1000, len(text) * 2)
         )
@@ -331,6 +339,16 @@ def enhance_text():
         # Check for PHI in AI response
         enhanced_text = ai_result.get('response', '')
         response_phi_detected = detect_phi_patterns(enhanced_text) if enhanced_text else []
+        
+        # Log the AI processing results
+        processing_time = ai_result.get('processing_time_ms', 0)
+        success = ai_result.get('success', False)
+        current_app.logger.info(f"AI Enhancement Result - "
+                              f"Success: {success}, "
+                              f"Mode Used: {compute_mode.upper()}, "
+                              f"Processing Time: {processing_time}ms, "
+                              f"Input: {len(text)} chars, "
+                              f"Output: {len(enhanced_text)} chars")
         
         # Log AI interaction (temporarily disabled - need to create AIInteraction model)
         # interaction = AIInteraction.log_interaction(...)
@@ -345,6 +363,7 @@ def enhance_text():
                 'enhancement_type': enhancement_type,
                 'intensity': intensity,
                 'style': style,
+                'compute_mode': compute_mode,
                 'text_length': len(text),
                 'phi_detected': phi_found,
                 'spell_check_included': include_spell_check,
@@ -370,6 +389,8 @@ def enhance_text():
             'enhanced_length': len(enhanced_text),
             'processing_time_ms': ai_result.get('processing_time_ms', 0),
             'model_used': ai_result.get('model_used', model),
+            'compute_mode_used': ai_result.get('compute_mode_used', compute_mode),
+            'timeout_used': ai_result.get('timeout_used', 0),
             'enhancement_applied': {
                 'type': enhancement_type,
                 'intensity': intensity,
@@ -470,7 +491,7 @@ Text to enhance:
 
     return prompt
 
-def call_ollama_api(prompt, model, temperature=0.7, max_tokens=500):
+def call_ollama_api(prompt, model, compute_mode='cpu', temperature=0.7, max_tokens=500):
     """Call Ollama API with connection pooling, circuit breaker, and error handling"""
     
     # Check circuit breaker first
@@ -495,18 +516,37 @@ def call_ollama_api(prompt, model, temperature=0.7, max_tokens=500):
         # Adjust timeout based on text length (longer texts need more time)
         timeout = min(60, max(15, len(prompt) // 100 + 15))
         
+        # Configure compute options based on mode
+        options = {
+            "temperature": temperature,
+            "num_predict": max_tokens,
+            "top_p": 0.9,
+            "stop": ["</s>", "\n\n---", "\n\nUser:", "\n\nHuman:"]
+        }
+        
+        # Add GPU/CPU specific options
+        if compute_mode == 'gpu':
+            options.update({
+                "num_gpu": -1,  # Use all available GPUs
+                "num_thread": 1,  # Fewer CPU threads when using GPU
+                "use_mlock": True,  # Lock memory for GPU efficiency
+                "f16_kv": True,  # Use half precision for key-value cache (GPU optimization)
+            })
+        else:  # CPU mode
+            options.update({
+                "num_gpu": 0,  # Don't use GPU
+                "num_thread": -1,  # Use all CPU threads
+                "use_mlock": False,  # Don't need memory locking for CPU
+                "f16_kv": False,  # Use full precision for CPU
+            })
+        
         response = session.post(
             f"{base_url}/api/generate",
             json={
                 "model": model,
                 "prompt": prompt,
                 "stream": False,
-                "options": {
-                    "temperature": temperature,
-                    "num_predict": max_tokens,
-                    "top_p": 0.9,
-                    "stop": ["</s>", "\n\n---", "\n\nUser:", "\n\nHuman:"]
-                }
+                "options": options
             },
             timeout=timeout
         )
@@ -527,6 +567,7 @@ def call_ollama_api(prompt, model, temperature=0.7, max_tokens=500):
                 'response': cleaned_response,
                 'processing_time_ms': processing_time,
                 'model_used': model,
+                'compute_mode_used': compute_mode,
                 'timeout_used': timeout
             }
         else:
@@ -934,3 +975,121 @@ def grammar_check_only():
     except Exception as e:
         current_app.logger.error(f"Grammar check error: {str(e)}")
         return jsonify({'error': 'An error occurred during grammar check'}), 500
+
+@ai_bp.route('/ollama/pull-model', methods=['POST'])
+@jwt_required()
+def pull_ollama_model():
+    """Pull an Ollama model"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        model = data.get('model', '').strip()
+        
+        if not model:
+            return jsonify({'error': 'Model name is required'}), 400
+        
+        # Get current user for audit logging
+        current_user_id = get_jwt_identity()
+        current_user = User.query.get(current_user_id)
+        
+        base_url = current_app.config.get('OLLAMA_BASE_URL', 'http://localhost:11434')
+        
+        try:
+            # Get persistent session with connection pooling
+            session = get_ai_session()
+            
+            # Call Ollama API to pull model
+            response = session.post(
+                f"{base_url}/api/pull",
+                json={"name": model},
+                timeout=300  # 5 minutes for model pulling
+            )
+            
+            if response.status_code == 200:
+                # Log successful model pull
+                AuditLog.log_event(
+                    user_id=str(current_user.id),
+                    event_type='ollama_model_pull',
+                    action='CREATE',
+                    details={
+                        'model': model,
+                        'success': True
+                    },
+                    ip_address=request.remote_addr
+                )
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'Model {model} pulled successfully',
+                    'model': model
+                }), 200
+            else:
+                error_msg = f"Ollama API error: {response.status_code} - {response.text[:200]}"
+                
+                # Log failed model pull
+                AuditLog.log_event(
+                    user_id=str(current_user.id),
+                    event_type='ollama_model_pull',
+                    action='CREATE',
+                    details={
+                        'model': model,
+                        'success': False,
+                        'error': error_msg
+                    },
+                    ip_address=request.remote_addr
+                )
+                
+                return jsonify({'error': error_msg}), 500
+                
+        except requests.exceptions.Timeout:
+            return jsonify({'error': f'Timeout pulling model {model} (5 minutes)'}), 500
+        except requests.exceptions.ConnectionError:
+            return jsonify({'error': 'Cannot connect to Ollama service'}), 500
+        except Exception as e:
+            current_app.logger.error(f"Unexpected error pulling model: {str(e)}")
+            return jsonify({'error': f"Unexpected error: {str(e)[:100]}"}), 500
+        
+    except Exception as e:
+        current_app.logger.error(f"Model pull error: {str(e)}")
+        return jsonify({'error': 'An error occurred while pulling the model'}), 500
+
+@ai_bp.route('/ollama/models', methods=['GET'])
+@jwt_required()
+def get_ollama_models():
+    """Get available Ollama models"""
+    try:
+        base_url = current_app.config.get('OLLAMA_BASE_URL', 'http://localhost:11434')
+        
+        try:
+            # Get persistent session with connection pooling
+            session = get_ai_session()
+            
+            # Call Ollama API to get models
+            response = session.get(f"{base_url}/api/tags", timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                models = data.get('models', [])
+                
+                return jsonify({
+                    'success': True,
+                    'models': models,
+                    'count': len(models)
+                }), 200
+            else:
+                return jsonify({
+                    'error': f"Ollama API error: {response.status_code} - {response.text[:200]}"
+                }), 500
+                
+        except requests.exceptions.ConnectionError:
+            return jsonify({'error': 'Cannot connect to Ollama service'}), 500
+        except Exception as e:
+            current_app.logger.error(f"Unexpected error getting models: {str(e)}")
+            return jsonify({'error': f"Unexpected error: {str(e)[:100]}"}), 500
+        
+    except Exception as e:
+        current_app.logger.error(f"Get models error: {str(e)}")
+        return jsonify({'error': 'An error occurred while getting models'}), 500

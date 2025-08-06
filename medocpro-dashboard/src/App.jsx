@@ -7,6 +7,8 @@ import { SystemStatus, AIAnalysisOverview, RecentDocuments } from './components/
 import { PatientCensusModal } from './components/modals';
 import DailyInfoEntryModal from './components/modals/DailyInfoEntryModal';
 import AccessibilityModal from './components/modals/AccessibilityModal';
+import AuditLoggingModal from './components/modals/AuditLoggingModal';
+import AIEnhancementModal from './components/modals/AIEnhancementModal';
 import AIEnhancement from './components/templates/AIEnhancement';
 import TemplateEditor from './components/TemplateEditor';
 import TemplateLibrary from './components/templates/TemplateLibrary';
@@ -145,6 +147,12 @@ function App() {
     loadInitialUser();
   }, []); // Run once on mount
 
+  // Track activeModal changes
+  useEffect(() => {
+    console.log('🎯 activeModal changed to:', activeModal);
+    console.log('🎯 Should render AIEnhancementModal:', activeModal === 'ai-assistant-settings');
+  }, [activeModal]);
+
   // Effects
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -217,6 +225,8 @@ function App() {
 
   const handleModalOpen = async (modalType) => {
     console.log('handleModalOpen called with:', modalType);
+    console.log('Current activeModal before change:', activeModal);
+    
     if (modalType === 'template-editor') {
       console.log('Opening template editor');
       setShowTemplateEditor(true);
@@ -232,10 +242,15 @@ function App() {
     } else if (modalType === 'accessibility') {
       setActiveModal(modalType);
     } else if (modalType === 'ai-assistant-settings') {
+      console.log('Setting activeModal to ai-assistant-settings');
+      setActiveModal(modalType);
+      console.log('activeModal should now be:', modalType);
+    } else if (modalType === 'audit-logging') {
       setActiveModal(modalType);
     } else {
       setActiveModal(modalType);
     }
+    
     // Close sidebar on mobile when opening modal
     if (isMobile) {
       setSidebarExpanded(false);
@@ -243,10 +258,14 @@ function App() {
   };
 
   const handleModalClose = () => {
+    console.log('🚨 handleModalClose called! Current activeModal:', activeModal);
+    console.trace('🚨 Modal close called from:');
+    
     // Check which modal is closing before setting it to null
     const wasPatientCensusModal = activeModal === 'patient-census' || activeModal === 'patients';
     
     setActiveModal(null);
+    console.log('🚨 Set activeModal to null');
     
     // Only refresh workspace if census data was actually modified (not for daily info modal)
     if (viewMode === 'workspace' && wasPatientCensusModal) {
@@ -558,90 +577,28 @@ function App() {
         theme={theme}
       />
       
+      {/* Audit Logging Modal */}
+      <AuditLoggingModal
+        isOpen={activeModal === 'audit-logging'}
+        onClose={handleModalClose}
+        theme={theme}
+      />
+      
       {/* Debug info */}
       {console.log('Current activeModal:', activeModal)}
       {console.log('Modal should be open:', activeModal === 'daily-info-entry')}
       {console.log('Patient list length:', patientList.length)}
       
       {/* AI Assistant Settings Modal - Ollama AI Enhancement */}
-      {activeModal === 'ai-assistant-settings' && (
-        <div className="modal-overlay" onClick={handleModalClose}>
-          <div 
-            className="modal-content" 
-            onClick={e => e.stopPropagation()} 
-            style={{
-              backgroundColor: theme === 'dark' ? '#1e293b' : '#faf8f3',
-              border: `1px solid ${theme === 'dark' ? '#475569' : '#d4c4a8'}`,
-              maxWidth: '800px',
-              width: '90vw',
-              maxHeight: '80vh',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-          >
-            {/* Header */}
-            <div style={{
-              padding: '24px 24px 20px 24px',
-              borderBottom: `1px solid ${theme === 'dark' ? '#475569' : '#d4c4a8'}`,
-              flexShrink: 0
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '8px'
-              }}>
-                <h2 style={{
-                  margin: 0,
-                  fontSize: '20px',
-                  fontWeight: '600',
-                  color: theme === 'dark' ? '#f1f5f9' : '#2d1810'
-                }}>
-                  AI Enhancement Settings
-                </h2>
-                <button
-                  onClick={handleModalClose}
-                  style={{
-                    padding: '8px 12px',
-                    backgroundColor: 'transparent',
-                    color: theme === 'dark' ? '#94a3b8' : '#8b7355',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  ✕ Close
-                </button>
-              </div>
-              <p style={{
-                margin: 0,
-                fontSize: '14px',
-                color: theme === 'dark' ? '#cbd5e1' : '#5d4d3a'
-              }}>
-                Configure Ollama AI enhancement settings and text processing options
-              </p>
-            </div>
-
-            {/* AI Enhancement Content */}
-            <div style={{ flex: 1, overflow: 'auto' }}>
-              <AIEnhancement
-                content=""
-                onEnhancedContent={(enhancedContent) => {
-                  // This is a settings modal, so we don't need to handle enhanced content
-                  console.log('AI Enhancement settings updated');
-                }}
-                isVisible={true}
-                theme={theme}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <AIEnhancementModal
+        isOpen={activeModal === 'ai-assistant-settings'}
+        onClose={handleModalClose}
+        theme={theme}
+        key="ai-enhancement-modal"
+      />
 
       {/* Coming Soon Modal for other features */}
-      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && activeModal !== 'accessibility' && activeModal !== 'ai-assistant-settings' && (
+      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && activeModal !== 'accessibility' && activeModal !== 'ai-assistant-settings' && activeModal !== 'audit-logging' && (
         <div className="modal-overlay" onClick={handleModalClose}>
           <div className="modal-content coming-soon" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={handleModalClose}>×</button>

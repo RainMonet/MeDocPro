@@ -27,27 +27,10 @@ const getWorkflowDisplay = (workflowType) => {
   return workflowConfig[workflowType] || workflowConfig['follow-up'];
 };
 
-// Daily info status helper functions
-const getDailyInfoStatusText = (status) => {
-  const statusMap = {
-    'complete': 'Complete',
-    'in_progress': 'In Progress',
-    'incomplete': 'Incomplete'
-  };
-  return statusMap[status] || 'Incomplete';
-};
-
-const getDailyInfoStatusColor = (status) => {
-  const colorMap = {
-    'complete': '#10b981',      // Green
-    'in_progress': '#f59e0b',   // Orange
-    'incomplete': '#ef4444'     // Red
-  };
-  return colorMap[status] || '#ef4444';
-};
+// Completion status remains simple - patients are either completed or not
 
 // Individual patient row component
-const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme }) => {
+const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, onCompletionToggle, theme }) => {
   const [isHovered, setIsHovered] = useState(false);
   const styles = getThemeStyles(theme);
   const workflowDisplay = getWorkflowDisplay(patient.workflow_type || patient.status || 'follow-up');
@@ -110,18 +93,6 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
           }}>
             {patient.patient_name || 'Unknown Patient'}
           </span>
-          <span 
-            className={`status-${patient.daily_info_status || 'incomplete'}`}
-            style={{
-              fontSize: '12px',
-              color: getDailyInfoStatusColor(patient.daily_info_status),
-              backgroundColor: styles.bgSecondary,
-              padding: '2px 6px',
-              borderRadius: '10px',
-              fontWeight: '500'
-            }}>
-            {getDailyInfoStatusText(patient.daily_info_status)}
-          </span>
         </div>
         
         {/* Additional patient data */}
@@ -136,6 +107,47 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
             {patient.data_fields.chief_complaint}
           </div>
         )}
+      </div>
+
+      {/* Completion Checkbox */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginRight: '12px'
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onCompletionToggle(patient.id);
+        }}
+      >
+        <span style={{
+          fontSize: '12px',
+          color: styles.textSecondary,
+          fontWeight: '500'
+        }}>
+          Completed
+        </span>
+        <div
+          className={`completion-checkbox ${patient.completed ? 'completed' : ''}`}
+          style={{
+            width: '20px',
+            height: '20px',
+            border: `2px solid ${patient.completed ? styles.successColor : styles.borderColor}`,
+            borderRadius: '4px',
+            backgroundColor: patient.completed ? styles.successColor : 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          {patient.completed && (
+            <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>✓</span>
+          )}
+        </div>
       </div>
 
       {/* Workflow Type Indicator */}
@@ -247,101 +259,54 @@ const PatientCensusCard = ({
     });
   };
 
-  // Function to fetch daily info status for all patients
-  const fetchDailyInfoStatus = async (token) => {
+  // Function to load completion status with daily reset
+  const loadCompletionStatus = async (token) => {
     try {
-      // First, get the template structure to know ALL expected fields
-      const templateResponse = await fetch(`${apiService.baseURL}/api/templates/top-used`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const today = new Date().toDateString();
+      const savedCompletions = localStorage.getItem('patientCompletions');
+      const completionMap = savedCompletions ? JSON.parse(savedCompletions) : {};
+      const todayCompletions = {};
+      
+      // Only load today's completions, ignore old data
+      Object.keys(completionMap).forEach(patientId => {
+        const completionData = completionMap[patientId];
+        if (completionData && typeof completionData === 'object' && completionData.date === today) {
+          todayCompletions[patientId] = completionData.completed;
+        } else if (typeof completionData === 'boolean') {
+          // Legacy format - assume it's old, don't carry over
+          todayCompletions[patientId] = false;
+        } else {
+          todayCompletions[patientId] = false;
         }
       });
       
-      let expectedFields = [];
-      if (templateResponse.ok) {
-        const templateData = await templateResponse.json();
-        if (templateData.success && templateData.templates.length > 0) {
-          // Get the most used template's placeholders
-          const template = templateData.templates[0];
-          expectedFields = template.placeholders ? template.placeholders.map(p => p.key) : [];
-        }
-      }
-      
-      // If we couldn't get template structure, fall back to common expected fields
-      if (expectedFields.length === 0) {
-        expectedFields = [
-          'last_name', 'first_name', 'chief_complaint', 'clinical_observations',
-          'medication_compliance', 'reported_side_effects', 'current_mood',
-          'suicidal_ideation', 'homicidal_ideation', 'perceptual_disturbances',
-          'sleep_quality', 'energy_level', 'clinical_assessment'
-        ];
-      }
-      
-      const response = await fetch(`${apiService.baseURL}/api/daily-info/today`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          // Create a map of patient_id -> status
-          const statusMap = {};
-          data.entries.forEach(entry => {
-            const patientId = entry.patient_census_row_id;
-            const fieldValues = entry.field_values || {};
-            
-            // Check completion against ALL expected template fields
-            const completedFields = expectedFields.filter(fieldKey => {
-              const value = fieldValues[fieldKey];
-              return value && typeof value === 'string' && value.trim().length > 0;
-            });
-            
-            const totalExpectedFields = expectedFields.length;
-            const completedCount = completedFields.length;
-            
-            // Debug logging for status determination
-            console.log(`Patient ${patientId}: ${completedCount}/${totalExpectedFields} expected fields completed`);
-            console.log(`Patient ${patientId} completed fields:`, completedFields);
-            console.log(`Patient ${patientId} missing fields:`, expectedFields.filter(f => !completedFields.includes(f)));
-            
-            // More reasonable completion logic:
-            // Complete = At least 80% of expected fields completed AND key fields filled
-            const completionPercentage = totalExpectedFields > 0 ? (completedCount / totalExpectedFields) : 0;
-            const keyFields = ['chief_complaint', 'clinical_observations', 'clinical_assessment'];
-            const keyFieldsCompleted = keyFields.filter(field => {
-              const value = fieldValues[field];
-              return value && typeof value === 'string' && value.trim().length > 0;
-            });
-            const hasKeyFields = keyFieldsCompleted.length >= 2; // At least 2 of 3 key fields
-            
-            if (completionPercentage >= 0.8 && hasKeyFields && totalExpectedFields > 0) {
-              statusMap[patientId] = 'complete';
-              console.log(`Patient ${patientId}: COMPLETE - ${(completionPercentage * 100).toFixed(1)}% completion with key fields`);
-            } else if (completedCount > 0 || hasKeyFields) {
-              // Has some meaningful data
-              statusMap[patientId] = 'in_progress';
-              console.log(`Patient ${patientId}: IN PROGRESS - ${completedCount}/${totalExpectedFields} fields filled (${(completionPercentage * 100).toFixed(1)}%)`);
-            } else {
-              // No meaningful content
-              statusMap[patientId] = 'incomplete';
-              console.log(`Patient ${patientId}: INCOMPLETE - no meaningful content`);
-            }
-          });
-          return statusMap;
-        }
-      }
-      return {};
+      return todayCompletions;
     } catch (error) {
-      console.warn('Failed to fetch daily info status:', error);
+      console.warn('Failed to load completion status:', error);
       return {};
     }
   };
 
-  // Load patient census data with daily info status
+  // Function to save completion status with daily reset
+  const saveCompletionStatus = (patientId, completed) => {
+    try {
+      const today = new Date().toDateString();
+      const savedCompletions = localStorage.getItem('patientCompletions');
+      const completionMap = savedCompletions ? JSON.parse(savedCompletions) : {};
+      
+      // Store with date stamp for daily reset
+      completionMap[patientId] = {
+        completed: completed,
+        date: today
+      };
+      
+      localStorage.setItem('patientCompletions', JSON.stringify(completionMap));
+    } catch (error) {
+      console.warn('Failed to save completion status:', error);
+    }
+  };
+
+  // Load patient census data with completion status
   const loadPatients = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -365,10 +330,10 @@ const PatientCensusCard = ({
       const data = await response.json();
       
       if (data.success && data.census) {
-        // Fetch daily info status for all patients
-        const dailyInfoStatusMap = await fetchDailyInfoStatus(token);
+        // Load completion status from localStorage
+        const completionStatusMap = await loadCompletionStatus(token);
         
-        // Use existing workflow_type or status, ensure consistency and add daily info status
+        // Use existing workflow_type or status, ensure consistency and add completion status
         const patientsWithStatus = data.census.rows.map(patient => {
           const workflowType = patient.workflow_type || patient.status || 'follow-up';
           
@@ -379,7 +344,7 @@ const PatientCensusCard = ({
           return {
             ...patient,
             workflow_type: normalizedWorkflowType,
-            daily_info_status: dailyInfoStatusMap[patient.id] || 'incomplete'
+            completed: completionStatusMap[patient.id] || false
           };
         });
         
@@ -390,12 +355,13 @@ const PatientCensusCard = ({
         }, {});
         console.log('Workflow type distribution:', workflowCounts);
         
-        // Debug: Log daily info status distribution
-        const statusCounts = patientsWithStatus.reduce((acc, patient) => {
-          acc[patient.daily_info_status] = (acc[patient.daily_info_status] || 0) + 1;
+        // Debug: Log completion status distribution
+        const completionCounts = patientsWithStatus.reduce((acc, patient) => {
+          const status = patient.completed ? 'completed' : 'not_completed';
+          acc[status] = (acc[status] || 0) + 1;
           return acc;
         }, {});
-        console.log('Daily info status distribution:', statusCounts);
+        console.log('Completion status distribution:', completionCounts);
         
         setPatients(sortPatients(patientsWithStatus));
       } else {
@@ -442,6 +408,19 @@ const PatientCensusCard = ({
       const selectedPatientData = patients.filter(p => newSelection.has(p.id));
       onSelectedPatientsChange(selectedPatientData);
     }
+  };
+
+  // Handle completion toggle
+  const handleCompletionToggle = (patientId) => {
+    setPatients(prev => prev.map(patient => {
+      if (patient.id === patientId) {
+        const newCompleted = !patient.completed;
+        // Save to localStorage
+        saveCompletionStatus(patientId, newCompleted);
+        return { ...patient, completed: newCompleted };
+      }
+      return patient;
+    }));
   };
 
   // Handle workflow type change
@@ -718,6 +697,7 @@ const PatientCensusCard = ({
               isSelected={selectedPatients.has(patient.id)}
               onSelect={handlePatientSelect}
               onStatusChange={handleStatusChange}
+              onCompletionToggle={handleCompletionToggle}
               theme={currentTheme}
             />
           ))

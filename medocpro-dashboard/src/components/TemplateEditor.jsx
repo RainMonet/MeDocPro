@@ -566,41 +566,76 @@ const TemplateEditor = ({ isOpen, initialTemplate, onSave, onCancel, theme = 'da
 
     setEnhancingZoneId(zoneId);
     
+    const startTime = performance.now();
+    
     try {
+      // Load AI settings from localStorage to get compute mode
+      const aiSettings = JSON.parse(localStorage.getItem('aiAssistantSettings') || '{}');
+      const computeMode = aiSettings.computeMode || 'cpu';
+      const model = aiSettings.model || 'mistral:latest';
+      
       const enhancementData = {
         text: zone.text,
         enhancement_type: 'clinical',
         intensity: zone.intensity,
         style: zone.style,
-        model: 'mistral:latest'
+        model: model,
+        compute_mode: computeMode
       };
 
-      console.log('Enhancing zone:', zoneId, 'with data:', enhancementData);
-      const result = await apiService.enhanceText(enhancementData);
+      console.log('🚀 AI Enhancement Request:', {
+        zoneId,
+        computeMode: computeMode.toUpperCase(),
+        model,
+        textLength: zone.text.length,
+        style: zone.style,
+        intensity: zone.intensity
+      });
       
-      if (result.success) {
-        // Store the enhancement result
+      const result = await apiService.enhanceText(enhancementData);
+      const clientProcessingTime = Math.round(performance.now() - startTime);
+      
+      if (result.enhanced_text) {
+        const serverProcessingTime = result.processing_time_ms || 0;
+        
+        console.log('✅ AI Enhancement Success:', {
+          computeModeUsed: result.compute_mode_used?.toUpperCase() || computeMode.toUpperCase(),
+          serverProcessingTime: `${serverProcessingTime}ms`,
+          clientProcessingTime: `${clientProcessingTime}ms`,
+          totalTime: `${clientProcessingTime}ms`,
+          modelUsed: result.model_used || model,
+          inputLength: zone.text.length,
+          outputLength: result.enhanced_text.length,
+          improvement: `${((result.enhanced_text.length / zone.text.length - 1) * 100).toFixed(1)}% length change`
+        });
+        
+        // Store the enhancement result with performance metrics
         setEnhancementResults(prev => ({
           ...prev,
           [zoneId]: {
             original: zone.text,
             enhanced: result.enhanced_text,
-            processing_time: result.processing_time_ms,
-            model_used: result.model_used,
+            processing_time: serverProcessingTime,
+            client_processing_time: clientProcessingTime,
+            model_used: result.model_used || model,
+            compute_mode_used: result.compute_mode_used || computeMode,
             enhancement_applied: result.enhancement_applied,
             timestamp: new Date().toISOString()
           }
         }));
 
-        // Optionally auto-apply the enhancement to the template content
-        // (for now, just store it - we can add apply/revert functionality later)
-        console.log('Enhancement successful:', result.enhanced_text);
+        console.log('Enhanced text preview:', result.enhanced_text.substring(0, 100) + (result.enhanced_text.length > 100 ? '...' : ''));
       } else {
-        console.error('Enhancement failed:', result.error);
-        alert(`Enhancement failed: ${result.error || 'Unknown error'}`);
+        console.error('❌ Enhancement failed:', result.error || 'No enhanced text returned');
+        alert(`Enhancement failed: ${result.error || 'No enhanced text returned'}`);
       }
     } catch (error) {
-      console.error('Enhancement error:', error);
+      const clientProcessingTime = Math.round(performance.now() - startTime);
+      console.error('❌ Enhancement error:', {
+        error: error.message,
+        clientProcessingTime: `${clientProcessingTime}ms`,
+        zoneId
+      });
       alert('Enhancement failed. Please check your connection and try again.');
     } finally {
       setEnhancingZoneId(null);

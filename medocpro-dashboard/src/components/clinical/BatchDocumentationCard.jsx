@@ -398,6 +398,12 @@ const BatchDocumentationCard = ({
         return;
       }
 
+      // Get AI settings for compute mode
+      const aiSettings = JSON.parse(localStorage.getItem('aiAssistantSettings') || '{}');
+      const computeMode = aiSettings.computeMode || 'cpu';
+      
+      console.log(`🚀 Starting batch document generation with ${computeMode.toUpperCase()} mode`);
+      
       // Set status to preparing
       setProgressStatus('Connecting to AI services...');
       
@@ -415,7 +421,8 @@ const BatchDocumentationCard = ({
           template: selectedTemplate,
           patients: selectedPatients,
           exportFormat,
-          aiEnhancement
+          aiEnhancement,
+          computeMode
         }),
         signal: controller.signal
       });
@@ -433,7 +440,13 @@ const BatchDocumentationCard = ({
       setProgressStatus('Processing results...');
 
       const finalResult = await response.json();
-      console.log('Generation completed:', finalResult);
+      console.log('🎉 Generation completed:', finalResult);
+      
+      if (finalResult.ai_enhancement_used) {
+        console.log(`✅ AI Enhancement Success: Used ${computeMode.toUpperCase()} mode for ${finalResult.successful_count} documents`);
+      } else if (finalResult.ai_enhancement_disabled) {
+        console.log('⚠️ AI Enhancement was disabled due to recent failures');
+      }
 
       if (finalResult && finalResult.success) {
         // Complete progress bar

@@ -126,7 +126,10 @@ const DocumentPreview = ({
       border: `1px solid ${styles.borderColor}`,
       borderRadius: '8px',
       overflow: 'hidden',
-      marginBottom: '20px'
+      marginBottom: '20px',
+      display: 'flex',
+      flexDirection: 'column',
+      flex: 1
     }}>
       {/* Document tabs */}
       {documents.length > 1 && (
@@ -193,9 +196,9 @@ const DocumentPreview = ({
       <div style={{
         padding: '20px',
         backgroundColor: styles.bgPrimary,
-        minHeight: '300px',
-        maxHeight: '400px',
-        overflowY: 'auto'
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column'
       }}>
         <div style={{
           marginBottom: '16px',
@@ -356,8 +359,9 @@ const DocumentPreview = ({
             }))}
             style={{
               width: '100%',
+              flex: 1,
               minHeight: '300px',
-              maxHeight: '400px',
+              maxHeight: '60vh',
               fontFamily: 'Georgia, serif',
               fontSize: '14px',
               lineHeight: '1.6',
@@ -366,8 +370,9 @@ const DocumentPreview = ({
               border: `1px solid ${styles.borderColor}`,
               borderRadius: '4px',
               padding: '12px',
-              resize: 'vertical',
-              outline: 'none'
+              resize: 'none',
+              outline: 'none',
+              overflow: 'auto'
             }}
             placeholder="Enter document content..."
           />
@@ -382,9 +387,13 @@ const DocumentPreview = ({
             border: `1px solid ${styles.borderColor}`,
             borderRadius: '4px',
             padding: '12px',
+            flex: 1,
             minHeight: '300px',
-            maxHeight: '400px',
-            overflowY: 'auto'
+            maxHeight: '60vh',
+            overflow: 'auto',
+            // Custom scrollbar styling for read-only view
+            scrollbarWidth: 'thin',
+            scrollbarColor: `${styles.borderColor} transparent`
           }}>
             {editedDocuments[selectedDoc] || currentDoc.populated_content || currentDoc.content || 'No content available'}
           </div>
@@ -548,9 +557,17 @@ const PreviewDocumentModal = ({
           return;
         }
 
-        // Prepare download URL with documents data
+        // Merge original documents with edited content  
+        const updatedDocuments = documents.map((doc, index) => ({
+          ...doc,
+          // Use edited content if available, otherwise use original content (use index not doc.id)
+          populated_content: editedDocuments[index] || doc.populated_content || doc.content,
+          content: editedDocuments[index] || doc.populated_content || doc.content
+        }));
+
+        // Prepare download URL with updated documents data
         const apiBaseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-        const documentsParam = encodeURIComponent(JSON.stringify(documents));
+        const documentsParam = encodeURIComponent(JSON.stringify(updatedDocuments));
         const downloadUrl = `${apiBaseURL}/api/generate-documents/${batchInfo.batchId || 'unknown'}/download?format=${outputFormat}&documents=${documentsParam}`;
         
         console.log('Starting document download...', {
@@ -638,10 +655,13 @@ const PreviewDocumentModal = ({
 
   // Helper function to get document data for finalization
   const getDocumentData = (doc, index) => {
+    // Use index as key to match the editing interface (not doc.id)
+    const editedContent = editedDocuments[index] || doc.populated_content || doc.content || '';
+    
     return {
       patient_census_row_id: doc.patient_census_row_id || doc.patient_id,
       document_title: doc.title || doc.template_name || `Document for ${doc.patient_name || 'Unknown Patient'}`,
-      document_content: editedDocuments[index] || doc.populated_content || doc.content || '',
+      document_content: editedContent,
       document_type: doc.workflow_type || doc.patient_workflow_type || doc.document_type || 'follow-up',
       template_id: doc.template_id || null,
       document_format: 'text',
@@ -876,8 +896,13 @@ const PreviewDocumentModal = ({
         {/* Content */}
         <div style={{
           flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
           overflow: 'auto',
-          padding: '20px'
+          padding: '20px',
+          // Custom scrollbar styling
+          scrollbarWidth: 'thin',
+          scrollbarColor: `${styles.borderColor} transparent`
         }}>
           {/* Format Selector */}
           <FormatSelector
@@ -887,13 +912,20 @@ const PreviewDocumentModal = ({
           />
 
           {/* Document Preview */}
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ 
+            marginBottom: '20px',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
             <label style={{
               display: 'block',
               fontSize: '14px',
               fontWeight: '600',
               color: styles.textPrimary,
-              marginBottom: '8px'
+              marginBottom: '8px',
+              flexShrink: 0
             }}>
               Document Preview
             </label>
