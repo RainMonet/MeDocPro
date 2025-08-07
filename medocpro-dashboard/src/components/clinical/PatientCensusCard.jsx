@@ -253,6 +253,27 @@ const PatientCensusCard = ({
           const bName = getLastName(b.patient_name || '');
           compareValue = aName.localeCompare(bName);
         }
+      } else if (sortBy === 'completion') {
+        // Sort by completion status
+        const aCompleted = a.completed || false;
+        const bCompleted = b.completed || false;
+        
+        // Completed patients first (1) or last (0) depending on sort order
+        const aValue = aCompleted ? 1 : 0;
+        const bValue = bCompleted ? 1 : 0;
+        
+        compareValue = bValue - aValue; // Completed first in ascending order
+        
+        // If same completion status, sort by name as secondary sort
+        if (compareValue === 0) {
+          const getLastName = (name) => {
+            const parts = name.split(',');
+            return parts[0].trim().toLowerCase();
+          };
+          const aName = getLastName(a.patient_name || '');
+          const bName = getLastName(b.patient_name || '');
+          compareValue = aName.localeCompare(bName);
+        }
       }
       
       return sortOrder === 'asc' ? compareValue : -compareValue;
@@ -647,6 +668,25 @@ const PatientCensusCard = ({
               }}
             >
               Type {sortBy === 'workflow' && (sortOrder === 'asc' ? '↑' : '↓')}
+            </button>
+            <button
+              onClick={() => handleSortChange('completion')}
+              style={{
+                padding: '0 6px',
+                backgroundColor: sortBy === 'completion' ? styles.primaryColor : 'transparent',
+                color: sortBy === 'completion' ? '#ffffff' : styles.textSecondary,
+                border: 'none',
+                borderRadius: '3px',
+                fontSize: '10px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '2px',
+                lineHeight: '1',
+                height: '14px'
+              }}
+            >
+              Completion {sortBy === 'completion' && (sortOrder === 'asc' ? '↑' : '↓')}
             </button>
             <button
               onClick={handleSelectAll}

@@ -19,7 +19,8 @@ const Sidebar = ({ onModalOpen, onViewChange, expanded, isMobile, onToggle, view
   const settingsMenuItems = [
     { id: 'accessibility', label: 'Accessibility' },
     { id: 'ai-assistant-settings', label: 'AI Enhancement' },
-    { id: 'audit-logging', label: 'Audit Logging' }
+    { id: 'audit-logging', label: 'Audit Logging' },
+    { id: 'provider-absence', label: 'Provider Absences' }
   ];
 
   return (

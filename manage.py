@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Import after path setup
 try:
     from app import create_app
-    from app.models import db, User, Template, AuditLog, ScratchNote, PatientCensus, PatientCensusRow, DailyInformation, SavedDocument
+    from app.models import db, User, Template, AuditLog, ScratchNote, PatientCensus, PatientCensusRow, DailyInformation, SavedDocument, ProviderAbsence
 except ImportError as e:
     print(f"Error importing modules: {e}")
     print("Please ensure the application factory 'create_app' exists and dependencies are installed.")
@@ -439,6 +439,74 @@ def census_stats(days):
             
         except Exception as e:
             click.echo(f"Error retrieving statistics: {e}")
+
+@cli.command()
+@click.option('--dry-run', is_flag=True, help='Show what would be deleted without making changes')
+@click.option('--limit', default=100, help='Maximum entries to process (default: 100)')
+def cleanup_data(dry_run, limit):
+    """Clean up old daily information entries respecting provider absences"""
+    click.echo("🧹 MeDocPro Data Cleanup - Respecting Provider Absences")
+    click.echo("=" * 60)
+    
+    with app.app_context():
+        try:
+            # Import here to avoid circular imports
+            from app.utils.data_retention import execute_daily_cleanup, get_retention_status
+            
+            # Get retention status first
+            status = get_retention_status()
+            click.echo(f"📊 Retention Policy Status:")
+            click.echo(f"   Default retention: {status['default_retention_days']} days")
+            click.echo(f"   Active provider absences: {status['active_absences']}")
+            click.echo(f"   Cleanup globally paused: {status['cleanup_globally_paused']}")
+            if status['max_retention_extension']:
+                click.echo(f"   Max retention extension: {status['max_retention_extension']} days")
+            click.echo()
+            
+            if status['provider_statuses']:
+                click.echo("👨‍⚕️ Provider Absence Status:")
+                for provider in status['provider_statuses']:
+                    click.echo(f"   {provider['provider_name']}: {provider['reason']}")
+                    if provider['end_date']:
+                        click.echo(f"      Ends: {provider['end_date']} ({provider['days_remaining']} days remaining)")
+                    else:
+                        click.echo(f"      Indefinite absence")
+                click.echo()
+            
+            # Execute cleanup
+            results = execute_daily_cleanup(dry_run=dry_run, user_id=1)  # System user
+            
+            status_msg = 'DRY RUN' if dry_run else 'EXECUTED'
+            click.echo(f"🔍 Cleanup Results ({status_msg}):")
+            click.echo(f"   Total entries analyzed: {results['analysis']['total_candidates']}")
+            click.echo(f"   Entries retained: {results['analysis']['retained_entries']}")
+            click.echo(f"   Entries eligible for cleanup: {results['analysis']['eligible_for_cleanup']}")
+            click.echo(f"   Entries deleted: {results['deleted_count']}")
+            
+            if results['analysis']['cleanup_paused']:
+                click.echo("⏸️  Note: Some cleanup was paused due to active provider absences")
+            
+            if results['analysis']['retention_extensions']:
+                click.echo(f"📅 {results['analysis']['retention_extensions']} entries had extended retention")
+            
+            if results['errors']:
+                click.echo(f"❌ Errors occurred: {len(results['errors'])}")
+                for error in results['errors']:
+                    click.echo(f"   - {error}")
+            
+            # Show retention reasons breakdown
+            if results['analysis']['entries_by_reason']:
+                click.echo("\n📋 Retention Reasons:")
+                for reason, count in results['analysis']['entries_by_reason'].items():
+                    click.echo(f"   {reason}: {count} entries")
+            
+            if dry_run:
+                click.echo("\n💡 To execute actual cleanup, use: python manage.py cleanup-data")
+            else:
+                click.echo(f"\n✅ Cleanup completed successfully")
+                
+        except Exception as e:
+            click.echo(f"Cleanup failed: {e}")
 
 @cli.command()
 @click.option('--days', default=7, help='Number of days to keep (default: 7)')

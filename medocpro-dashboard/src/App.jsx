@@ -15,6 +15,7 @@ import TemplateLibrary from './components/templates/TemplateLibrary';
 import ClinicalWorkflowDashboard from './components/clinical/ClinicalWorkflowDashboard';
 import ClinicalWorkspace from './components/clinical/ClinicalWorkspace';
 import LoginForm from './components/auth/LoginForm';
+import ProviderAbsenceManager from './components/provider/ProviderAbsenceManager';
 import apiService from './services/api';
 import quotesService from './services/quotesService';
 import './App.css';
@@ -246,6 +247,8 @@ function App() {
       setActiveModal(modalType);
       console.log('activeModal should now be:', modalType);
     } else if (modalType === 'audit-logging') {
+      setActiveModal(modalType);
+    } else if (modalType === 'provider-absence') {
       setActiveModal(modalType);
     } else {
       setActiveModal(modalType);
@@ -596,9 +599,68 @@ function App() {
         theme={theme}
         key="ai-enhancement-modal"
       />
+      
+      {/* Provider Absence Management Modal */}
+      {activeModal === 'provider-absence' && (
+        <div className="modal-overlay" onClick={handleModalClose}>
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '90%',
+              maxWidth: '1200px',
+              height: '90%',
+              padding: '0',
+              backgroundColor: theme === 'dark' ? '#0f172a' : '#faf8f3',
+              borderRadius: '12px',
+              overflow: 'hidden'
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 24px',
+              borderBottom: `1px solid ${theme === 'dark' ? '#374151' : '#d4c4a8'}`,
+              backgroundColor: theme === 'dark' ? '#1e293b' : '#f4f1eb'
+            }}>
+              <h2 style={{ 
+                margin: 0, 
+                fontSize: '18px', 
+                fontWeight: '600',
+                color: theme === 'dark' ? '#f1f5f9' : '#2d1810'
+              }}>
+                Provider Absence Management
+              </h2>
+              <button 
+                className="modal-close" 
+                onClick={handleModalClose}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: theme === 'dark' ? '#94a3b8' : '#8b7355',
+                  padding: '4px',
+                  borderRadius: '4px'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ 
+              height: 'calc(100% - 70px)', 
+              overflow: 'auto',
+              padding: '0'
+            }}>
+              <ProviderAbsenceManager />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Coming Soon Modal for other features */}
-      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && activeModal !== 'accessibility' && activeModal !== 'ai-assistant-settings' && activeModal !== 'audit-logging' && (
+      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && activeModal !== 'accessibility' && activeModal !== 'ai-assistant-settings' && activeModal !== 'audit-logging' && activeModal !== 'provider-absence' && (
         <div className="modal-overlay" onClick={handleModalClose}>
           <div className="modal-content coming-soon" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={handleModalClose}>×</button>
