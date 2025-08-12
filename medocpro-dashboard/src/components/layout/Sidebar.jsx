@@ -20,7 +20,9 @@ const Sidebar = ({ onModalOpen, onViewChange, expanded, isMobile, onToggle, view
     { id: 'accessibility', label: 'Accessibility' },
     { id: 'ai-assistant-settings', label: 'AI Enhancement' },
     { id: 'audit-logging', label: 'Audit Logging' },
-    { id: 'provider-absence', label: 'Provider Absences' }
+    { id: 'provider-absence', label: 'Provider Absences' },
+    { id: 'quote-ticker', label: 'Quote Ticker' },
+    { id: 'color-priority-system', label: 'Color Priority System' }
   ];
 
   return (

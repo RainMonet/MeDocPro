@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/layout/Header';
 import Sidebar from './components/layout/Sidebar';
 import SidebarToggle from './components/layout/SidebarToggle';
-import { SystemStatus, AIAnalysisOverview, RecentDocuments } from './components/dashboard';
+import { SystemStatus, AIAnalysisOverview, RecentDocuments, WeeklyPassOffCard } from './components/dashboard';
 import { PatientCensusModal } from './components/modals';
 import DailyInfoEntryModal from './components/modals/DailyInfoEntryModal';
 import AccessibilityModal from './components/modals/AccessibilityModal';
@@ -16,6 +16,8 @@ import ClinicalWorkflowDashboard from './components/clinical/ClinicalWorkflowDas
 import ClinicalWorkspace from './components/clinical/ClinicalWorkspace';
 import LoginForm from './components/auth/LoginForm';
 import ProviderAbsenceManager from './components/provider/ProviderAbsenceManager';
+import QuoteTicker, { QuoteTickerSettings } from './components/quotes/QuoteTicker';
+import ColorPrioritySystemModal from './components/modals/ColorPrioritySystemModal';
 import apiService from './services/api';
 import quotesService from './services/quotesService';
 import './App.css';
@@ -27,7 +29,10 @@ function App() {
   });
   
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return !!localStorage.getItem('token');
+    const token = localStorage.getItem('token');
+    const hasToken = !!token;
+    console.log('🔍 Initial auth check - token exists:', hasToken, 'token:', token ? 'present' : 'none');
+    return hasToken;
   });
   
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
@@ -56,22 +61,30 @@ function App() {
 
   // Authentication handlers
   const handleLogin = async () => {
+    console.log('🔑 App.jsx handleLogin called!');
+    console.log('Current isAuthenticated before login:', isAuthenticated);
+    
     setIsAuthenticated(true);
     setIsNewLogin(true);
+    
+    console.log('✅ Authentication state set to true');
     
     // Load current user data after login
     try {
       const response = await apiService.getCurrentUser();
       if (response.success && response.user) {
-        setUser({
+        const userData = {
           firstName: response.user.firstName || response.user.first_name,
           lastName: response.user.lastName || response.user.last_name,
           role: response.user.role,
           id: response.user.id
-        });
+        };
+        setUser(userData);
+        console.log('👤 User data loaded:', userData);
       }
     } catch (error) {
-      console.error('Failed to load current user after login:', error);
+      console.error('❌ Failed to load current user after login:', error);
+      // Don't fail login if user data loading fails
     }
     
     // Reset the new login flag after a brief moment
@@ -79,15 +92,38 @@ function App() {
   };
 
   const handleLogout = () => {
-    console.log('App.jsx handleLogout called!');
+    console.log('🔄 App.jsx handleLogout called!');
     console.log('Current isAuthenticated:', isAuthenticated);
+    
+    // Clear all authentication-related localStorage items
     localStorage.removeItem('token');
     localStorage.removeItem('refresh_token');
-    quotesService.reset(); // Reset quotes service for next login
-    console.log('Token removed from localStorage');
+    localStorage.removeItem('user');
+    localStorage.removeItem('currentUser');
+    console.log('✅ All tokens removed from localStorage');
+    
+    // Reset all authentication-related state
     setIsAuthenticated(false);
     setIsNewLogin(false);
-    console.log('isAuthenticated set to false');
+    setActiveModal(null); // Close any open modals
+    setUser({
+      firstName: "Jane",
+      lastName: "Smith", 
+      role: "Psychiatrist"
+    }); // Reset to default user
+    
+    // Reset services
+    quotesService.reset();
+    
+    console.log('🔓 User logged out completely');
+    
+    // Force a small delay and page reload if still having issues
+    setTimeout(() => {
+      if (localStorage.getItem('token')) {
+        console.log('⚠️ Token still present after logout, forcing reload');
+        window.location.reload();
+      }
+    }, 100);
   };
 
   // User switch handler
@@ -250,6 +286,8 @@ function App() {
       setActiveModal(modalType);
     } else if (modalType === 'provider-absence') {
       setActiveModal(modalType);
+    } else if (modalType === 'quote-ticker') {
+      setActiveModal(modalType);
     } else {
       setActiveModal(modalType);
     }
@@ -334,8 +372,11 @@ function App() {
 
   // Show login form if not authenticated
   if (!isAuthenticated) {
+    console.log('🔒 Rendering LoginForm - isAuthenticated:', isAuthenticated);
     return <LoginForm onLogin={handleLogin} theme={theme} />;
   }
+  
+  console.log('🏠 Rendering main app - isAuthenticated:', isAuthenticated);
 
   return (
     <div className="app-container">
@@ -399,6 +440,11 @@ function App() {
                   setViewMode('workspace');
                   // Switch to workspace view instead of modal
                 }} />
+              </div>
+
+              {/* Weekly Pass-Off Summary Row */}
+              <div className="dashboard-row">
+                <WeeklyPassOffCard />
               </div>
 
             </div>
@@ -659,8 +705,18 @@ function App() {
         </div>
       )}
 
+      {/* Quote Ticker Settings Modal */}
+      {activeModal === 'quote-ticker' && (
+        <QuoteTickerSettings onClose={handleModalClose} />
+      )}
+
+      {/* Color Priority System Modal */}
+      {activeModal === 'color-priority-system' && (
+        <ColorPrioritySystemModal isOpen={true} onClose={handleModalClose} theme={theme} />
+      )}
+
       {/* Coming Soon Modal for other features */}
-      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && activeModal !== 'accessibility' && activeModal !== 'ai-assistant-settings' && activeModal !== 'audit-logging' && activeModal !== 'provider-absence' && (
+      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && activeModal !== 'accessibility' && activeModal !== 'ai-assistant-settings' && activeModal !== 'audit-logging' && activeModal !== 'provider-absence' && activeModal !== 'quote-ticker' && activeModal !== 'color-priority-system' && (
         <div className="modal-overlay" onClick={handleModalClose}>
           <div className="modal-content coming-soon" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={handleModalClose}>×</button>
