@@ -14,8 +14,13 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(
+    to bottom,
+    var(--bg-secondary) 0%,
+    var(--bg-secondary) 60%,
+    var(--bg-tertiary) 100%
+  );
+  border-bottom: 0.5px solid var(--border-color);
   height: 70px;
   flex-shrink: 0;
   z-index: 1000;
@@ -47,6 +52,49 @@ html[data-high-contrast="true"] .theme-toggle {
   border: 3px solid #ffffff !important;
   background-color: #000000 !important;
   color: #ffffff !important;
+}
+
+/* Quote Ticker Animations */
+@keyframes slideInUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Quote scrolling animation */
+@keyframes scroll-text {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+/* Elegant tooltip fade-in animation */
+@keyframes tooltipFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-100%) translateY(-8px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-100%) translateY(-12px) scale(1);
+  }
 }
 
 html[data-high-contrast="true"] .theme-toggle:hover {
@@ -128,6 +176,114 @@ html[data-high-contrast="true"] .user-role {
 .theme-toggle:hover {
   background: var(--bg-hover);
   transform: scale(1.05);
+}
+
+/* Daily Info Entry Button - Light Theme (Default) - OVERRIDE HEADER STYLES */
+.header .daily-info-entry-button,
+.header-right .daily-info-entry-button {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--space-2) !important;
+  padding: var(--space-3) var(--space-4) !important;
+  background: linear-gradient(135deg, #90c45e 0%, #7ba928 100%) !important;
+  border: 1px solid rgba(107, 142, 35, 0.3) !important;
+  border-radius: var(--radius-lg) !important;
+  color: #2d1810 !important;
+  font-size: var(--font-size-sm) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.025em !important;
+  white-space: nowrap !important;
+  cursor: pointer !important;
+  margin-right: var(--space-4) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 
+    0 2px 4px rgba(107, 142, 35, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  overflow: hidden !important;
+}
+
+/* Light theme explicit override */
+[data-theme="light"] .header .daily-info-entry-button,
+[data-theme="light"] .header-right .daily-info-entry-button {
+  background: linear-gradient(135deg, #90c45e 0%, #7ba928 100%) !important;
+  color: #2d1810 !important;
+  border: 1px solid rgba(107, 142, 35, 0.3) !important;
+}
+
+.header .daily-info-entry-button::before,
+.header-right .daily-info-entry-button::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: -100% !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent) !important;
+  transition: left 0.5s ease !important;
+}
+
+.header .daily-info-entry-button:hover,
+.header-right .daily-info-entry-button:hover {
+  background: linear-gradient(135deg, #a5d474 0%, #90c45e 100%) !important;
+  transform: translateY(-2px) scale(1.02) !important;
+  box-shadow: 
+    0 8px 25px rgba(107, 142, 35, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  border: 1px solid rgba(107, 142, 35, 0.5) !important;
+}
+
+/* Light theme hover explicit override */
+[data-theme="light"] .header .daily-info-entry-button:hover,
+[data-theme="light"] .header-right .daily-info-entry-button:hover {
+  background: linear-gradient(135deg, #a5d474 0%, #90c45e 100%) !important;
+}
+
+.header .daily-info-entry-button:hover::before,
+.header-right .daily-info-entry-button:hover::before {
+  left: 100% !important;
+}
+
+.header .daily-info-entry-button:active,
+.header-right .daily-info-entry-button:active {
+  transform: translateY(-1px) scale(1.01) !important;
+}
+
+/* Dark theme overrides */
+[data-theme="dark"] .header .daily-info-entry-button,
+[data-theme="dark"] .header-right .daily-info-entry-button {
+  background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%) !important;
+  border: 1px solid rgba(74, 222, 128, 0.3) !important;
+  color: #ffffff !important;
+  box-shadow: 
+    0 2px 4px rgba(74, 222, 128, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .header .daily-info-entry-button:hover,
+[data-theme="dark"] .header-right .daily-info-entry-button:hover {
+  background: linear-gradient(135deg, #6ee995 0%, #4ade80 100%) !important;
+  box-shadow: 
+    0 8px 25px rgba(74, 222, 128, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  border: 1px solid rgba(74, 222, 128, 0.5) !important;
+}
+
+/* High contrast mode */
+html[data-high-contrast="true"] .daily-info-entry-button {
+  background: #008000 !important;
+  border: 3px solid #ffffff !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 2px #ffffff !important;
+  box-shadow: 0 0 0 2px #008000 !important;
+}
+
+html[data-high-contrast="true"] .daily-info-entry-button:hover {
+  background: #00ff00 !important;
+  color: #000000 !important;
+  border-color: #00ff00 !important;
+  box-shadow: 0 0 0 4px #00ff00 !important;
 }
 
 .user-menu {
@@ -305,6 +461,8 @@ html[data-high-contrast="true"] .nav-list .nav-link:focus {
   gap: 1.5rem;
 }
 
+/* Workspace StatCard Shimmer Effect - REMOVED */
+
 /* High contrast mode for stats row */
 html[data-high-contrast="true"] .stats-row .stat-card {
   border: 3px solid #ffffff !important;
@@ -321,8 +479,76 @@ html[data-high-contrast="true"] .stats-row .stat-card::before {
 /* Dashboard Row */
 .dashboard-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+/* Main dashboard row (Patient Census + Batch Documentation) */
+.dashboard-row-main {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* Secondary dashboard row (Clock + Recent Documents) */
+.dashboard-row-secondary {
+  grid-template-columns: minmax(350px, 1fr) 2fr;
+}
+
+/* Ensure optimal sizing in the secondary row */
+.dashboard-row-secondary .recent-documents-card {
+  min-height: 400px;
+  max-height: 600px;
+}
+
+.dashboard-row-secondary .clock-card {
+  min-height: 400px;
+  max-height: 500px;
+}
+
+/* Responsive behavior for smaller screens */
+@media (max-width: 1200px) {
+  .dashboard-row-secondary {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  
+  /* Clock scales up to fill full width when stacked */
+  .dashboard-row-secondary .system-status:first-child {
+    max-width: none; /* Remove width constraint to allow full expansion */
+    margin: 0;
+  }
+  
+  /* Clock card expands horizontally on narrow screens */
+  .dashboard-row-secondary .clock-card {
+    min-height: 300px;
+    max-height: 400px;
+  }
+  
+  /* Recent Documents takes full width below */
+  .dashboard-row-secondary .system-status:last-child {
+    width: 100%;
+  }
+  
+  /* Adjust clock content for wider format */
+  .dashboard-row-secondary .clock-card .analog-clock-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    flex-direction: row;
+    padding: 1rem 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-row-main {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Adjust heights for mobile */
+  .dashboard-row-secondary .recent-documents-card,
+  .dashboard-row-secondary .clock-card {
+    min-height: 300px;
+    max-height: none;
+  }
 }
 
 /* High contrast mode for dashboard row */
@@ -833,7 +1059,40 @@ html[data-high-contrast="true"] .document-date {
 .dashboard-grid,
 .content-area,
 .modal-content,
-.sidebar-content {
+.sidebar-content,
+.quote-ticker-modal {
   scrollbar-width: thin;
   scrollbar-color: var(--border-color) var(--bg-tertiary);
+}
+
+/* Webkit scrollbar styling for quote ticker modal */
+.quote-ticker-modal {
+  border-radius: 12px !important;
+  overflow: auto;
+}
+
+.quote-ticker-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.quote-ticker-modal::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  /* Ensure track respects modal border radius */
+  margin: 4px 0;
+}
+
+.quote-ticker-modal::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.quote-ticker-modal::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.quote-ticker-modal::-webkit-scrollbar-corner {
+  background: var(--bg-primary);
+  border-radius: 0 12px 12px 0;
 }
