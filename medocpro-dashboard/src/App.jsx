@@ -47,8 +47,7 @@ function App() {
   const [currentTemplate, setCurrentTemplate] = useState(null);
   const [templateRefreshKey, setTemplateRefreshKey] = useState(0);
   
-  // Patient data for daily info entry
-  const [patientList, setPatientList] = useState([]);
+  // Patient data state no longer needed - daily info modal loads its own data
 
   // User data - initially hardcoded, will be updated on login/switch
   const [user, setUser] = useState({
@@ -232,33 +231,7 @@ function App() {
     setSidebarExpanded(prev => !prev);
   };
 
-  // Load patient data for daily info entry
-  const loadPatientData = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      console.log('No authentication token available, skipping patient data load');
-      return;
-    }
-    
-    try {
-      const response = await fetch('http://localhost:5000/api/patient-census/today', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      const data = await response.json();
-      
-      if (data.success && data.census) {
-        console.log('Loaded patients:', data.census.rows?.length || 0);
-        setPatientList(data.census.rows || []);
-      } else {
-        console.error('Failed to load patient data:', data);
-      }
-    } catch (err) {
-      console.error('Failed to load patient data:', err);
-    }
-  };
+  // loadPatientData function removed - daily info modal now loads its own data
 
   const handleModalOpen = async (modalType) => {
     console.log('handleModalOpen called with:', modalType);
@@ -269,11 +242,8 @@ function App() {
       setShowTemplateEditor(true);
       setCurrentTemplate(null);
     } else if (modalType === 'daily-info-entry') {
-      console.log('Opening daily info entry modal');
-      // Load fresh patient data when opening daily info entry
-      await loadPatientData();
+      console.log('🏥 Opening daily info entry modal (self-contained data loading)');
       setActiveModal(modalType);
-      console.log('Set activeModal to:', modalType);
     } else if (modalType === 'clinical-workflow') {
       setActiveModal(modalType);
     } else if (modalType === 'accessibility') {
@@ -390,6 +360,7 @@ function App() {
         onLogout={handleLogout}
         onUserSwitch={handleUserSwitch}
         isNewLogin={isNewLogin}
+        onOpenDailyInfo={() => handleModalOpen('daily-info-entry')}
       />
 
       <div className="main-layout">
@@ -615,7 +586,6 @@ function App() {
       <DailyInfoEntryModal
         isOpen={activeModal === 'daily-info-entry'}
         onClose={handleModalClose}
-        patients={patientList}
         theme={theme}
       />
       
@@ -636,7 +606,6 @@ function App() {
       {/* Debug info */}
       {console.log('Current activeModal:', activeModal)}
       {console.log('Modal should be open:', activeModal === 'daily-info-entry')}
-      {console.log('Patient list length:', patientList.length)}
       
       {/* AI Assistant Settings Modal - Ollama AI Enhancement */}
       <AIEnhancementModal
@@ -713,6 +682,15 @@ function App() {
       {/* Color Priority System Modal */}
       {activeModal === 'color-priority-system' && (
         <ColorPrioritySystemModal isOpen={true} onClose={handleModalClose} theme={theme} />
+      )}
+
+      {/* Daily Info Entry Modal */}
+      {activeModal === 'daily-info-entry' && (
+        <DailyInfoEntryModal
+          isOpen={true}
+          onClose={handleModalClose}
+          theme={theme}
+        />
       )}
 
       {/* Coming Soon Modal for other features */}

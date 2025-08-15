@@ -97,6 +97,16 @@ html[data-high-contrast="true"] .theme-toggle {
   }
 }
 
+/* Loading spinner animation */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 html[data-high-contrast="true"] .theme-toggle:hover {
   background-color: #ffffff !important;
   color: #000000 !important;
