@@ -30,6 +30,8 @@ const getWorkflowDisplay = (workflowType) => {
 // Completion status remains simple - patients are either completed or not
 
 // Color priority system for patient management
+// ENHANCED: Colors persist day-to-day using patient names as keys (rollover-safe)
+// Completion status resets daily (as requested)
 const getColorOptions = () => {
   // Default color configuration
   const defaultOptions = [
@@ -531,7 +533,7 @@ const PatientCensusCard = ({
     }
   };
 
-  // Function to load patient priority colors (persistent across days)
+  // Function to load patient priority colors (persistent across days using patient names)
   const loadPatientColors = () => {
     try {
       const savedColors = localStorage.getItem('patientPriorityColors');
@@ -542,19 +544,66 @@ const PatientCensusCard = ({
     }
   };
 
-  // Function to save patient priority colors
+  // Migration function to convert old ID-based colors to name-based (one-time)
+  const migrateOldColorStorage = (patients) => {
+    try {
+      const savedColors = localStorage.getItem('patientPriorityColors');
+      if (!savedColors) return;
+      
+      const colorMap = JSON.parse(savedColors);
+      let migrationNeeded = false;
+      const newColorMap = {};
+      
+      // Check if we have any numeric keys (old ID-based storage)
+      Object.keys(colorMap).forEach(key => {
+        const isNumericKey = /^\d+$/.test(key);
+        if (isNumericKey) {
+          // Find patient with this ID
+          const patient = patients.find(p => p.id.toString() === key);
+          if (patient && patient.patient_name) {
+            const patientKey = patient.patient_name.trim().toLowerCase();
+            newColorMap[patientKey] = colorMap[key];
+            migrationNeeded = true;
+            console.log(`Migrated color for patient ID ${key} → '${patient.patient_name}' (key: '${patientKey}')`);
+          }
+        } else {
+          // Keep existing name-based entries
+          newColorMap[key] = colorMap[key];
+        }
+      });
+      
+      // Save updated mapping if migration occurred
+      if (migrationNeeded) {
+        localStorage.setItem('patientPriorityColors', JSON.stringify(newColorMap));
+        console.log('Color storage migration completed');
+      }
+    } catch (error) {
+      console.warn('Failed to migrate old color storage:', error);
+    }
+  };
+
+  // Function to save patient priority colors (using patient name as key for rollover persistence)
   const savePatientColor = (patientId, color) => {
     try {
+      // Find patient name for this ID
+      const patient = patients.find(p => p.id === patientId);
+      if (!patient || !patient.patient_name) {
+        console.warn(`Cannot save color for patient ${patientId}: patient name not found`);
+        return;
+      }
+
+      const patientKey = patient.patient_name.trim().toLowerCase(); // Normalize patient name
       const savedColors = localStorage.getItem('patientPriorityColors');
       const colorMap = savedColors ? JSON.parse(savedColors) : {};
       
       if (color) {
-        colorMap[patientId] = color;
+        colorMap[patientKey] = color;
       } else {
-        delete colorMap[patientId]; // Remove if no color selected
+        delete colorMap[patientKey]; // Remove if no color selected
       }
       
       localStorage.setItem('patientPriorityColors', JSON.stringify(colorMap));
+      console.log(`Saved priority color '${color}' for patient '${patient.patient_name}' (key: '${patientKey}')`);
     } catch (error) {
       console.warn('Failed to save patient color:', error);
     }
@@ -605,6 +654,11 @@ const PatientCensusCard = ({
       if (data.success && data.census) {
         // Load completion status and colors from localStorage
         const completionStatusMap = await loadCompletionStatus(token);
+        
+        // Migrate old ID-based color storage to name-based (one-time)
+        migrateOldColorStorage(data.census.rows);
+        
+        // Load colors after potential migration
         const colorMap = loadPatientColors();
         
         // Use existing workflow_type or status, ensure consistency and add completion status and colors
@@ -615,11 +669,15 @@ const PatientCensusCard = ({
           const validWorkflowTypes = ['follow-up', 'admission', 'discharge'];
           const normalizedWorkflowType = validWorkflowTypes.includes(workflowType) ? workflowType : 'follow-up';
           
+          // Map priority color by patient name (for rollover persistence)
+          const patientKey = patient.patient_name ? patient.patient_name.trim().toLowerCase() : '';
+          const priorityColor = patientKey ? (colorMap[patientKey] || '') : '';
+          
           return {
             ...patient,
             workflow_type: normalizedWorkflowType,
             completed: completionStatusMap[patient.id] || false,
-            priorityColor: colorMap[patient.id] || ''
+            priorityColor: priorityColor
           };
         });
         
@@ -637,6 +695,19 @@ const PatientCensusCard = ({
           return acc;
         }, {});
         console.log('Completion status distribution:', completionCounts);
+        
+        // Debug: Log color persistence mapping
+        const colorCounts = patientsWithStatus.reduce((acc, patient) => {
+          const color = patient.priorityColor || 'none';
+          acc[color] = (acc[color] || 0) + 1;
+          return acc;
+        }, {});
+        console.log('Priority color distribution:', colorCounts);
+        console.log('Color mapping details:', patientsWithStatus.filter(p => p.priorityColor).map(p => ({
+          name: p.patient_name,
+          id: p.id,
+          color: p.priorityColor
+        })));
         
         setPatients(sortPatients(patientsWithStatus));
       } else {
@@ -891,109 +962,212 @@ const PatientCensusCard = ({
           </div>
         )}
 
-        {/* Sort, Selection Controls and Status */}
+        {/* Controls Container */}
         <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '12px',
-          marginBottom: '4px'
+          backgroundColor: styles.bgSecondary,
+          border: `1px solid ${styles.borderColor}`,
+          borderRadius: '6px',
+          padding: '12px',
+          marginBottom: '8px'
         }}>
-          {/* Sort and Select Controls */}
+          {/* Section Header */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px'
+            marginBottom: '8px',
+            paddingBottom: '6px',
+            borderBottom: `1px solid ${styles.borderColor}`
           }}>
-            <span style={{ color: styles.textMuted, fontSize: '11px' }}>Sort:</span>
-            <button
-              onClick={() => handleSortChange('name')}
-              style={{
-                padding: '0 6px',
-                backgroundColor: sortBy === 'name' ? styles.primaryColor : 'transparent',
-                color: sortBy === 'name' ? '#ffffff' : styles.textSecondary,
-                border: 'none',
-                borderRadius: '3px',
+            <div style={{
+              width: '3px',
+              height: '14px',
+              backgroundColor: styles.primaryColor,
+              marginRight: '8px',
+              borderRadius: '2px'
+            }}></div>
+            <span style={{
+              fontSize: '12px',
+              fontWeight: '600',
+              color: styles.textPrimary,
+              letterSpacing: '0.025em'
+            }}>
+              Patient Organization
+            </span>
+          </div>
+
+          {/* Controls Row */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexWrap: 'wrap'
+          }}>
+            {/* Sort Controls */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              flexWrap: 'wrap'
+            }}>
+              <span style={{
                 fontSize: '10px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '2px',
-                lineHeight: '1',
-                height: '14px'
-              }}
-            >
-              Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
-            </button>
-            <button
-              onClick={() => handleSortChange('workflow')}
-              style={{
-                padding: '0 6px',
-                backgroundColor: sortBy === 'workflow' ? styles.primaryColor : 'transparent',
-                color: sortBy === 'workflow' ? '#ffffff' : styles.textSecondary,
-                border: 'none',
-                borderRadius: '3px',
-                fontSize: '10px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '2px',
-                lineHeight: '1',
-                height: '14px'
-              }}
-            >
-              Type {sortBy === 'workflow' && (sortOrder === 'asc' ? '↑' : '↓')}
-            </button>
-            <button
-              onClick={() => handleSortChange('completion')}
-              style={{
-                padding: '0 6px',
-                backgroundColor: sortBy === 'completion' ? styles.primaryColor : 'transparent',
-                color: sortBy === 'completion' ? '#ffffff' : styles.textSecondary,
-                border: 'none',
-                borderRadius: '3px',
-                fontSize: '10px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '2px',
-                lineHeight: '1',
-                height: '14px'
-              }}
-            >
-              Completion {sortBy === 'completion' && (sortOrder === 'asc' ? '↑' : '↓')}
-            </button>
-            <button
-              onClick={() => handleSortChange('color')}
-              style={{
-                padding: '0 6px',
-                backgroundColor: sortBy === 'color' ? styles.primaryColor : 'transparent',
-                color: sortBy === 'color' ? '#ffffff' : styles.textSecondary,
-                border: 'none',
-                borderRadius: '3px',
-                fontSize: '10px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '2px',
-                lineHeight: '1',
-                height: '14px'
-              }}
-            >
-              Color {sortBy === 'color' && (sortOrder === 'asc' ? '↑' : '↓')}
-            </button>
+                color: styles.textMuted,
+                fontWeight: '500',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                marginRight: '6px'
+              }}>
+                Sort:
+              </span>
+              <button
+                onClick={() => handleSortChange('name')}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: sortBy === 'name' ? styles.primaryColor : styles.bgPrimary,
+                  color: sortBy === 'name' ? '#ffffff' : styles.textSecondary,
+                  border: `1px solid ${sortBy === 'name' ? styles.primaryColor : styles.borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (sortBy !== 'name') {
+                    e.target.style.backgroundColor = styles.bgAccent;
+                    e.target.style.borderColor = styles.primaryColor;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (sortBy !== 'name') {
+                    e.target.style.backgroundColor = styles.bgPrimary;
+                    e.target.style.borderColor = styles.borderColor;
+                  }
+                }}
+              >
+                Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </button>
+              <button
+                onClick={() => handleSortChange('workflow')}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: sortBy === 'workflow' ? styles.primaryColor : styles.bgPrimary,
+                  color: sortBy === 'workflow' ? '#ffffff' : styles.textSecondary,
+                  border: `1px solid ${sortBy === 'workflow' ? styles.primaryColor : styles.borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (sortBy !== 'workflow') {
+                    e.target.style.backgroundColor = styles.bgAccent;
+                    e.target.style.borderColor = styles.primaryColor;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (sortBy !== 'workflow') {
+                    e.target.style.backgroundColor = styles.bgPrimary;
+                    e.target.style.borderColor = styles.borderColor;
+                  }
+                }}
+              >
+                Type {sortBy === 'workflow' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </button>
+              <button
+                onClick={() => handleSortChange('completion')}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: sortBy === 'completion' ? styles.primaryColor : styles.bgPrimary,
+                  color: sortBy === 'completion' ? '#ffffff' : styles.textSecondary,
+                  border: `1px solid ${sortBy === 'completion' ? styles.primaryColor : styles.borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (sortBy !== 'completion') {
+                    e.target.style.backgroundColor = styles.bgAccent;
+                    e.target.style.borderColor = styles.primaryColor;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (sortBy !== 'completion') {
+                    e.target.style.backgroundColor = styles.bgPrimary;
+                    e.target.style.borderColor = styles.borderColor;
+                  }
+                }}
+              >
+                Status {sortBy === 'completion' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </button>
+              <button
+                onClick={() => handleSortChange('color')}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: sortBy === 'color' ? styles.primaryColor : styles.bgPrimary,
+                  color: sortBy === 'color' ? '#ffffff' : styles.textSecondary,
+                  border: `1px solid ${sortBy === 'color' ? styles.primaryColor : styles.borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (sortBy !== 'color') {
+                    e.target.style.backgroundColor = styles.bgAccent;
+                    e.target.style.borderColor = styles.primaryColor;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (sortBy !== 'color') {
+                    e.target.style.backgroundColor = styles.bgPrimary;
+                    e.target.style.borderColor = styles.borderColor;
+                  }
+                }}
+              >
+                Priority {sortBy === 'color' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </button>
+            </div>
+
+            {/* Selection Controls */}
             <button
               onClick={handleSelectAll}
               style={{
-                padding: '0 6px',
-                backgroundColor: 'transparent',
+                padding: '4px 12px',
+                backgroundColor: styles.bgPrimary,
                 color: styles.textSecondary,
-                border: 'none',
-                borderRadius: '3px',
-                fontSize: '10px',
+                border: `1px solid ${styles.borderColor}`,
+                borderRadius: '4px',
+                fontSize: '11px',
                 cursor: 'pointer',
-                lineHeight: '1',
-                height: '14px'
+                fontWeight: '500',
+                transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = styles.bgAccent;
+                e.target.style.borderColor = styles.primaryColor;
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = styles.bgPrimary;
+                e.target.style.borderColor = styles.borderColor;
               }}
             >
               {selectedPatients.size === patients.length ? 'Deselect All' : 'Select All'}

@@ -171,6 +171,90 @@ def get_patient_daily_info(patient_id):
             'error': f'Failed to retrieve daily information: {str(e)}'
         }), 500
 
+@daily_info_bp.route('/daily-info/today', methods=['GET'])
+@jwt_required()
+def get_today_daily_info():
+    """Get all daily information entries for today with patient name mapping for rollover recovery"""
+    try:
+        current_user_id = get_jwt_identity()
+        
+        # Get today's entries
+        today = date.today()
+        entries = DailyInformation.query.filter_by(entry_date=today).all()
+        
+        # Get today's patient census for mapping
+        from ..models.patient_census import PatientCensus
+        today_census = PatientCensus.query.filter_by(census_date=today, user_id=current_user_id, is_active=True).first()
+        
+        # Create patient name mapping for rollover scenarios
+        patient_name_map = {}
+        if today_census:
+            for row in today_census.rows:
+                if row.patient_name:
+                    patient_name_map[row.patient_name.strip().lower()] = row.id
+        
+        # Convert to dictionaries with patient ID mapping
+        entries_data = []
+        mapped_entries = {}  # Group by current patient ID
+        
+        for entry in entries:
+            entry_dict = entry.to_dict(include_populated_content=True)
+            
+            # Add patient info
+            if entry.patient_census_row:
+                entry_dict['patient_name'] = entry.patient_census_row.patient_name
+                entry_dict['patient_room'] = entry.patient_census_row.room_number
+                original_patient_id = entry.patient_census_row_id
+                
+                # Map to current patient ID if patient name matches (rollover fix)
+                patient_name = entry.patient_census_row.patient_name
+                if patient_name:
+                    normalized_name = patient_name.strip().lower()
+                    current_patient_id = patient_name_map.get(normalized_name)
+                    if current_patient_id and current_patient_id != original_patient_id:
+                        entry_dict['mapped_patient_id'] = current_patient_id
+                        entry_dict['original_patient_id'] = original_patient_id
+                        entry_dict['rollover_mapped'] = True
+                        # Group by current patient ID
+                        mapped_entries[current_patient_id] = entry_dict
+                    else:
+                        # Use original patient ID
+                        mapped_entries[original_patient_id] = entry_dict
+                else:
+                    mapped_entries[original_patient_id] = entry_dict
+            else:
+                entry_dict['patient_name'] = 'Unknown Patient'
+                entry_dict['patient_room'] = 'Unknown Room'
+                
+            entries_data.append(entry_dict)
+        
+        # Log audit event
+        log_audit_event(
+            user_id=current_user_id,
+            action='daily_info_today_recovery',
+            resource_type='daily_information',
+            resource_id=None,
+            details={
+                'entries_count': len(entries_data),
+                'mapped_entries_count': len(mapped_entries),
+                'recovery_date': today.isoformat()
+            }
+        )
+        
+        return jsonify({
+            'success': True,
+            'entries': entries_data,
+            'mapped_entries': mapped_entries,  # For easier frontend mapping
+            'count': len(entries_data),
+            'date': today.isoformat()
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to retrieve today\'s daily information: {str(e)}'
+        }), 500
+
 @daily_info_bp.route('/daily-info/<int:entry_id>', methods=['PUT'])
 @jwt_required()
 def update_daily_info(entry_id):

@@ -75,13 +75,29 @@ html[data-high-contrast="true"] .theme-toggle {
   }
 }
 
-/* Quote scrolling animation */
+/* Quote scrolling animation - slowed down from 12s to 25s */
 @keyframes scroll-text {
   0% {
     transform: translateX(100%);
   }
   100% {
     transform: translateX(-100%);
+  }
+}
+
+/* Slow fade in/out animation for short quotes */
+@keyframes quote-fade-cycle {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }
 
