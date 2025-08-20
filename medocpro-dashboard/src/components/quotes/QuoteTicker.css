@@ -1,0 +1,123 @@
+/* Quote Ticker Component Styles */
+
+.quote-ticker {
+  transition: all 0.3s ease;
+}
+
+.quote-ticker-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.quote-text-header {
+  flex: 1;
+  text-align: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.quote-content {
+  font-style: italic;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.quote-author {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: 8px;
+  font-weight: 500;
+}
+
+.quote-button {
+  padding: 8px 16px;
+  background-color: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.quote-button:hover {
+  background-color: var(--bg-secondary);
+}
+
+.quote-progress-dots {
+  margin-top: 4px;
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+}
+
+.quote-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.quote-dot.active {
+  background-color: var(--color-primary);
+  opacity: 1;
+}
+
+.quote-dot.inactive {
+  background-color: var(--text-muted);
+  opacity: 0.3;
+}
+
+/* Floating quote styles (when not in header) */
+.quote-floating {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  max-width: 350px;
+  padding: 16px 20px;
+  background-color: var(--bg-primary);
+  border: 2px solid var(--color-primary);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  animation: slideInUp 0.5s ease-out;
+}
+
+.quote-close-btn {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.quote-show-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 8px 12px;
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}

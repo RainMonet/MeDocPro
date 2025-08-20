@@ -239,7 +239,7 @@ class PHIClassification:
         
         # Quasi-identifiers that should be encrypted
         'medium_risk': [
-            'first_name', 'last_name', 'full_name', 'email', 'phone',
+            'first_name', 'last_name', 'full_name', 'patient_name', 'email', 'phone',
             'address', 'street', 'city', 'postal_code', 'zip_code',
             'birth_date', 'date_of_birth', 'admission_date', 'discharge_date'
         ],

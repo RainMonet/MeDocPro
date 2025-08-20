@@ -1,4 +1,4 @@
-# app/__init__.py - Updated with proper blueprint registration
+# app/__init__.py - Updated with proper blueprint registration and HIPAA encryption
 
 from flask import Flask
 from flask_cors import CORS
@@ -14,6 +14,27 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+    
+    # Initialize HIPAA encryption middleware
+    if app.config.get('HIPAA_ENCRYPTION_ENABLED', 'true').lower() == 'true':
+        try:
+            from .security.middleware import HIPAAEncryptionMiddleware
+            from .security.audit_security import SecurityAuditLogger
+            
+            # Initialize encryption middleware
+            encryption_middleware = HIPAAEncryptionMiddleware(app)
+            encryption_middleware.init_app(app)
+            
+            # Initialize security audit logging
+            security_audit = SecurityAuditLogger()
+            app.security_audit = security_audit
+            
+            app.logger.info("HIPAA encryption middleware activated")
+        except ImportError as e:
+            app.logger.warning(f"HIPAA encryption dependencies not available: {e}")
+            app.logger.warning("Running in development mode without encryption - NOT FOR PRODUCTION USE")
+            # Set flag to indicate encryption is disabled
+            app.config['HIPAA_ENCRYPTION_AVAILABLE'] = False
     
     # Remove Flask-CORS and use manual CORS for better control
     # CORS(app, origins="*", supports_credentials=True)
@@ -65,9 +86,14 @@ def create_app(config_class=Config):
         from .routes.ai_enhancement import ai_bp
         app.register_blueprint(ai_bp, url_prefix='/api/ai')
         
-        # Monitoring endpoints
-        from .routes.monitoring import monitoring_bp
-        app.register_blueprint(monitoring_bp)
+        # Monitoring endpoints (Phase 2 - optional)
+        try:
+            from .routes.monitoring import monitoring_bp
+            app.register_blueprint(monitoring_bp)
+            app.logger.info("Phase 2 monitoring endpoints activated")
+        except ImportError as e:
+            app.logger.warning(f"Phase 2 monitoring dependencies not available: {e}")
+            app.logger.warning("System monitoring disabled - install psutil for full monitoring")
 
         # Import models here to ensure they are registered with SQLAlchemy
         from . import models

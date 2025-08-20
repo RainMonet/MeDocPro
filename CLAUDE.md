@@ -16,6 +16,10 @@ python process-manager.py prod   # Cross-platform alternative
 
 # STOP ALL SERVICES
 python process-manager.py stop   # Clean shutdown with port cleanup
+
+# TROUBLESHOOTING: If you get "ModuleNotFoundError: No module named 'cryptography'"
+fix_encryption.bat              # Windows - Auto-fix encryption dependencies
+python install_encryption_deps.py  # Cross-platform dependency installer
 ```
 
 ### 🔧 Manual Development Commands (if needed)
@@ -982,3 +986,211 @@ isort>=5.12.0          # Import sorting
 - ✅ **Code quality enforcement** with automated formatting and linting
 
 **MeDocPro now has enterprise-grade DevOps capabilities ready for production deployment and monitoring.**
+
+---
+
+# 🔧 TROUBLESHOOTING GUIDE
+
+## Common Issues and Solutions
+
+### ❌ "ModuleNotFoundError: No module named 'cryptography'"
+
+**Problem**: HIPAA encryption dependencies not installed
+
+**Quick Solutions**:
+```bash
+# Windows - Automatic fix
+fix_encryption.bat
+
+# Cross-platform - Interactive installer
+python install_encryption_deps.py
+
+# Manual installation
+pip install cryptography
+```
+
+**Alternative Solutions**:
+1. **Use WSL/Linux environment** (recommended)
+2. **Create virtual environment**:
+   ```bash
+   python -m venv venv
+   venv\Scripts\activate  # Windows
+   pip install cryptography
+   ```
+3. **Disable encryption for development** (NOT for production):
+   - Edit `.env`: `HIPAA_ENCRYPTION_ENABLED=false`
+   - Restart backend
+
+**Root Cause**: The HIPAA encryption system requires the `cryptography` library for AES-256 encryption. Some Python installations (especially on Windows) don't include this by default.
+
+### ❌ Backend Won't Start / Port Conflicts
+
+**Problem**: Port 5000 already in use or process conflicts
+
+**Solutions**:
+```bash
+# Stop all MeDocPro processes
+python process-manager.py stop
+
+# Kill processes on port 5000 (Windows)
+netstat -ano | findstr :5000
+taskkill /PID <PID> /F
+
+# Kill processes on port 5000 (Linux)
+lsof -ti:5000 | xargs kill -9
+```
+
+### ❌ CORS Errors in Frontend
+
+**Problem**: Frontend can't connect to backend API
+
+**Check**:
+1. Backend running on correct port: `curl http://localhost:5000/health`
+2. Frontend API URL: Check `.env.development` has `VITE_API_BASE_URL=http://localhost:5000`
+3. Use correct startup method: `dev-start.bat` (not deprecated scripts)
+
+**Solution**:
+```bash
+# Use Phase 1 architecture startup
+dev-start.bat  # Windows
+python process-manager.py dev  # Cross-platform
+```
+
+### ❌ Database Errors
+
+**Problem**: Database connection or migration issues
+
+**Solutions**:
+```bash
+# Initialize/reset database
+python manage.py init-database
+
+# Check database connection
+python manage.py check-database
+
+# Create admin user
+python manage.py create-admin
+```
+
+### ❌ Authentication Issues
+
+**Problem**: Login fails or JWT errors
+
+**Demo Credentials**:
+- Username: `demo@medocpro.com`
+- Password: `demo123`
+
+**Check**:
+1. JWT_SECRET_KEY configured in `.env`
+2. Backend health: `curl http://localhost:5000/health`
+3. Use correct API endpoint: `/auth/login`
+
+### ❌ Frontend Build/Dev Server Issues
+
+**Problem**: React app won't start or build
+
+**Solutions**:
+```bash
+cd medocpro-dashboard
+
+# Clear node modules and reinstall
+rm -rf node_modules package-lock.json
+npm install
+
+# Start development server
+npm run dev
+
+# Check environment variables
+cat .env.development
+```
+
+## 🔍 Debug Information
+
+### Environment Check
+```bash
+# Verify Python environment
+python --version
+python -c "import sys; print(sys.path)"
+
+# Check dependencies
+pip list | grep -E "(flask|cryptography|sqlalchemy)"
+
+# Verify configuration
+python scripts/validate-config.py
+```
+
+### Health Monitoring
+```bash
+# Backend health
+curl http://localhost:5000/health
+curl http://localhost:5000/health/detailed
+
+# Encryption status
+python test_encryption.py
+
+# System metrics
+curl http://localhost:5000/metrics
+```
+
+### Log Analysis
+```bash
+# Backend logs (if running in background)
+tail -f backend.log
+
+# Frontend dev server logs
+cd medocpro-dashboard && npm run dev
+
+# Database logs
+python manage.py check-database
+```
+
+## 📞 Getting Help
+
+### Check These First
+1. **ENCRYPTION_SETUP.md** - Encryption dependency issues
+2. **README-STARTUP.md** - Phase 1 architecture startup guide
+3. **Backend logs** - Error messages and stack traces
+4. **Environment variables** - `.env` and `.env.development` files
+
+### Environment-Specific Solutions
+
+**Windows Users**:
+- Use `fix_encryption.bat` for dependency issues
+- Consider WSL for full Linux compatibility
+- Use PowerShell instead of Command Prompt
+
+**Linux/WSL Users**:
+- Use `sudo apt install python3-cryptography` for system packages
+- Most issues resolve automatically in Linux environment
+
+**Docker Users**:
+- Use provided docker-compose profiles
+- Check container logs: `docker-compose logs api`
+- Ensure ports 5000 and 5173 are available
+
+### File Issues to Check
+
+**Critical Files**:
+- `.env` - Backend configuration
+- `medocpro-dashboard/.env.development` - Frontend configuration
+- `requirements.txt` - Python dependencies (may have encoding issues)
+
+**Startup Scripts Priority**:
+1. ✅ `dev-start.bat` / `process-manager.py dev` (recommended)
+2. ✅ `dev-start.py` (manual backend only)
+3. ❌ `simple_backend.py` (deprecated, port 5001)
+4. ❌ `start-*.py` files (deprecated, various issues)
+
+## 🎯 Quick Resolution Checklist
+
+When MeDocPro won't start:
+
+- [ ] Run `python install_encryption_deps.py` for dependency issues
+- [ ] Use `dev-start.bat` or `python process-manager.py dev` for startup
+- [ ] Check port 5000 is free: `netstat -ano | findstr :5000`
+- [ ] Verify `.env` has required variables
+- [ ] Test backend health: `curl http://localhost:5000/health`
+- [ ] Check frontend env: `medocpro-dashboard/.env.development`
+- [ ] Clear browser cache and restart frontend dev server
+
+**Still having issues?** The Phase 1 and Phase 2 architecture implementations provide robust fallbacks and error handling for most common problems.

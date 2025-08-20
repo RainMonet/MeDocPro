@@ -934,3 +934,70 @@ def grammar_check_only():
     except Exception as e:
         current_app.logger.error(f"Grammar check error: {str(e)}")
         return jsonify({'error': 'An error occurred during grammar check'}), 500
+
+@ai_bp.route('/ai-enhancement-status', methods=['GET'])
+def ai_enhancement_status():
+    """
+    Get AI enhancement service status and availability
+    
+    Returns:
+    {
+        "status": "available|unavailable|error",
+        "ollama_url": "http://localhost:11434",
+        "models_available": ["llama2", "mistral"],
+        "last_check": "2025-08-20T18:30:00Z",
+        "error_message": null
+    }
+    """
+    try:
+        import os
+        
+        # Get Ollama configuration
+        ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
+        
+        # Test Ollama connectivity
+        try:
+            response = requests.get(f"{ollama_url}/api/tags", timeout=3)
+            if response.status_code == 200:
+                models_data = response.json()
+                models = [model.get('name', 'unknown') for model in models_data.get('models', [])]
+                
+                status_info = {
+                    'status': 'available',
+                    'ollama_url': ollama_url,
+                    'models_available': models,
+                    'last_check': datetime.utcnow().isoformat() + 'Z',
+                    'error_message': None,
+                    'connection_test': 'passed'
+                }
+            else:
+                status_info = {
+                    'status': 'error',
+                    'ollama_url': ollama_url,
+                    'models_available': [],
+                    'last_check': datetime.utcnow().isoformat() + 'Z',
+                    'error_message': f'Ollama returned status {response.status_code}',
+                    'connection_test': 'failed'
+                }
+        except requests.exceptions.RequestException as e:
+            status_info = {
+                'status': 'unavailable',
+                'ollama_url': ollama_url,
+                'models_available': [],
+                'last_check': datetime.utcnow().isoformat() + 'Z',
+                'error_message': f'Connection failed: {str(e)}',
+                'connection_test': 'failed'
+            }
+        
+        return jsonify(status_info), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"AI enhancement status error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'ollama_url': 'unknown',
+            'models_available': [],
+            'last_check': datetime.utcnow().isoformat() + 'Z',
+            'error_message': f'Service error: {str(e)}',
+            'connection_test': 'error'
+        }), 500

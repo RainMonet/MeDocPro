@@ -4,6 +4,23 @@ from ..extensions import db
 from datetime import datetime, date
 import json
 
+# Import encryption utilities for PHI data protection
+try:
+    from ..security.encryption import encrypt_phi_data, decrypt_phi_data, PHIClassification
+    ENCRYPTION_AVAILABLE = True
+except ImportError:
+    # Graceful fallback if encryption module not available
+    ENCRYPTION_AVAILABLE = False
+    
+    # Define stub functions for development environments without encryption
+    def encrypt_phi_data(data, patient_id=None):
+        """Stub function when encryption not available"""
+        return data
+    
+    def decrypt_phi_data(data):
+        """Stub function when encryption not available"""
+        return data
+
 class PatientCensus(db.Model):
     """
     Daily patient census snapshot for template population workflow.
@@ -353,6 +370,35 @@ class PatientCensusRow(db.Model):
         new_patient.admit(admission_type=admission_type)
         return new_patient
     
+    @classmethod
+    def from_dict(cls, data, decrypt_phi=None):
+        """Create PatientCensusRow from dictionary data with optional PHI decryption"""
+        # Decrypt PHI data if requested and available
+        if decrypt_phi and ENCRYPTION_AVAILABLE:
+            try:
+                decrypted_data = decrypt_phi_data(data)
+                data = decrypted_data
+            except Exception as e:
+                # Log error but continue with original data
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to decrypt patient census data: {e}")
+        
+        # Extract data fields (may be encrypted)
+        data_fields = data.get('data_fields', {})
+        
+        # Create new patient row
+        patient_row = cls(
+            census_id=data.get('census_id'),
+            room_number=data.get('room_number'),
+            patient_name=data.get('patient_name'),
+            patient_id=data.get('patient_id'),
+            status=data.get('status', 'active'),
+            data_fields=data_fields
+        )
+        
+        return patient_row
+    
     def is_active(self):
         """Check if patient is currently active in census"""
         return self.status == 'active'
@@ -371,9 +417,9 @@ class PatientCensusRow(db.Model):
                 pass
         return None
     
-    def to_dict(self):
-        """Convert to dictionary for API responses"""
-        return {
+    def to_dict(self, encrypt_phi=None):
+        """Convert to dictionary for API responses with optional PHI encryption"""
+        data = {
             'id': self.id,
             'census_id': self.census_id,
             'room_number': self.room_number,
@@ -385,6 +431,21 @@ class PatientCensusRow(db.Model):
             'data_fields': self.data_fields,
             'template_data': self.get_template_data()
         }
+        
+        # Apply PHI encryption if requested and available
+        if encrypt_phi and ENCRYPTION_AVAILABLE:
+            try:
+                # Use patient_id as encryption context
+                patient_context = str(self.id) if self.id else 'unknown'
+                encrypted_data = encrypt_phi_data(data, patient_context)
+                return encrypted_data
+            except Exception as e:
+                # Log error but return unencrypted data (middleware will handle)
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to encrypt patient census data: {e}")
+        
+        return data
     
     def __repr__(self):
         return f'<PatientCensusRow {self.room_number} - {self.patient_name} ({self.status})>'

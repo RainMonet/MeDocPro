@@ -4,6 +4,23 @@ from ..extensions import db
 from datetime import datetime, date
 import json
 
+# Import encryption utilities for clinical PHI data protection
+try:
+    from ..security.encryption import encrypt_phi_data, decrypt_phi_data, PHIClassification
+    ENCRYPTION_AVAILABLE = True
+except ImportError:
+    # Graceful fallback if encryption module not available
+    ENCRYPTION_AVAILABLE = False
+    
+    # Define stub functions for development environments without encryption
+    def encrypt_phi_data(data, patient_id=None):
+        """Stub function when encryption not available"""
+        return data
+    
+    def decrypt_phi_data(data):
+        """Stub function when encryption not available"""
+        return data
+
 class DailyInformation(db.Model):
     """
     Stores completed daily information entries from templates.
@@ -152,8 +169,8 @@ class DailyInformation(db.Model):
         """Get template name from related template"""
         return self.template.name if self.template else None
     
-    def to_dict(self, include_populated_content=False):
-        """Convert to dictionary for API responses"""
+    def to_dict(self, include_populated_content=False, encrypt_phi=None):
+        """Convert to dictionary for API responses with optional PHI encryption"""
         data = {
             'id': self.id,
             'patient_census_row_id': self.patient_census_row_id,
@@ -174,7 +191,50 @@ class DailyInformation(db.Model):
         if include_populated_content:
             data['populated_content'] = self.get_template_populated_content()
         
+        # Apply PHI encryption if requested and available
+        if encrypt_phi and ENCRYPTION_AVAILABLE:
+            try:
+                # Use patient census row ID as encryption context
+                patient_context = str(self.patient_census_row_id) if self.patient_census_row_id else 'unknown'
+                encrypted_data = encrypt_phi_data(data, patient_context)
+                return encrypted_data
+            except Exception as e:
+                # Log error but return unencrypted data (middleware will handle)
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to encrypt daily information data: {e}")
+        
         return data
+    
+    @classmethod
+    def from_dict(cls, data, decrypt_phi=None):
+        """Create DailyInformation from dictionary data with optional PHI decryption"""
+        # Decrypt PHI data if requested and available
+        if decrypt_phi and ENCRYPTION_AVAILABLE:
+            try:
+                decrypted_data = decrypt_phi_data(data)
+                data = decrypted_data
+            except Exception as e:
+                # Log error but continue with original data
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to decrypt daily information data: {e}")
+        
+        # Extract field values (may contain encrypted clinical data)
+        field_values = data.get('field_values', {})
+        
+        # Create new daily information entry
+        daily_info = cls(
+            patient_census_row_id=data.get('patient_census_row_id'),
+            template_id=data.get('template_id'),
+            user_id=data.get('user_id'),
+            entry_date=data.get('entry_date'),
+            status=data.get('status', 'draft'),
+            notes=data.get('notes'),
+            field_values=field_values
+        )
+        
+        return daily_info
     
     @classmethod
     def get_latest_for_patient(cls, patient_census_row_id, entry_date=None):
