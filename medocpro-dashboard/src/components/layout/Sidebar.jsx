@@ -22,7 +22,8 @@ const Sidebar = ({ onModalOpen, onViewChange, expanded, isMobile, onToggle, view
     { id: 'audit-logging', label: 'Audit Logging' },
     { id: 'provider-absence', label: 'Provider Absences' },
     { id: 'quote-ticker', label: 'Quote Ticker' },
-    { id: 'color-priority-system', label: 'Color Priority System' }
+    { id: 'color-priority-system', label: 'Color Priority System' },
+    { id: 'keyboard-shortcuts', label: 'Keyboard Shortcuts' }
   ];
 
   return (
@@ -118,6 +119,42 @@ const Sidebar = ({ onModalOpen, onViewChange, expanded, isMobile, onToggle, view
                 </li>
               );
             })}
+            
+            {/* Template Library Link */}
+            <li className="nav-item" style={{ margin: '4px 16px' }}>
+              <button
+                className="nav-link"
+                onClick={() => handleItemClick('template-library')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '10px 16px 10px 32px', // Extra left padding for indentation
+                  background: 'none',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  width: 'calc(250px - 64px)',
+                  textAlign: 'left',
+                  fontSize: '0.85rem',
+                  fontWeight: '500',
+                  whiteSpace: 'nowrap'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = 'var(--bg-hover)';
+                  e.target.style.color = 'var(--text-primary)';
+                  e.target.style.transform = 'translateX(4px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = 'none';
+                  e.target.style.color = 'var(--text-secondary)';
+                  e.target.style.transform = 'translateX(0)';
+                }}
+              >
+                Template Library
+              </button>
+            </li>
           </ul>
         </div>
       </div>

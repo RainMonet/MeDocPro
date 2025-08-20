@@ -965,6 +965,39 @@ Provider: {{provider_signature}}`
     return () => document.removeEventListener('click', handleDocumentClick);
   }, [handleDocumentClick]);
 
+  // Add keyboard shortcut support
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyboardShortcut = (event) => {
+      // Ctrl+S to save template
+      if (event.ctrlKey && event.key === 's') {
+        event.preventDefault();
+        handleSave();
+      }
+      
+      // Escape to cancel
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCancel();
+      }
+    };
+
+    const handleTriggerSave = () => {
+      if (isOpen) {
+        handleSave();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyboardShortcut);
+    window.addEventListener('triggerTemplateSave', handleTriggerSave);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyboardShortcut);
+      window.removeEventListener('triggerTemplateSave', handleTriggerSave);
+    };
+  }, [isOpen, handleSave, onCancel]);
+
   // Handle backdrop click to close modal
   const handleBackdropClick = (e) => {
     if (e.target === e.currentTarget) {

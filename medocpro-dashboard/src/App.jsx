@@ -18,6 +18,8 @@ import LoginForm from './components/auth/LoginForm';
 import ProviderAbsenceManager from './components/provider/ProviderAbsenceManager';
 import QuoteTicker, { QuoteTickerSettings } from './components/quotes/QuoteTicker';
 import ColorPrioritySystemModal from './components/modals/ColorPrioritySystemModal';
+import AIChatbotModal from './components/modals/AIChatbotModal';
+import KeyboardShortcutsModal from './components/modals/KeyboardShortcutsModal';
 import apiService from './services/api';
 import quotesService from './services/quotesService';
 import './App.css';
@@ -46,6 +48,9 @@ function App() {
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState(null);
   const [templateRefreshKey, setTemplateRefreshKey] = useState(0);
+  
+  // AI Chatbot state
+  const [showAIChatbot, setShowAIChatbot] = useState(false);
   
   // Patient data state no longer needed - daily info modal loads its own data
 
@@ -202,9 +207,171 @@ function App() {
       }
     };
 
+    // Listen for keyboard shortcut events
+    const handleSwitchView = (event) => {
+      if (event.detail === 'workspace' || event.detail === 'dashboard') {
+        setViewMode(event.detail);
+      }
+    };
+
+    const handleToggleSidebar = () => {
+      setSidebarExpanded(prev => !prev);
+    };
+
+    const handleToggleTheme = () => {
+      setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    };
+
+    const handleOpenAIChat = () => {
+      setShowAIChatbot(true);
+    };
+
+    const handleGenerateDocuments = () => {
+      // Trigger document generation if in workspace mode
+      if (viewMode === 'workspace') {
+        window.dispatchEvent(new CustomEvent('triggerDocumentGeneration'));
+      }
+    };
+
+    const handleSaveTemplate = () => {
+      // Trigger template save in editor
+      window.dispatchEvent(new CustomEvent('triggerTemplateSave'));
+    };
+
+    const handleEnhanceText = () => {
+      // Trigger text enhancement
+      window.dispatchEvent(new CustomEvent('triggerTextEnhancement'));
+    };
+
+    // Add global keyboard shortcut handler
+    const handleGlobalKeyboard = (event) => {
+      // Don't trigger shortcuts when typing in form inputs
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      const { altKey, key } = event;
+
+      // Global shortcuts using Alt key (avoid browser conflicts)
+      if (altKey) {
+        switch (key.toLowerCase()) {
+          case 'w':
+            event.preventDefault();
+            setViewMode('workspace');
+            break;
+          case 'd':
+            event.preventDefault();
+            setViewMode('dashboard');
+            break;
+          case 's':
+            event.preventDefault();
+            setSidebarExpanded(prev => !prev);
+            break;
+          case 't':
+            event.preventDefault();
+            setTheme(prev => prev === 'light' ? 'dark' : 'light');
+            break;
+          case 'p':
+            event.preventDefault();
+            handleModalOpen('patient-census');
+            break;
+          case 'i':
+            event.preventDefault();
+            handleModalOpen('daily-info-entry');
+            break;
+          case 'e':
+            event.preventDefault();
+            handleModalOpen('template-editor');
+            break;
+          case 'l':
+            event.preventDefault();
+            handleModalOpen('template-library');
+            break;
+          case 'a':
+            event.preventDefault();
+            handleModalOpen('ai-assistant-settings');
+            break;
+          case 'c':
+            event.preventDefault();
+            setShowAIChatbot(true);
+            break;
+          case 'k':
+            event.preventDefault();
+            handleModalOpen('keyboard-shortcuts');
+            break;
+          case 'u':
+            event.preventDefault();
+            handleModalOpen('accessibility');
+            break;
+          case 'q':
+            event.preventDefault();
+            handleModalOpen('quote-ticker');
+            break;
+          case 'b':
+            event.preventDefault();
+            handleModalOpen('provider-absence');
+            break;
+          case 'o':
+            event.preventDefault();
+            handleModalOpen('color-priority-system');
+            break;
+          case 'h':
+            event.preventDefault();
+            handleModalOpen('audit-logging');
+            break;
+          case 'n':
+            event.preventDefault();
+            // Sort patients by name
+            if (window.MeDocProAPI?.patientCensus?.actions?.sortByName) {
+              window.MeDocProAPI.patientCensus.actions.sortByName();
+            }
+            break;
+          case 'r':
+            event.preventDefault();
+            // Refresh patient data
+            if (window.MeDocProAPI?.patientCensus?.actions?.refresh) {
+              window.MeDocProAPI.patientCensus.actions.refresh();
+            }
+            break;
+          case 'g':
+            event.preventDefault();
+            // Generate documents
+            window.dispatchEvent(new CustomEvent('triggerDocumentGeneration'));
+            break;
+        }
+      }
+
+      // Escape to close modal
+      if (key === 'Escape' && activeModal) {
+        event.preventDefault();
+        handleModalClose();
+      }
+    };
+
+    // Add event listeners
     window.addEventListener('openModal', handleCustomModalEvent);
-    return () => window.removeEventListener('openModal', handleCustomModalEvent);
-  }, [theme]);
+    window.addEventListener('switchView', handleSwitchView);
+    window.addEventListener('toggleSidebar', handleToggleSidebar);
+    window.addEventListener('toggleTheme', handleToggleTheme);
+    window.addEventListener('openAIChat', handleOpenAIChat);
+    window.addEventListener('generateDocuments', handleGenerateDocuments);
+    window.addEventListener('saveTemplate', handleSaveTemplate);
+    window.addEventListener('enhanceText', handleEnhanceText);
+    document.addEventListener('keydown', handleGlobalKeyboard);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('openModal', handleCustomModalEvent);
+      window.removeEventListener('switchView', handleSwitchView);
+      window.removeEventListener('toggleSidebar', handleToggleSidebar);
+      window.removeEventListener('toggleTheme', handleToggleTheme);
+      window.removeEventListener('openAIChat', handleOpenAIChat);
+      window.removeEventListener('generateDocuments', handleGenerateDocuments);
+      window.removeEventListener('saveTemplate', handleSaveTemplate);
+      window.removeEventListener('enhanceText', handleEnhanceText);
+      document.removeEventListener('keydown', handleGlobalKeyboard);
+    };
+  }, [theme, activeModal, viewMode]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -324,6 +491,15 @@ function App() {
     setCurrentTemplate(null);
   };
 
+  // AI Chatbot handlers
+  const handleOpenAIChat = () => {
+    setShowAIChatbot(true);
+  };
+
+  const handleCloseAIChat = () => {
+    setShowAIChatbot(false);
+  };
+
   const getModalTitle = (modalType) => {
     const titles = {
       documents: "Document Library",
@@ -361,6 +537,7 @@ function App() {
         onUserSwitch={handleUserSwitch}
         isNewLogin={isNewLogin}
         onOpenDailyInfo={() => handleModalOpen('daily-info-entry')}
+        onOpenAIChat={handleOpenAIChat}
       />
 
       <div className="main-layout">
@@ -693,8 +870,22 @@ function App() {
         />
       )}
 
+      {/* AI Chatbot Modal */}
+      <AIChatbotModal
+        isOpen={showAIChatbot}
+        onClose={handleCloseAIChat}
+        theme={theme}
+      />
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        isOpen={activeModal === 'keyboard-shortcuts'}
+        onClose={handleModalClose}
+        theme={theme}
+      />
+
       {/* Coming Soon Modal for other features */}
-      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && activeModal !== 'accessibility' && activeModal !== 'ai-assistant-settings' && activeModal !== 'audit-logging' && activeModal !== 'provider-absence' && activeModal !== 'quote-ticker' && activeModal !== 'color-priority-system' && (
+      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && activeModal !== 'accessibility' && activeModal !== 'ai-assistant-settings' && activeModal !== 'audit-logging' && activeModal !== 'provider-absence' && activeModal !== 'quote-ticker' && activeModal !== 'color-priority-system' && activeModal !== 'keyboard-shortcuts' && (
         <div className="modal-overlay" onClick={handleModalClose}>
           <div className="modal-content coming-soon" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={handleModalClose}>×</button>
