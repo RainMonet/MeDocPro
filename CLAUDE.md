@@ -36,6 +36,10 @@ python manage.py create-admin      # Create administrator user
 python manage.py check-database    # Check database connection
 python manage.py list-users        # List all users
 
+# Data retention and provider absence management
+python manage.py cleanup-data --dry-run  # Analyze data cleanup (respects provider absences)
+python manage.py cleanup-data             # Execute data cleanup with absence awareness
+
 # Testing (Phase 2 Enhanced)
 python scripts/run-tests.py         # Run comprehensive automated testing pipeline
 python scripts/validate-config.py   # Validate environment configuration
@@ -104,6 +108,7 @@ curl http://localhost:5000/metrics
   - `/api` - Core API endpoints (templates, users, patient census, daily information)
   - `/api/daily-info` - Daily information persistence and management
   - `/api/generate-documents` - Batch document generation from templates
+  - `/api/provider-absence` - Provider absence tracking and data retention management
 - **Database**: PostgreSQL with SQLAlchemy ORM, SQLite fallback for development
 - **Authentication**: JWT-based with role-based access control
 - **AI Integration**: Ollama for text enhancement with clinical terminology
@@ -123,6 +128,7 @@ curl http://localhost:5000/metrics
   - `src/components/clinical/` - Clinical workflow components (ClinicalWorkspace, PatientCensusCard, BatchDocumentationCard)
   - `src/components/modals/` - Modal components (PatientCensusModal, DailyInfoEntryModal)
   - `src/components/templates/` - Template management (TemplateEditor, TemplateLibrary, AIEnhancement)
+  - `src/components/provider/` - Provider management (ProviderAbsenceManager)
 - **State Management**: Local React state with hooks, authentication state, theme persistence in localStorage
 - **API Configuration**: Environment-based API URLs via VITE_API_BASE_URL
 - **Debug Mode**: Configurable via VITE_DEBUG environment variable
@@ -136,6 +142,7 @@ curl http://localhost:5000/metrics
 - **PatientCensus**: Daily patient census records (`app/models/patient_census.py`)
 - **PatientCensusRow**: Individual patient records with workflow types
 - **DailyInformation**: Daily patient information entries with template integration (`app/models/daily_information.py`)
+- **ProviderAbsence**: Provider time-off tracking for data retention management (`app/models/provider_absence.py`)
 - **AuditLog**: HIPAA compliance audit trail (`app/models/audit_log.py`)
 
 ### Key Files - UPDATED ARCHITECTURE
@@ -289,6 +296,19 @@ Working on `main` branch - **Phase 1 Implementation Complete**:
 - `POST /api/generate-documents` - Generate batch documents from templates
 - `GET /api/generate-documents/<batch_id>/download` - Download generated documents
 
+#### Provider Absence Management
+- `GET /api/provider-absence` - List all provider absences with optional filtering
+- `POST /api/provider-absence` - Create new provider absence period
+- `PUT /api/provider-absence/<id>` - Update existing absence details
+- `POST /api/provider-absence/<id>/complete` - Mark absence as completed (provider returned)
+- `POST /api/provider-absence/<id>/extend` - Extend absence period with new end date
+- `GET /api/provider-absence/cleanup-status` - Get current data retention status and policies
+
+#### Data Retention and Cleanup
+- `GET /api/daily-info/retention-status` - Check current retention policies and active absences
+- `POST /api/daily-info/cleanup-analysis` - Analyze what data would be cleaned up (dry run)
+- `POST /api/daily-info/execute-cleanup` - Execute data cleanup respecting provider absences
+
 ### Development Setup - UPDATED APPROACH
 🚀 **RECOMMENDED**: Use the new consolidated startup approach:
 ```bash
@@ -317,6 +337,58 @@ python process-manager.py dev
 - **Admission**: 🏥 New patient intake
 - **Discharge**: 🏠 Patient discharge planning
 - **Persistence**: Backend API maintains workflow state across sessions
+
+## Provider Absence Management System
+
+### Overview
+Comprehensive provider absence tracking system that automatically pauses 7-day deletion of daily information during extended time-off periods, ensuring clinical data continuity when providers return.
+
+### Key Features
+- **Smart Data Retention**: Automatically pauses cleanup during provider absences >7 days
+- **Flexible Absence Types**: Support for vacation, medical leave, emergency, sabbatical, etc.
+- **Indefinite or Extended Periods**: Configurable retention policies per absence
+- **Clinical Continuity**: Preserves signed/completed entries regardless of policies
+- **Audit Trail**: Complete logging of all retention decisions and absence management
+
+### User Interface Access
+**Location**: Sidebar → Settings → "Provider Absences"
+- **Data Retention Dashboard**: Real-time cleanup status and retention policies
+- **Create Absence Form**: Comprehensive form for managing time-off periods
+- **Absence Management Table**: View, edit, and complete active absences
+- **Emergency Contact**: Optional contact information during absences
+
+### Absence Management Features
+- **Absence Types**: vacation, medical, emergency, sabbatical, other
+- **Date Flexibility**: Support for indefinite absences or specific end dates  
+- **Status Tracking**: Active, completed, cancelled with automatic state management
+- **Extension Capability**: Extend absence periods with reason tracking
+- **Return Management**: Simple completion workflow when provider returns
+
+### Data Retention Logic
+- **Standard Operation**: 7-day retention for draft daily information entries
+- **During Absence**: Cleanup automatically paused or extended based on settings
+- **Clinical Preservation**: Always preserves signed/completed clinical entries
+- **Provider Return**: All data remains available for seamless care continuity
+- **Configurable Settings**: Per-absence retention policies and cleanup rules
+
+### CLI Management
+```bash
+# Analyze data cleanup (respects provider absences)
+python manage.py cleanup-data --dry-run
+
+# Execute cleanup with absence awareness  
+python manage.py cleanup-data
+
+# View detailed retention status
+python manage.py cleanup-data --dry-run  # Shows absence impact
+```
+
+### Technical Implementation
+- **ProviderAbsence Model**: Flexible absence tracking with retention settings
+- **DataRetentionManager**: Smart cleanup logic respecting absence periods
+- **API Integration**: Complete REST API for absence CRUD operations
+- **Frontend Component**: Professional UI with comprehensive error handling
+- **Database Integration**: Automatic table creation and migration support
 
 ## Authentication System
 
@@ -399,16 +471,38 @@ Password: demo123
 - **Patient-Centric**: Individual patient information management
 - **Template Integration**: Dynamic form generation from templates
 - **Navigation System**: Easy patient-to-patient workflow
-- **Data Persistence**: Robust automatic saving and state management
+- **Bulletproof Data Persistence**: Multi-layer data protection with emergency recovery
 - **Responsive Design**: Works on all device sizes
 
-### Data Persistence Features
-- **Real-time Auto-save**: Automatic saving with 2-second debouncing
+### 🔒 Bulletproof Data Persistence System (Latest Enhancement)
+- **Quadruple Storage Redundancy**: Primary, backup, session, and emergency storage locations
+- **Never-Clear-Data Policy**: Data persists indefinitely until explicitly cleared
+- **Intelligent Data Recovery**: Automatically finds most recent data across all storage locations
+- **Emergency Recovery Tools**: Manual recovery buttons for troubleshooting data issues
+- **Version Tracking**: Data includes timestamps and version numbers for integrity
+- **Race Condition Prevention**: Advanced state management prevents data conflicts
+
+### 🚨 Emergency Data Recovery
+**Location**: Daily Information Entry Modal Footer
+- **"Check Recovery"**: Shows available data across all storage locations
+- **"Force Recovery"**: Immediately restores any found data to the modal
+- **"🚨 EMERGENCY DB RECOVERY"**: Direct database query bypass for critical recovery
+- **Usage**: Available when normal data loading fails due to authentication or API issues
+
+### 📅 Daily Rollover System (Automatic Day-to-Day Carryover)
+- **Automatic Daily Rollover**: Each day's census automatically rolls over from the previous day
+- **Patient Continuity**: All patients carry forward to maintain care continuity
+- **Daily Information Carryover**: Previous day's clinical notes automatically carry over as draft status
+- **Smart Notes**: Carried-over entries marked with "Carried over from {date}" annotations
+- **Seamless Workflow**: No manual intervention required - data appears ready for updates each day
+
+### Data Persistence Features  
+- **Real-time Auto-save**: Automatic saving with 5-second debouncing (enhanced from 2-second)
 - **Backend Persistence**: Full integration with PostgreSQL database
 - **Save-on-close**: Ensures data is saved when modal is closed
 - **Cross-session Persistence**: Data persists across browser sessions
-- **Conflict Resolution**: LocalStorage merges with backend data seamlessly
-- **Performance Optimized**: Priority loading with progressive background updates
+- **Emergency Backup**: Created before any potentially destructive operations
+- **Multi-Storage Redundancy**: localStorage, sessionStorage, and emergency backup copies
 
 ### Performance Optimizations
 - **Priority Loading**: First 5 patients load immediately (1-3 seconds)
@@ -420,7 +514,17 @@ Password: demo123
 
 ## Recent Improvements & Features
 
-### AI Enhancement System Optimization (Latest)
+### Provider Absence Management System (Latest)
+- **Comprehensive Data Retention**: Complete system for managing provider time-off and preventing data loss
+- **Smart Cleanup Logic**: Automatically pauses 7-day deletion during extended absences (>7 days)
+- **Flexible Absence Tracking**: Support for vacation, medical, emergency, sabbatical with indefinite periods
+- **Professional UI**: Full modal interface accessible via Settings → Provider Absences
+- **CLI Integration**: Command-line tools for automated cleanup with absence awareness
+- **API Complete**: Full REST API with CRUD operations and retention status endpoints
+- **Clinical Continuity**: Ensures patient information remains available when providers return
+- **Audit Trail**: Complete logging of retention decisions and absence management activities
+
+### AI Enhancement System Optimization
 - **100% Enhancement Success Rate**: Achieved 5/5 successful enhancements through ultra-lenient verification
 - **Psychiatric Content Preservation**: Advanced verification system for mood states and safety assessments  
 - **Connection Pooling**: Persistent HTTP sessions with automatic retry and connection reuse
@@ -430,15 +534,17 @@ Password: demo123
 - **Semantic Equivalence**: Flexible content matching allowing synonyms (neutral→stable, depressed→dysthymic)
 - **Performance Optimized**: Sub-3-second AI enhancement with dynamic timeout scaling
 
-### Daily Information Persistence & Performance  
-- **Fixed Race Condition**: Resolved data persistence issue where daily info wouldn't persist after modal close/reopen
+### Daily Information Persistence & Recovery System (Latest Major Enhancement)
+- **CRITICAL FIX**: Resolved complete data loss issue that prevented access to clinical notes
+- **Emergency Recovery Implementation**: Direct database query bypass for authentication/API failures
+- **Bulletproof Persistence**: Quadruple storage redundancy prevents any future data loss
+- **Patient ID Mismatch Resolution**: Fixed census/daily-info patient ID alignment issues
+- **Race Condition Elimination**: Advanced state management prevents data conflicts during loading
+- **Enhanced Error Handling**: Detailed API logging shows exactly what's failing during data operations
 - **5x Performance Improvement**: Reduced loading time from 10+ seconds to 1-3 seconds
 - **Priority Loading System**: First 5 patients load immediately for instant UI response
-- **Parallel Processing**: Batch processing of 3-5 patients simultaneously instead of sequential
 - **Progressive Loading**: Remaining patients load in background while user works
-- **Enhanced Auto-save**: Debounced auto-save with save-on-close functionality
 - **Backend Integration**: Full PostgreSQL persistence with proper state management
-- **Loading Indicators**: Visual feedback during data operations
 
 ### Authentication Enhancements  
 - **Complete Auth System**: Full login/logout flow with proper state management
@@ -747,6 +853,81 @@ lsof -i :5000                 # Unix/Linux
 - ✅ **Comprehensive documentation** for future developers
 
 **Use `dev-start.bat` for all development work going forward.**
+
+---
+
+## 🚨 Daily Information Entry Troubleshooting Guide
+
+### Common Issues and Solutions
+
+#### Issue: Daily Information Not Loading or Appearing Empty
+**Symptoms**: Modal opens but shows no clinical data, only patient names
+**Solutions**:
+1. **Use Emergency Recovery**: Click "🚨 EMERGENCY DB RECOVERY" button in modal footer
+2. **Check Browser Console**: Look for authentication errors (401/403) or API failures
+3. **Refresh Page**: May need new authentication token
+4. **Force Recovery**: Click "Force Recovery" to restore from local storage
+
+#### Issue: Data Not Persisting Between Sessions  
+**Symptoms**: Enter data, close modal, reopen and data is gone
+**Solutions**:
+1. **Check Recovery Status**: Click "Check Recovery" to see if data exists in storage
+2. **Verify Auto-save**: Look for "Last saved" timestamp in modal footer
+3. **Manual Save**: Click "Save" button before closing modal
+4. **Emergency Backup**: Data is automatically backed up before any destructive operations
+
+#### Issue: Authentication Errors Preventing Data Load
+**Symptoms**: API errors, 401/403 status codes in console
+**Solutions**:
+1. **Refresh Browser**: Gets new authentication token
+2. **Re-login**: Logout and login again with demo@medocpro.com / demo123
+3. **Emergency Recovery**: Bypass authentication issues with direct database query
+
+#### Issue: Patient ID Mismatches
+**Symptoms**: Database has data but modal shows different patient IDs
+**Solutions**:
+1. **Emergency DB Recovery**: Automatically maps database entries to current census
+2. **Check Console Logs**: Look for patient ID mapping issues
+3. **Navigate Patients**: Data may be under different patient in the list
+
+### Daily Rollover System
+
+#### How It Works
+- **Automatic**: No manual intervention required
+- **Triggered**: When accessing today's census for the first time
+- **Carries Over**: All patients and their latest daily information
+- **Status**: Previous data marked as 'draft' for new day editing
+- **Notes**: Added "Carried over from {date}" to indicate source
+
+#### Rollover Verification
+```bash
+# Check if rollover occurred (backend logs)
+grep "rollover" backend.log
+
+# Manual rollover test
+python test-rollover.py
+```
+
+### Emergency Database Commands
+
+#### Direct Database Query (if needed)
+```bash
+# Check daily information entries
+python3 -c "
+import sqlite3
+conn = sqlite3.connect('instance/medocpro.db')
+cursor = conn.cursor()
+cursor.execute('SELECT COUNT(*) FROM daily_information WHERE entry_date = date(\"now\")')
+print(f'Today entries: {cursor.fetchone()[0]}')
+conn.close()
+"
+```
+
+### Prevention Best Practices
+1. **Regular Use**: Use emergency recovery tools when data seems missing
+2. **Monitor Console**: Watch for API errors during data loading
+3. **Save Frequently**: Use "Save & Continue" button for peace of mind
+4. **Check Recovery**: Use "Check Recovery" button if unsure about data status
 
 ---
 

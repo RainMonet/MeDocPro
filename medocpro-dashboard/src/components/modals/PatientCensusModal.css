@@ -415,6 +415,251 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
 }
 
+/* High Contrast Mode Enhancements */
+html[data-high-contrast="true"] .patient-census-modal-overlay {
+  background: rgba(0, 0, 0, 0.95) !important;
+}
+
+html[data-high-contrast="true"] .patient-census-modal {
+  border: 4px solid #ffffff !important;
+  background: #000000 !important;
+  box-shadow: 0 8px 32px rgba(255, 255, 255, 0.5) !important;
+}
+
+html[data-high-contrast="true"] .modal-header {
+  background: linear-gradient(135deg, #000000 0%, #333333 100%) !important;
+  border: 3px solid #ffffff !important;
+  border-bottom: 4px solid #ffffff !important;
+}
+
+html[data-high-contrast="true"] .modal-title {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 4px #ffffff !important;
+}
+
+html[data-high-contrast="true"] .modal-subtitle {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+html[data-high-contrast="true"] .modal-close {
+  background: #000000 !important;
+  border: 3px solid #ffffff !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .modal-close:hover {
+  background: #ffffff !important;
+  color: #000000 !important;
+  box-shadow: 0 0 0 4px #ffffff !important;
+}
+
+html[data-high-contrast="true"] .modal-body {
+  background: #000000 !important;
+  border: 3px solid #ffffff !important;
+  border-top: none !important;
+}
+
+html[data-high-contrast="true"] .census-stats {
+  background: #000000 !important;
+  border-bottom: 4px solid #ffffff !important;
+}
+
+html[data-high-contrast="true"] .census-stat-card {
+  background: #000000 !important;
+  border: 3px solid #ffffff !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.3) !important;
+}
+
+html[data-high-contrast="true"] .census-stat-card:hover {
+  background: #333333 !important;
+  box-shadow: 0 6px 16px rgba(255, 255, 255, 0.5) !important;
+  border-color: #00ffff !important;
+}
+
+html[data-high-contrast="true"] .census-stat-number {
+  color: #00ffff !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 4px #00ffff !important;
+}
+
+html[data-high-contrast="true"] .census-stat-label {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .patient-controls {
+  background: #000000 !important;
+  border-bottom: 4px solid #ffffff !important;
+}
+
+html[data-high-contrast="true"] .search-input,
+html[data-high-contrast="true"] .status-filter {
+  border: 3px solid #ffffff !important;
+  background: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+html[data-high-contrast="true"] .search-input:focus,
+html[data-high-contrast="true"] .status-filter:focus {
+  outline: 4px solid #00ffff !important;
+  outline-offset: 2px !important;
+  border-color: #00ffff !important;
+  box-shadow: 0 0 0 8px rgba(0, 255, 255, 0.3) !important;
+}
+
+html[data-high-contrast="true"] .search-input::placeholder {
+  color: #cccccc !important;
+  font-weight: 600 !important;
+}
+
+html[data-high-contrast="true"] .add-patient-btn {
+  background: #000000 !important;
+  border: 3px solid #ffffff !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .add-patient-btn:hover {
+  background: #ffffff !important;
+  color: #000000 !important;
+  box-shadow: 0 0 0 4px #ffffff !important;
+}
+
+html[data-high-contrast="true"] .sort-btn {
+  background: #000000 !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .sort-btn.active,
+html[data-high-contrast="true"] .sort-btn:hover {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+}
+
+html[data-high-contrast="true"] .sort-label {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .patient-list {
+  background: #000000 !important;
+}
+
+html[data-high-contrast="true"] .patient-item {
+  background: #000000 !important;
+  border-bottom: 3px solid #ffffff !important;
+  color: #ffffff !important;
+}
+
+html[data-high-contrast="true"] .patient-item:hover {
+  background: #333333 !important;
+  border-color: #00ffff !important;
+  transform: translateX(8px) !important;
+}
+
+html[data-high-contrast="true"] .patient-name {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .patient-id {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+html[data-high-contrast="true"] .patient-status {
+  border: 2px solid #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .patient-status.active {
+  background: #00ff00 !important;
+  color: #000000 !important;
+  border-color: #00ff00 !important;
+}
+
+html[data-high-contrast="true"] .patient-status.pending {
+  background: #ffff00 !important;
+  color: #000000 !important;
+  border-color: #ffff00 !important;
+}
+
+html[data-high-contrast="true"] .patient-status.complete {
+  background: #00ffff !important;
+  color: #000000 !important;
+  border-color: #00ffff !important;
+}
+
+html[data-high-contrast="true"] .patient-time {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .drag-handle {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .drag-handle:hover {
+  color: #00ffff !important;
+}
+
+html[data-high-contrast="true"] .remove-patient {
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+  background: #000000 !important;
+}
+
+html[data-high-contrast="true"] .remove-patient:hover {
+  color: #000000 !important;
+  background: #ff0000 !important;
+  border-color: #ff0000 !important;
+}
+
+html[data-high-contrast="true"] .modal-footer {
+  background: #000000 !important;
+  border-top: 4px solid #ffffff !important;
+}
+
+html[data-high-contrast="true"] .footer-info {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+html[data-high-contrast="true"] .export-btn {
+  background: #000000 !important;
+  border: 3px solid #ffffff !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .export-btn:hover {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+html[data-high-contrast="true"] .done-btn {
+  background: #000000 !important;
+  border: 3px solid #ffffff !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+html[data-high-contrast="true"] .done-btn:hover {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 0 4px #ffffff !important;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .patient-item {

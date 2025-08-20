@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Settings Persistence Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; }
+    </style>
+</head>
+<body>
+    <h1>🧪 AI Settings Persistence Test</h1>
+    <p>This test verifies that localStorage is working correctly for AI enhancement settings.</p>
+
+    <div class="test-section">
+        <h3>Current Settings</h3>
+        <div id="currentSettings" class="result">Loading...</div>
+        <button onclick="loadSettings()">Refresh</button>
+    </div>
+
+    <div class="test-section">
+        <h3>Test Actions</h3>
+        <button onclick="setGPUMode()">Set GPU Mode</button>
+        <button onclick="setCPUMode()">Set CPU Mode</button>
+        <button onclick="clearSettings()">Clear All Settings</button>
+    </div>
+
+    <div class="test-section">
+        <h3>Test Results</h3>
+        <div id="testResults" class="result">
+            <p>Instructions:</p>
+            <ol>
+                <li>Click "Set GPU Mode" and verify it shows in Current Settings</li>
+                <li>Refresh the page</li>
+                <li>Check if GPU mode persisted</li>
+                <li>Open MeDocPro AI Enhancement modal and verify the setting matches</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function loadSettings() {
+            const settings = localStorage.getItem('aiAssistantSettings');
+            const prompts = localStorage.getItem('aiSavedPrompts');
+            
+            const currentDiv = document.getElementById('currentSettings');
+            
+            if (settings) {
+                try {
+                    const parsed = JSON.parse(settings);
+                    currentDiv.innerHTML = `
+                        <strong>AI Assistant Settings:</strong><br>
+                        <code>${JSON.stringify(parsed, null, 2)}</code>
+                    `;
+                } catch (e) {
+                    currentDiv.innerHTML = `<span style="color: red;">Error parsing settings: ${e}</span>`;
+                }
+            } else {
+                currentDiv.innerHTML = '<em>No settings found in localStorage</em>';
+            }
+        }
+
+        function setGPUMode() {
+            const settings = {
+                computeMode: 'gpu',
+                model: 'mistral:latest',
+                systemPrompt: 'Default system prompt...',
+                selectedPromptId: 'default'
+            };
+            
+            localStorage.setItem('aiAssistantSettings', JSON.stringify(settings));
+            
+            document.getElementById('testResults').innerHTML = `
+                <p style="color: green;">✅ GPU mode set! Timestamp: ${new Date().toLocaleTimeString()}</p>
+                <p>Now refresh this page and check if it persisted.</p>
+            `;
+            
+            loadSettings();
+        }
+
+        function setCPUMode() {
+            const settings = {
+                computeMode: 'cpu',
+                model: 'mistral:latest',
+                systemPrompt: 'Default system prompt...',
+                selectedPromptId: 'default'
+            };
+            
+            localStorage.setItem('aiAssistantSettings', JSON.stringify(settings));
+            
+            document.getElementById('testResults').innerHTML = `
+                <p style="color: blue;">✅ CPU mode set! Timestamp: ${new Date().toLocaleTimeString()}</p>
+                <p>Now refresh this page and check if it persisted.</p>
+            `;
+            
+            loadSettings();
+        }
+
+        function clearSettings() {
+            localStorage.removeItem('aiAssistantSettings');
+            localStorage.removeItem('aiSavedPrompts');
+            
+            document.getElementById('testResults').innerHTML = `
+                <p style="color: orange;">🗑️ All settings cleared! Timestamp: ${new Date().toLocaleTimeString()}</p>
+            `;
+            
+            loadSettings();
+        }
+
+        // Auto-load on page load
+        window.onload = loadSettings;
+    </script>
+</body>
+</html>

@@ -32,11 +32,11 @@ class Config:
     JWT_REFRESH_TOKEN_EXPIRES = 604800  # 7 days
     
     # CORS Configuration
-    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:5173').split(',')
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://localhost:5174').split(',')
     
     # AI Configuration
     OLLAMA_BASE_URL = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
-    OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'llama2')
+    OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'mistral:latest')
     
     # Security
     WTF_CSRF_ENABLED = True

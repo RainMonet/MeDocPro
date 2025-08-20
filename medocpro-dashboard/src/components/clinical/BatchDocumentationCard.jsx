@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import apiService from '../../services/api';
+
+// Custom toggle switch implemented with pure div styling - no CSS conflicts
 
 // Helper function for theme-aware styling
 const getThemeStyles = (theme = 'dark') => ({
@@ -18,7 +21,7 @@ const getThemeStyles = (theme = 'dark') => ({
 // Template selection component
 const TemplateSelector = ({ onSelect, theme }) => {
   const [currentTheme, setCurrentTheme] = useState(theme);
-  const [hoveredTemplate, setHoveredTemplate] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
   const styles = getThemeStyles(currentTheme);
 
   // Listen for theme changes
@@ -44,9 +47,9 @@ const TemplateSelector = ({ onSelect, theme }) => {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Load user's top 4 most used templates
+  // Load all available templates
   useEffect(() => {
-    const loadUserTemplates = async () => {
+    const loadAllTemplates = async () => {
       try {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -54,7 +57,7 @@ const TemplateSelector = ({ onSelect, theme }) => {
           return;
         }
         
-        const response = await fetch('http://localhost:5000/api/templates/top-used', {
+        const response = await fetch(`${apiService.baseURL}/api/templates`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -64,126 +67,139 @@ const TemplateSelector = ({ onSelect, theme }) => {
         
         if (response.ok) {
           const data = await response.json();
-          // Ensure we only show top 4 templates
-          setTemplates((data.templates || []).slice(0, 4));
+          // Load all templates and sort by name
+          const allTemplates = (data.templates || []).sort((a, b) => a.name.localeCompare(b.name));
+          setTemplates(allTemplates);
         } else {
-          console.error('Failed to load user templates');
-          // Fallback to default templates with usage counts (only 4)
+          console.error('Failed to load templates');
+          // Fallback to default templates
           setTemplates([
-            { id: 1, name: 'Progress Note', category: 'progress', usage_count: 45 },
-            { id: 2, name: 'Assessment', category: 'assessment', usage_count: 32 },
-            { id: 3, name: 'Treatment Plan', category: 'treatment', usage_count: 28 },
-            { id: 4, name: 'Discharge Summary', category: 'discharge', usage_count: 15 }
+            { id: 1, name: 'Assessment', category: 'assessment' },
+            { id: 2, name: 'Discharge Summary', category: 'discharge' },
+            { id: 3, name: 'Initial Evaluation', category: 'evaluation' },
+            { id: 4, name: 'Progress Note', category: 'progress' },
+            { id: 5, name: 'Treatment Plan', category: 'treatment' },
+            { id: 6, name: 'Crisis Assessment', category: 'crisis' },
+            { id: 7, name: 'Group Therapy Note', category: 'therapy' },
+            { id: 8, name: 'Medication Review', category: 'medication' }
           ]);
         }
       } catch (error) {
         console.error('Error loading templates:', error);
-        // Fallback to default templates with usage counts (only 4)
+        // Fallback to default templates
         setTemplates([
-          { id: 1, name: 'Progress Note', category: 'progress', usage_count: 45 },
-          { id: 2, name: 'Assessment', category: 'assessment', usage_count: 32 },
-          { id: 3, name: 'Treatment Plan', category: 'treatment', usage_count: 28 },
-          { id: 4, name: 'Discharge Summary', category: 'discharge', usage_count: 15 }
+          { id: 1, name: 'Assessment', category: 'assessment' },
+          { id: 2, name: 'Discharge Summary', category: 'discharge' },
+          { id: 3, name: 'Initial Evaluation', category: 'evaluation' },
+          { id: 4, name: 'Progress Note', category: 'progress' },
+          { id: 5, name: 'Treatment Plan', category: 'treatment' },
+          { id: 6, name: 'Crisis Assessment', category: 'crisis' },
+          { id: 7, name: 'Group Therapy Note', category: 'therapy' },
+          { id: 8, name: 'Medication Review', category: 'medication' }
         ]);
       } finally {
         setLoading(false);
       }
     };
     
-    loadUserTemplates();
+    loadAllTemplates();
   }, []);
+
+  const handleTemplateSelect = (event) => {
+    const templateId = event.target.value;
+    setSelectedTemplate(templateId);
+    
+    if (templateId) {
+      const template = templates.find(t => t.id.toString() === templateId);
+      if (template) {
+        onSelect(template);
+      }
+    }
+  };
 
   if (loading) {
     return (
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
-        gap: '8px',
-        marginBottom: '16px'
-      }}>
-        {[1, 2, 3, 4].map(i => (
-          <div
-            key={i}
-            style={{
-              padding: '12px',
-              backgroundColor: styles.bgSecondary,
-              border: `1px solid ${styles.borderColor}`,
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              opacity: 0.6
-            }}
-          >
-            <div style={{ textAlign: 'left', width: '100%' }}>
-              <div style={{
-                fontSize: '13px',
-                fontWeight: '500',
-                color: styles.textMuted
-              }}>
-                Loading...
-              </div>
-            </div>
-          </div>
-        ))}
+      <div style={{ marginBottom: '16px' }}>
+        <label style={{
+          display: 'block',
+          fontSize: '14px',
+          fontWeight: '500',
+          color: styles.textPrimary,
+          marginBottom: '8px'
+        }}>
+          Select Template:
+        </label>
+        <select
+          disabled
+          style={{
+            width: '100%',
+            padding: '12px',
+            backgroundColor: styles.bgSecondary,
+            border: `1px solid ${styles.borderColor}`,
+            borderRadius: '8px',
+            fontSize: '14px',
+            color: styles.textMuted,
+            cursor: 'not-allowed'
+          }}
+        >
+          <option>Loading templates...</option>
+        </select>
       </div>
     );
   }
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(2, 1fr)',
-      gap: '8px',
-      marginBottom: '16px'
-    }}>
-      {templates.map(template => (
-        <button
-          key={template.id}
-          onClick={() => onSelect(template)}
-          style={{
-            padding: '12px',
-            backgroundColor: hoveredTemplate === template.id ? styles.bgAccent : styles.bgSecondary,
-            border: `1px solid ${hoveredTemplate === template.id ? styles.primaryColor : styles.borderColor}`,
-            borderRadius: '8px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.2s ease',
-            color: styles.textPrimary
-          }}
-          onMouseEnter={() => setHoveredTemplate(template.id)}
-          onMouseLeave={() => setHoveredTemplate(null)}
-        >
-          <div style={{ textAlign: 'left', flex: 1 }}>
-            <div style={{
-              fontSize: '13px',
-              fontWeight: '500',
-              color: styles.textPrimary
-            }}>
-              {template.name}
-            </div>
-            <div style={{
-              fontSize: '11px',
-              color: styles.textMuted,
-              textTransform: 'capitalize',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <span>{template.category}</span>
-              <span style={{ 
-                fontSize: '10px',
-                color: styles.textMuted,
-                fontWeight: '600'
-              }}>
-                {template.usage_count ? `${template.usage_count} uses` : 'New'}
-              </span>
-            </div>
-          </div>
-        </button>
-      ))}
+    <div style={{ marginBottom: '16px' }}>
+      <label style={{
+        display: 'block',
+        fontSize: '14px',
+        fontWeight: '500',
+        color: styles.textPrimary,
+        marginBottom: '8px'
+      }}>
+        Select Template:
+      </label>
+      <select
+        value={selectedTemplate}
+        onChange={handleTemplateSelect}
+        style={{
+          width: '100%',
+          padding: '12px',
+          backgroundColor: styles.bgSecondary,
+          border: `1px solid ${selectedTemplate ? styles.primaryColor : styles.borderColor}`,
+          borderRadius: '8px',
+          fontSize: '14px',
+          color: styles.textPrimary,
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          appearance: 'none',
+          backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='${encodeURIComponent(styles.textMuted)}' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+          backgroundPosition: 'right 0.5rem center',
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: '1.5em 1.5em',
+          paddingRight: '2.5rem'
+        }}
+      >
+        <option value="">Choose a template...</option>
+        {templates.map(template => (
+          <option key={template.id} value={template.id}>
+            {template.name} ({template.category})
+          </option>
+        ))}
+      </select>
+      {selectedTemplate && (
+        <div style={{
+          marginTop: '8px',
+          padding: '8px',
+          backgroundColor: styles.bgAccent,
+          border: `1px solid ${styles.primaryColor}`,
+          borderRadius: '6px',
+          fontSize: '12px',
+          color: styles.textSecondary
+        }}>
+          ✓ Selected: {templates.find(t => t.id.toString() === selectedTemplate)?.name}
+        </div>
+      )}
     </div>
   );
 };
@@ -382,6 +398,12 @@ const BatchDocumentationCard = ({
         return;
       }
 
+      // Get AI settings for compute mode
+      const aiSettings = JSON.parse(localStorage.getItem('aiAssistantSettings') || '{}');
+      const computeMode = aiSettings.computeMode || 'cpu';
+      
+      console.log(`🚀 Starting batch document generation with ${computeMode.toUpperCase()} mode`);
+      
       // Set status to preparing
       setProgressStatus('Connecting to AI services...');
       
@@ -389,7 +411,7 @@ const BatchDocumentationCard = ({
         controller.abort();
       }, 180000); // 3 minute timeout for multiple documents
       
-      const response = await fetch('http://localhost:5000/api/generate-documents', {
+      const response = await fetch(`${apiService.baseURL}/api/generate-documents`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -399,7 +421,8 @@ const BatchDocumentationCard = ({
           template: selectedTemplate,
           patients: selectedPatients,
           exportFormat,
-          aiEnhancement
+          aiEnhancement,
+          computeMode
         }),
         signal: controller.signal
       });
@@ -417,7 +440,13 @@ const BatchDocumentationCard = ({
       setProgressStatus('Processing results...');
 
       const finalResult = await response.json();
-      console.log('Generation completed:', finalResult);
+      console.log('🎉 Generation completed:', finalResult);
+      
+      if (finalResult.ai_enhancement_used) {
+        console.log(`✅ AI Enhancement Success: Used ${computeMode.toUpperCase()} mode for ${finalResult.successful_count} documents`);
+      } else if (finalResult.ai_enhancement_disabled) {
+        console.log('⚠️ AI Enhancement was disabled due to recent failures');
+      }
 
       if (finalResult && finalResult.success) {
         // Complete progress bar
@@ -503,7 +532,7 @@ const BatchDocumentationCard = ({
       const token = localStorage.getItem('token');
       if (!token) return;
       
-      const response = await fetch('http://localhost:5000/api/ai-enhancement-status', {
+      const response = await fetch(`${apiService.baseURL}/api/ai-enhancement-status`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -565,43 +594,15 @@ const BatchDocumentationCard = ({
         padding: '20px 20px 16px 20px',
         borderBottom: `1px solid ${styles.borderColor}`
       }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+        <h3 style={{
+          margin: 0,
+          fontSize: '18px',
+          fontWeight: '600',
+          color: styles.textPrimary,
           marginBottom: '8px'
         }}>
-          <h3 style={{
-            margin: 0,
-            fontSize: '18px',
-            fontWeight: '600',
-            color: styles.textPrimary
-          }}>
-            Batch Documentation
-          </h3>
-          <button
-            onClick={onOpenTemplateLibrary}
-            style={{
-              padding: '4px 8px',
-              backgroundColor: 'transparent',
-              color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
-              border: `1px solid ${styles.borderColor}`,
-              borderRadius: '4px',
-              fontSize: '11px',
-              cursor: 'pointer',
-              fontWeight: '500',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = styles.bgAccent;
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'transparent';
-            }}
-          >
-            Template Library
-          </button>
-        </div>
+          Batch Documentation
+        </h3>
         <p style={{
           margin: 0,
           fontSize: '13px',
@@ -631,15 +632,6 @@ const BatchDocumentationCard = ({
           <div>
             {/* Template Selection */}
             <div style={{ marginBottom: '16px' }}>
-              <div style={{ marginBottom: '8px' }}>
-                <label style={{
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  color: styles.textSecondary
-                }}>
-                  Select Template
-                </label>
-              </div>
               <TemplateSelector 
                 onSelect={handleTemplateSelect}
                 theme={currentTheme}
@@ -661,12 +653,6 @@ const BatchDocumentationCard = ({
               )}
             </div>
 
-            {/* Export Format */}
-            <ExportFormatSelector
-              value={exportFormat}
-              onChange={setExportFormat}
-              theme={currentTheme}
-            />
 
             {/* AI Enhancement Toggle */}
             <div style={{
@@ -674,62 +660,78 @@ const BatchDocumentationCard = ({
               justifyContent: 'space-between',
               alignItems: 'center',
               marginBottom: '20px',
-              padding: '12px',
+              padding: '12px 16px',
               backgroundColor: styles.bgSecondary,
-              borderRadius: '6px',
-              border: `1px solid ${styles.borderColor}`,
+              borderRadius: '8px',
+              border: `1px solid ${aiEnhancement && aiEnhancementAvailable ? styles.successColor : styles.borderColor}`,
               opacity: aiEnhancementAvailable ? 1 : 0.6,
-              minHeight: '56px' // Ensure consistent height
+              transition: 'all 0.3s ease',
+              boxShadow: aiEnhancement && aiEnhancementAvailable ? `0 2px 8px ${styles.successColor}20` : 'none'
             }}>
-              <div style={{ flex: 1, paddingRight: '12px' }}>
+              <div style={{ flex: 1, paddingRight: '16px' }}>
                 <div style={{
-                  fontSize: '12px',
-                  fontWeight: '500',
+                  fontSize: '14px',
+                  fontWeight: '600',
                   color: styles.textPrimary,
-                  lineHeight: '1.3'
+                  lineHeight: '1.4',
+                  marginBottom: '4px'
                 }}>
                   AI Enhancement {!aiEnhancementAvailable && '(Unavailable)'}
                 </div>
                 <div style={{
-                  fontSize: '11px',
+                  fontSize: '12px',
                   color: styles.textMuted,
-                  lineHeight: '1.3',
-                  marginTop: '2px'
+                  lineHeight: '1.4'
                 }}>
                   {aiStatusMessage || 'Improve language and clinical terminology'}
                 </div>
               </div>
               <div style={{ flexShrink: 0 }}>
-                <button
+                {/* Custom toggle switch component */}
+                <div 
                   onClick={() => aiEnhancementAvailable && setAiEnhancement(!aiEnhancement)}
-                  disabled={!aiEnhancementAvailable}
                   style={{
                     width: '44px',
                     height: '24px',
-                    backgroundColor: aiEnhancement && aiEnhancementAvailable ? styles.successColor : styles.bgAccent,
-                    border: 'none',
+                    backgroundColor: aiEnhancement && aiEnhancementAvailable ? styles.successColor : '#64748b',
                     borderRadius: '12px',
                     position: 'relative',
                     cursor: aiEnhancementAvailable ? 'pointer' : 'not-allowed',
                     transition: 'all 0.2s ease',
                     opacity: aiEnhancementAvailable ? 1 : 0.5,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
+                    boxShadow: 'rgba(0, 0, 0, 0.2) 0px 1px 2px inset',
+                    transform: 'translateZ(0)' // Force hardware acceleration
                   }}
                 >
-                  <div style={{
-                    width: '18px',
-                    height: '18px',
-                    backgroundColor: 'white',
-                    borderRadius: '50%',
-                    position: 'absolute',
-                    top: '3px',
-                    left: aiEnhancement && aiEnhancementAvailable ? '23px' : '3px',
-                    transition: 'all 0.2s ease',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)'
-                  }} />
-                </button>
+                  {/* Toggle thumb */}
+                  <div 
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      backgroundColor: 'white',
+                      borderRadius: '50%',
+                      position: 'absolute',
+                      top: '2px',
+                      left: aiEnhancement && aiEnhancementAvailable ? '22px' : '2px',
+                      transition: 'all 0.2s ease',
+                      boxShadow: 'rgba(0, 0, 0, 0.3) 0px 1px 3px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transform: 'translateZ(0)' // Force hardware acceleration
+                    }}>
+                    {/* Optional checkmark */}
+                    {aiEnhancement && aiEnhancementAvailable && (
+                      <div style={{
+                        fontSize: '10px',
+                        color: styles.successColor,
+                        fontWeight: 'bold'
+                      }}>
+                        ✓
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 

@@ -282,12 +282,23 @@ class ApiService {
 
   // Ollama AI Enhancement endpoints
   async checkOllamaStatus() {
-    const response = await fetch(`${this.baseURL}/api/ai/ollama/status`, {
+    const response = await fetch(`${this.baseURL}/health/ai`, {
       method: 'GET',
       headers: this.getHeaders(),
     });
     
-    return this.handleResponse(response);
+    const result = await this.handleResponse(response);
+    
+    // Convert health endpoint response to expected format
+    if (result && result.status) {
+      return {
+        status: result.status === 'healthy' ? 'online' : 'offline',
+        models: result.models || [],
+        latency: result.latency_ms || 0
+      };
+    }
+    
+    return { status: 'offline' };
   }
 
   async enhanceContentWithOllama(enhancementRequest) {
@@ -488,7 +499,7 @@ class ApiService {
   // Audit endpoints (admin only)
   async getAuditLogs(params = {}) {
     const searchParams = new URLSearchParams(params);
-    const response = await fetch(`${this.baseURL}/api/audit/logs?${searchParams}`, {
+    const response = await fetch(`${this.baseURL}/api/audit-logs?${searchParams}`, {
       method: 'GET',
       headers: this.getHeaders(),
     });
@@ -527,6 +538,7 @@ class ApiService {
         intensity: enhancementData.intensity || 50,
         style: enhancementData.style || 'professional',
         model: enhancementData.model || 'mistral:latest',
+        compute_mode: enhancementData.compute_mode || 'cpu',
         include_spell_check: enhancementData.include_spell_check || true,
         include_grammar_check: enhancementData.include_grammar_check || true,
         preserve_structure: enhancementData.preserve_structure || true
@@ -534,6 +546,22 @@ class ApiService {
     });
     
     return this.handleResponse(response);
+  }
+
+  async checkOllamaStatus() {
+    const response = await fetch(`${this.baseURL}/health/ai`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+    
+    const result = await this.handleResponse(response);
+    
+    // Transform the health response to match expected format
+    return {
+      status: result.status === 'healthy' ? 'online' : 'offline',
+      models: result.models || [],
+      latency_ms: result.latency_ms || 0
+    };
   }
 
   async spellCheck(text) {
@@ -551,6 +579,56 @@ class ApiService {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({ text }),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  // Generic HTTP methods for direct API calls
+  async get(url, params = {}) {
+    const searchParams = new URLSearchParams(params);
+    const queryString = searchParams.toString();
+    const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
+    const finalUrl = queryString ? `${fullUrl}?${queryString}` : fullUrl;
+    
+    const response = await fetch(finalUrl, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async post(url, data = {}) {
+    const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
+    
+    const response = await fetch(fullUrl, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async put(url, data = {}) {
+    const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
+    
+    const response = await fetch(fullUrl, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+    });
+    
+    return this.handleResponse(response);
+  }
+
+  async delete(url) {
+    const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
+    
+    const response = await fetch(fullUrl, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
     });
     
     return this.handleResponse(response);

@@ -1,4 +1,172 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import apiService from '../../services/api';
+
+// Shared completion status functions (synced with PatientCensusCard)
+const getPatientCompletionStatus = (patientId) => {
+  if (!patientId) return false;
+  try {
+    const today = new Date().toDateString();
+    const savedCompletions = localStorage.getItem('patientCompletions');
+    const completionMap = savedCompletions ? JSON.parse(savedCompletions) : {};
+    
+    // Check if completion data is from today
+    const completionData = completionMap[patientId];
+    if (completionData && typeof completionData === 'object') {
+      return completionData.date === today ? completionData.completed : false;
+    }
+    
+    // Legacy format support (boolean)
+    return typeof completionData === 'boolean' ? completionData : false;
+  } catch (error) {
+    console.warn('Failed to load completion status:', error);
+    return false;
+  }
+};
+
+const savePatientCompletionStatus = (patientId, completed) => {
+  if (!patientId) return;
+  try {
+    const today = new Date().toDateString();
+    const savedCompletions = localStorage.getItem('patientCompletions');
+    const completionMap = savedCompletions ? JSON.parse(savedCompletions) : {};
+    
+    // Store with date stamp for daily reset
+    completionMap[patientId] = {
+      completed: completed,
+      date: today
+    };
+    
+    localStorage.setItem('patientCompletions', JSON.stringify(completionMap));
+  } catch (error) {
+    console.warn('Failed to save completion status:', error);
+  }
+};
+
+// Clean up old completion data from previous days
+const cleanupOldCompletions = () => {
+  try {
+    const today = new Date().toDateString();
+    const savedCompletions = localStorage.getItem('patientCompletions');
+    if (!savedCompletions) return;
+    
+    const completionMap = JSON.parse(savedCompletions);
+    const cleanedMap = {};
+    
+    // Only keep today's completions
+    Object.keys(completionMap).forEach(patientId => {
+      const completionData = completionMap[patientId];
+      if (completionData && typeof completionData === 'object' && completionData.date === today) {
+        cleanedMap[patientId] = completionData;
+      }
+      // Remove legacy boolean entries and old dates
+    });
+    
+    localStorage.setItem('patientCompletions', JSON.stringify(cleanedMap));
+  } catch (error) {
+    console.warn('Failed to cleanup old completions:', error);
+  }
+};
+
+// BULLETPROOF DATA PERSISTENCE SYSTEM
+const STORAGE_KEYS = {
+  DAILY_INFO: 'dailyInfoEntryData',
+  DAILY_INFO_BACKUP: 'dailyInfoEntryData_backup',
+  DAILY_INFO_SESSION: 'dailyInfoEntryData_session',
+  EMERGENCY_BACKUP: 'dailyInfoEntryData_emergency'
+};
+
+// Save data to multiple storage locations for redundancy
+const saveDataRobustly = (data) => {
+  const timestamp = new Date().toISOString();
+  const dataWithTimestamp = { ...data, timestamp, version: '2.0' };
+  
+  try {
+    // Primary storage
+    localStorage.setItem(STORAGE_KEYS.DAILY_INFO, JSON.stringify(dataWithTimestamp));
+    
+    // Backup storage
+    localStorage.setItem(STORAGE_KEYS.DAILY_INFO_BACKUP, JSON.stringify(dataWithTimestamp));
+    
+    // Session storage as additional backup
+    sessionStorage.setItem(STORAGE_KEYS.DAILY_INFO_SESSION, JSON.stringify(dataWithTimestamp));
+    
+    console.log('🔒 Data saved robustly to multiple storage locations:', {
+      fieldValuesCount: Object.keys(data.fieldValues || {}).length,
+      completionStatusCount: Object.keys(data.completionStatus || {}).length,
+      timestamp
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to save data robustly:', error);
+    return false;
+  }
+};
+
+// Load data from multiple sources with fallback priority
+const loadDataRobustly = () => {
+  const sources = [
+    { name: 'primary', key: STORAGE_KEYS.DAILY_INFO, storage: localStorage },
+    { name: 'backup', key: STORAGE_KEYS.DAILY_INFO_BACKUP, storage: localStorage },
+    { name: 'session', key: STORAGE_KEYS.DAILY_INFO_SESSION, storage: sessionStorage },
+    { name: 'emergency', key: STORAGE_KEYS.EMERGENCY_BACKUP, storage: localStorage }
+  ];
+  
+  let bestData = null;
+  let bestSource = null;
+  
+  for (const source of sources) {
+    try {
+      const data = source.storage.getItem(source.key);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (parsed.fieldValues && Object.keys(parsed.fieldValues).length > 0) {
+          console.log(`📁 Found data in ${source.name} storage:`, {
+            fieldValuesCount: Object.keys(parsed.fieldValues).length,
+            timestamp: parsed.timestamp
+          });
+          
+          // Use the most recent data
+          if (!bestData || (parsed.timestamp && parsed.timestamp > (bestData.timestamp || ''))) {
+            bestData = parsed;
+            bestSource = source.name;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`Failed to load from ${source.name} storage:`, error);
+    }
+  }
+  
+  if (bestData) {
+    console.log(`🎯 Using data from ${bestSource} storage`);
+    return bestData;
+  }
+  
+  console.log('📭 No saved data found in any storage location');
+  return null;
+};
+
+// Create emergency backup before any destructive operation
+const createEmergencyBackup = (data) => {
+  if (data && (Object.keys(data.fieldValues || {}).length > 0 || Object.keys(data.completionStatus || {}).length > 0)) {
+    const emergencyData = {
+      ...data,
+      emergencyBackupTimestamp: new Date().toISOString(),
+      emergencyBackupReason: 'Pre-destructive operation backup'
+    };
+    
+    try {
+      localStorage.setItem(STORAGE_KEYS.EMERGENCY_BACKUP, JSON.stringify(emergencyData));
+      console.log('🚨 Emergency backup created');
+      return true;
+    } catch (error) {
+      console.error('Failed to create emergency backup:', error);
+      return false;
+    }
+  }
+  return false;
+};
 
 // Helper function for theme-aware styling
 const getThemeStyles = (theme = 'dark') => ({
@@ -103,7 +271,7 @@ const getFieldType = (placeholderName) => {
   
   if (name.includes('assessment') || name.includes('chief_complaint') || 
       name.includes('clinical_observations') || name.includes('side_effects') || 
-      name.includes('perceptual_disturbances')) {
+      name.includes('perceptual_disturbances') || name.includes('plan')) {
     return 'textarea';
   }
   
@@ -152,10 +320,10 @@ const InlineField = ({ placeholder, value, onChange, theme }) => {
   if (fieldType === 'textarea') {
     return (
       <div style={{ 
-        display: 'inline-block',
-        minWidth: '200px',
-        verticalAlign: 'top',
-        margin: '2px'
+        display: 'block',
+        width: '100%',
+        maxWidth: '100%',
+        margin: '2px 0'
       }}>
         <textarea
           value={value || ''}
@@ -163,12 +331,18 @@ const InlineField = ({ placeholder, value, onChange, theme }) => {
           placeholder={placeholder.placeholder}
           style={{
             ...baseInputStyles,
-            minWidth: '300px',
+            width: '100%',
+            maxWidth: '100%',
+            minWidth: '200px',
             minHeight: hasValue ? 'auto' : '60px',
             resize: 'vertical',
-            display: 'inline-block'
+            display: 'block',
+            boxSizing: 'border-box',
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word',
+            whiteSpace: 'pre-wrap'
           }}
-          rows={hasValue ? Math.max(1, value.split('\n').length) : 3}
+          rows={hasValue ? Math.max(2, value.split('\n').length) : 3}
         />
       </div>
     );
@@ -182,9 +356,13 @@ const InlineField = ({ placeholder, value, onChange, theme }) => {
       placeholder={placeholder.placeholder}
       style={{
         ...baseInputStyles,
-        minWidth: hasValue ? `${Math.max(value.length * 8, 60)}px` : '120px',
-        maxWidth: '300px',
-        display: 'inline'
+        minWidth: hasValue ? `${Math.min(Math.max(value.length * 8, 80), 400)}px` : '120px',
+        maxWidth: '100%',
+        width: 'auto',
+        display: 'inline-block',
+        boxSizing: 'border-box',
+        wordWrap: 'break-word',
+        overflowWrap: 'break-word'
       }}
     />
   );
@@ -233,9 +411,10 @@ const InlineTemplateRenderer = ({ template, fieldValues, onChange, theme }) => {
 };
 
 // Patient navigation component
-const PatientNavigation = ({ patients, currentIndex, onNavigate, completionStatus, theme }) => {
+const PatientNavigation = ({ patients, currentIndex, onNavigate, completionStatus, onCompletionToggle, theme, updateTrigger }) => {
   const styles = getThemeStyles(theme);
   const currentPatient = patients[currentIndex];
+  const isCompleted = getPatientCompletionStatus(currentPatient?.id);
   
   return (
     <div style={{
@@ -249,12 +428,55 @@ const PatientNavigation = ({ patients, currentIndex, onNavigate, completionStatu
       {/* Patient Info */}
       <div style={{ flex: 1 }}>
         <div style={{
-          fontSize: '18px',
-          fontWeight: '600',
-          color: styles.textPrimary,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
           marginBottom: '4px'
         }}>
-          {currentPatient?.patient_name || 'Unknown Patient'}
+          <div style={{
+            fontSize: '18px',
+            fontWeight: '600',
+            color: styles.textPrimary
+          }}>
+            {currentPatient?.patient_name || 'Unknown Patient'}
+          </div>
+          
+          {/* Completion Checkbox */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+            onClick={() => onCompletionToggle && onCompletionToggle(currentPatient?.id)}
+          >
+            <span style={{
+              fontSize: '12px',
+              color: styles.textSecondary,
+              fontWeight: '500'
+            }}>
+              Completed
+            </span>
+            <div
+              className={`completion-checkbox ${isCompleted ? 'completed' : ''}`}
+              style={{
+                width: '20px',
+                height: '20px',
+                border: `2px solid ${isCompleted ? styles.successColor : styles.borderColor}`,
+                borderRadius: '4px',
+                backgroundColor: isCompleted ? styles.successColor : 'transparent',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {isCompleted && (
+                <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>✓</span>
+              )}
+            </div>
+          </div>
         </div>
         <div style={{
           fontSize: '12px',
@@ -262,6 +484,159 @@ const PatientNavigation = ({ patients, currentIndex, onNavigate, completionStatu
         }}>
           Room {currentPatient?.room_number} • {currentPatient?.patient_id} • 
           Progress: {currentIndex + 1} of {patients.length}
+        </div>
+      </div>
+
+      {/* Progress Indicator */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        gap: '6px',
+        padding: '12px 16px',
+        margin: '0 16px',
+        backgroundColor: styles.bgPrimary,
+        border: `1px solid ${styles.borderColor}`,
+        borderRadius: '8px',
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+        flex: 1,
+        minWidth: '200px'
+      }}>
+        {/* Progress Label */}
+        <div style={{
+          fontSize: '11px',
+          fontWeight: '600',
+          color: styles.textSecondary,
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          textAlign: 'center',
+          marginBottom: '2px'
+        }}>
+          Progress
+        </div>
+        
+        {/* Progress Indicators - Stacked in rows of 10 */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '2px',
+          width: '100%',
+          minHeight: '24px',
+          maxHeight: '80px',
+          padding: '4px',
+          overflow: 'hidden'
+        }}>
+          {(() => {
+            // Group patients into rows of 10
+            const rows = [];
+            const patientsPerRow = 10;
+            for (let i = 0; i < patients.length; i += patientsPerRow) {
+              rows.push(patients.slice(i, i + patientsPerRow));
+            }
+            
+            return rows.map((row, rowIndex) => (
+              <div
+                key={`row-${rowIndex}`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '1px',
+                  width: '100%',
+                  minHeight: '20px'
+                }}
+              >
+                {row.map((patient, indexInRow) => {
+                  const absoluteIndex = rowIndex * patientsPerRow + indexInRow;
+                  const isCompleted = getPatientCompletionStatus(patient?.id);
+                  const isCurrent = absoluteIndex === currentIndex;
+                  
+                  // Fixed width for consistent layout - roughly 10% of container per indicator
+                  const indicatorWidth = '24px';
+                  
+                  return (
+                    <span
+                      key={patient?.id || absoluteIndex}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: indicatorWidth,
+                        height: '18px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        fontFamily: 'monospace',
+                        lineHeight: '1',
+                        color: isCurrent 
+                          ? 'white'
+                          : isCompleted 
+                            ? styles.successColor 
+                            : styles.textMuted,
+                        cursor: 'pointer',
+                        borderRadius: '3px',
+                        border: isCurrent 
+                          ? `2px solid ${styles.primaryColor}`
+                          : isCompleted 
+                            ? `1px solid ${styles.successColor}60`
+                            : `1px solid ${styles.borderColor}`,
+                        backgroundColor: isCurrent 
+                          ? styles.primaryColor 
+                          : isCompleted 
+                            ? `${styles.successColor}25`
+                            : 'transparent',
+                        transition: 'all 0.2s ease',
+                        margin: '1px',
+                        flex: '1 1 0',
+                        maxWidth: '32px',
+                        overflow: 'hidden',
+                        textAlign: 'center',
+                        boxSizing: 'border-box'
+                      }}
+                      onClick={() => onNavigate(absoluteIndex)}
+                      onMouseEnter={(e) => {
+                        e.target.style.transform = 'scale(1.08)';
+                        e.target.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.2)';
+                        e.target.style.zIndex = '10';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = 'scale(1)';
+                        e.target.style.boxShadow = 'none';
+                        e.target.style.zIndex = 'auto';
+                      }}
+                      title={`Patient ${absoluteIndex + 1}: ${patient?.patient_name || 'Unknown'} - ${isCompleted ? 'Completed' : 'Incomplete'}${isCurrent ? ' (Current)' : ''}`}
+                    >
+                      {isCompleted ? '✓' : '│'}
+                    </span>
+                  );
+                })}
+                {/* Fill remaining spaces in incomplete rows */}
+                {row.length < patientsPerRow && Array.from({ length: patientsPerRow - row.length }, (_, emptyIndex) => (
+                  <span
+                    key={`empty-${rowIndex}-${emptyIndex}`}
+                    style={{
+                      width: '24px',
+                      height: '18px',
+                      flex: '1 1 0',
+                      maxWidth: '32px',
+                      visibility: 'hidden'
+                    }}
+                  />
+                ))}
+              </div>
+            ));
+          })()}
+        </div>
+        
+        {/* Progress Summary */}
+        <div style={{
+          fontSize: '10px',
+          color: styles.textMuted,
+          textAlign: 'center',
+          marginTop: '2px'
+        }}>
+          {patients.filter(p => getPatientCompletionStatus(p?.id)).length} of {patients.length} completed
         </div>
       </div>
 
@@ -287,16 +662,6 @@ const PatientNavigation = ({ patients, currentIndex, onNavigate, completionStatu
           ← Previous
         </button>
 
-        <div style={{
-          padding: '8px 16px',
-          backgroundColor: styles.bgAccent,
-          borderRadius: '6px',
-          fontSize: '14px',
-          color: styles.textSecondary
-        }}>
-          {Object.values(completionStatus).filter(Boolean).length} / {patients.length} completed
-        </div>
-
         <button
           onClick={() => onNavigate(currentIndex + 1)}
           disabled={currentIndex === patients.length - 1}
@@ -318,7 +683,43 @@ const PatientNavigation = ({ patients, currentIndex, onNavigate, completionStatu
 };
 
 // Main Daily Info Entry Modal Component
-const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' }) => {
+const DailyInfoEntryModal = ({ isOpen, onClose, theme = 'dark' }) => {
+  console.log('🎯 ========== DAILY INFO ENTRY MODAL RENDER ==========');
+  console.log('🎯 Modal props:', {
+    isOpen,
+    theme
+  });
+  
+  // State for patients - now loaded internally like PatientCensusModal
+  const [patients, setPatients] = useState([]);
+  const [loadingPatients, setLoadingPatients] = useState(false);
+  
+  console.log('🎯 Internal patients state:', {
+    patientsCount: patients.length,
+    patientsArray: patients
+  });
+  console.log('🎯 First few patients from state:', patients.slice(0, 3));
+  
+  // Sort patients alphabetically by last name
+  const sortedPatients = [...patients].sort((a, b) => {
+    const getLastName = (patient) => {
+      const name = patient.patient_name || '';
+      // Handle "Last, First" format
+      const parts = name.split(', ');
+      return parts[0] || name; // Return last name or full name if no comma
+    };
+    
+    const lastNameA = getLastName(a).toLowerCase();
+    const lastNameB = getLastName(b).toLowerCase();
+    return lastNameA.localeCompare(lastNameB);
+  });
+  
+  console.log('🎯 Sorted patients:', {
+    originalCount: patients.length,
+    sortedCount: sortedPatients.length,
+    firstSorted: sortedPatients[0] || 'No patients'
+  });
+
   const [currentPatientIndex, setCurrentPatientIndex] = useState(0);
   const [fieldValues, setFieldValues] = useState({});
   const [previousValues, setPreviousValues] = useState({});
@@ -333,7 +734,84 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
   const [lastSaved, setLastSaved] = useState(null);
   const [backendDataLoaded, setBackendDataLoaded] = useState(false);
   const [loadingDailyInfo, setLoadingDailyInfo] = useState(false);
+  const [backendErrors, setBackendErrors] = useState(0);
+  const [isBackendDown, setIsBackendDown] = useState(false);
+  const [completionUpdateTrigger, setCompletionUpdateTrigger] = useState(0);
+  const [dataLoadInProgress, setDataLoadInProgress] = useState(false);
   const styles = getThemeStyles(currentTheme);
+
+  // Load patient census data - same approach as PatientCensusModal
+  const loadPatientCensusData = useCallback(async () => {
+    console.log('🎯 ========== LOADING PATIENT CENSUS DATA ==========');
+    const token = localStorage.getItem('token');
+    if (!token || token === 'null' || token === 'undefined') {
+      console.log('🎯 No authentication token available, skipping census load in modal');
+      setLoadingPatients(false);
+      return;
+    }
+    
+    try {
+      setLoadingPatients(true);
+      console.log('🎯 Making API call using apiService.getPatientCensusToday()...');
+      
+      // Use the same API service method as PatientCensusModal
+      const data = await apiService.getPatientCensusToday();
+      console.log('🎯 API service response:', data);
+      
+      if (data.success && data.census) {
+        const patientsData = data.census.rows || [];
+        console.log('🎯 Successfully loaded patients via API service:', {
+          count: patientsData.length,
+          firstPatient: patientsData[0] || 'No patients',
+          patientNames: patientsData.map(p => p.patient_name).slice(0, 3)
+        });
+        
+        setPatients(patientsData);
+      } else {
+        console.error('🎯 API service returned failure:', data);
+        setPatients([]);
+      }
+    } catch (error) {
+      console.error('🎯 Error loading patient census data:', error);
+      setPatients([]);
+    } finally {
+      setLoadingPatients(false);
+      console.log('🎯 ========== PATIENT CENSUS DATA LOAD COMPLETE ==========');
+    }
+  }, []);
+
+  // Load patients when modal opens - same pattern as PatientCensusModal
+  useEffect(() => {
+    console.log('🎯 Modal open effect - isOpen:', isOpen);
+    if (isOpen) {
+      console.log('🎯 Modal opened, loading patient census data...');
+      loadPatientCensusData();
+    }
+  }, [isOpen, loadPatientCensusData]);
+
+  // Reset currentPatientIndex if it becomes invalid when patients change
+  useEffect(() => {
+    if (sortedPatients.length > 0 && currentPatientIndex >= sortedPatients.length) {
+      console.log('🎯 Resetting invalid currentPatientIndex from', currentPatientIndex, 'to 0 (patients:', sortedPatients.length, ')');
+      setCurrentPatientIndex(0);
+    }
+  }, [sortedPatients.length, currentPatientIndex]);
+
+  // Handle completion toggle
+  const handleCompletionToggle = (patientId) => {
+    if (!patientId) return;
+    const currentStatus = getPatientCompletionStatus(patientId);
+    const newStatus = !currentStatus;
+    savePatientCompletionStatus(patientId, newStatus);
+    
+    // Force re-render by updating the trigger state
+    setCompletionUpdateTrigger(prev => prev + 1);
+  };
+
+  // Initialize cleanup on component mount
+  useEffect(() => {
+    cleanupOldCompletions();
+  }, []);
 
   // Listen for theme changes
   useEffect(() => {
@@ -352,6 +830,29 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
     return () => observer.disconnect();
   }, []);
 
+  // CRITICAL: Prevent data loss on page unload
+  useEffect(() => {
+    if (isOpen) {
+      const handleBeforeUnload = (event) => {
+        // Check if there's unsaved data
+        const hasUnsavedData = Object.keys(fieldValues).some(patientId => 
+          Object.keys(fieldValues[patientId] || {}).some(field => 
+            field !== 'last_name' && field !== 'first_name' && fieldValues[patientId][field]
+          )
+        );
+        
+        if (hasUnsavedData) {
+          preserveAllDataToLocalStorage();
+          event.preventDefault();
+          event.returnValue = 'You have unsaved daily information. Your data will be preserved, but are you sure you want to leave?';
+        }
+      };
+      
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }
+  }, [isOpen, fieldValues]);
+
   // Load available templates only when modal is open to avoid overloading backend
   useEffect(() => {
     if (!isOpen) return;
@@ -364,7 +865,7 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
           return;
         }
         
-        const response = await fetch('http://localhost:5000/api/templates/top-used', {
+        const response = await fetch(`${apiService.baseURL}/api/templates/top-used`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -467,37 +968,142 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
   // Load existing daily information entries from backend
   const loadExistingDailyInfo = useCallback(async () => {
     const token = localStorage.getItem('token');
-    if (!token || patients.length === 0) return;
+    if (!token || patients.length === 0 || dataLoadInProgress) return;
 
     setLoadingDailyInfo(true);
+    setDataLoadInProgress(true);
     try {
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      // 🚀 FIRST: Ensure rollover has happened by calling patient census endpoint
+      console.log('🔄 Ensuring daily rollover has completed...');
+      try {
+        const censusResponse = await fetch(`${apiService.baseURL}/api/patient-census/today`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (censusResponse.ok) {
+          const censusData = await censusResponse.json();
+          if (censusData.success && censusData.rollover_info) {
+            console.log('✅ Daily rollover detected:', censusData.rollover_info);
+            setRolloverInfo({
+              hasRollover: true,
+              message: `Carried over ${censusData.rollover_info.patients_carried_over} patients and ${censusData.rollover_info.daily_info_entries_carried_over} daily information entries from ${censusData.rollover_info.source_date}`,
+              count: censusData.rollover_info.daily_info_entries_carried_over || 0
+            });
+            
+            // 🕐 Wait briefly for rollover database operations to complete
+            console.log('⏳ Waiting for rollover database operations to complete...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } else {
+            console.log('ℹ️ No rollover needed - census already exists for today');
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not check rollover status:', error);
+      }
+
       const loadedFieldValues = {};
       const loadedCompletionStatus = {};
 
-      // First, try to get a summary of which patients have data to avoid loading empty entries
-      console.log(`Checking for existing daily info entries for ${patients.length} patients on ${today}`);
+      // 🎯 ENHANCED: Get all today's daily information with patient ID mapping for rollover scenarios
+      console.log('🎯 Loading all daily information for today with rollover mapping...');
+      try {
+        const todayResponse = await fetch(`${apiService.baseURL}/api/daily-info/today`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (todayResponse.ok) {
+          const todayData = await todayResponse.json();
+          if (todayData.success && todayData.mapped_entries && Object.keys(todayData.mapped_entries).length > 0) {
+            console.log(`🎉 Found ${Object.keys(todayData.mapped_entries).length} mapped daily information entries for today`);
+            
+            // Process mapped entries (handles rollover patient ID mapping automatically)
+            Object.keys(todayData.mapped_entries).forEach(patientId => {
+              const entry = todayData.mapped_entries[patientId];
+              const currentPatientId = parseInt(patientId); // Use current (mapped) patient ID
+              
+              loadedFieldValues[currentPatientId] = entry.field_values || {};
+              loadedCompletionStatus[currentPatientId] = entry.status === 'completed' || entry.status === 'signed';
+              
+              // Log rollover mapping for debugging
+              if (entry.rollover_mapped) {
+                console.log(`🔄 Rollover mapped: Patient ID ${entry.original_patient_id} → ${currentPatientId} (${entry.patient_name})`);
+              }
+              
+              // Check if this data was carried over
+              if (entry.notes && entry.notes.includes('Carried over from') && !rolloverInfo) {
+                const rolloverMatch = entry.notes.match(/Carried over from ([\d-]+)/);
+                if (rolloverMatch) {
+                  setRolloverInfo({
+                    hasRollover: true,
+                    message: `Data carried over from ${rolloverMatch[1]}`,
+                    count: Object.keys(todayData.mapped_entries).length
+                  });
+                }
+              }
+            });
+            
+            console.log(`✅ Successfully loaded data for ${Object.keys(loadedFieldValues).length} patients via enhanced bulk endpoint`);
+            console.log('🔍 Loaded patient IDs:', Object.keys(loadedFieldValues));
+            
+            // Debug problem patients specifically
+            const problemPatients = [1153, 1161, 1168, 1150, 1152];
+            problemPatients.forEach(patientId => {
+              const hasData = loadedFieldValues[patientId];
+              const fieldCount = hasData ? Object.keys(hasData).length : 0;
+              console.log(`🚨 BULK LOAD - Patient ${patientId}: ${hasData ? 'HAS DATA' : 'NO DATA'} (${fieldCount} fields)`);
+            });
+            
+            setFieldValues(loadedFieldValues);
+            setCompletionStatus(loadedCompletionStatus);
+            setBackendDataLoaded(true);
+            
+            // Still merge with localStorage data
+            const savedData = loadDataRobustly();
+            if (savedData) {
+              console.log('Merging with localStorage data...');
+              setFieldValues(prev => ({ ...prev, ...savedData.fieldValues }));
+              setCompletionStatus(prev => ({ ...prev, ...savedData.completionStatus }));
+            }
+            
+            return; // Exit early since we got all the data
+          } else {
+            console.log('📭 No mapped entries found, will try individual queries');
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Enhanced bulk daily info load failed, falling back to individual patient queries:', error);
+      }
+
+      // FALLBACK: Individual patient queries (original method)
+      console.log(`🔍 Checking for existing daily info entries for ${sortedPatients.length} patients on ${today} (individual queries)`);
       
       // Load only the first few patients initially for faster UI response
-      const priorityPatients = patients.slice(0, 5); // Load first 5 patients immediately
-      const remainingPatients = patients.slice(5); // Load remaining patients in background
+      const priorityPatients = sortedPatients.slice(0, 5); // Load first 5 patients immediately
+      const remainingPatients = sortedPatients.slice(5); // Load remaining patients in background
       
-      // Load priority patients first
+      // Load priority patients first with better error handling and API service
       const priorityPromises = priorityPatients.map(async (patient) => {
         try {
-          const response = await fetch(`http://localhost:5000/api/daily-info/${patient.id}?date=${today}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            signal: AbortSignal.timeout(3000) // Faster timeout for priority patients
-          });
+          const response = await apiService.get(`/api/daily-info/${patient.id}?date=${today}`);
 
-          if (response.ok) {
-            const result = await response.json();
-            if (result.success && result.entries && result.entries.length > 0) {
-              const latestEntry = result.entries[0];
-              console.log(`Found entry for patient ${patient.id}:`, latestEntry);
+          console.log(`Priority API Response for patient ${patient.id}:`, response.success ? 'SUCCESS' : 'FAILED');
+            
+          if (response.success && response.entries && response.entries.length > 0) {
+              const latestEntry = response.entries[0];
+              console.log(`✅ Priority patient ${patient.id} has data:`, {
+                fieldCount: Object.keys(latestEntry.field_values || {}).length,
+                status: latestEntry.status,
+                entryId: latestEntry.id
+              });
+              
               loadedFieldValues[patient.id] = latestEntry.field_values || {};
               loadedCompletionStatus[patient.id] = latestEntry.status === 'completed' || latestEntry.status === 'signed';
               
@@ -524,10 +1130,11 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
                   setSelectedTemplate(template);
                 }
               }
+            } else {
+              console.log(`📭 No entries found for priority patient ${patient.id}`);
             }
-          }
         } catch (error) {
-          console.error(`Error loading daily info for patient ${patient.id}:`, error);
+          console.error(`💥 Priority request failed for patient ${patient.id}:`, error.message);
         }
       });
       
@@ -535,221 +1142,303 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
       await Promise.all(priorityPromises);
       
       // Set initial data for priority patients immediately
-      if (Object.keys(loadedFieldValues).length > 0) {
-        console.log('Priority patients loaded, setting initial data...');
-        setFieldValues(loadedFieldValues);
-        setCompletionStatus(loadedCompletionStatus);
-        setBackendDataLoaded(true);
-      }
+      console.log('Priority patients loaded, setting initial data...');
+      setFieldValues(loadedFieldValues);
+      setCompletionStatus(loadedCompletionStatus);
+      setBackendDataLoaded(true);
       
       // Load remaining patients in background (if any)
       if (remainingPatients.length > 0) {
         console.log(`Loading remaining ${remainingPatients.length} patients in background...`);
         
-        // Process remaining patients in smaller batches
-        const batchSize = 3;
-        const batches = [];
+        // Process remaining patients using the same reliable method as priority patients
+        console.log('Loading remaining patients with same method as priority patients...');
         
-        for (let i = 0; i < remainingPatients.length; i += batchSize) {
-          batches.push(remainingPatients.slice(i, i + batchSize));
-        }
-        
-        for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-          const batch = batches[batchIndex];
-          
-          const batchPromises = batch.map(async (patient) => {
-            try {
-              const response = await fetch(`http://localhost:5000/api/daily-info/${patient.id}?date=${today}`, {
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-                },
-                signal: AbortSignal.timeout(5000)
-              });
+        const remainingPromises = remainingPatients.map(async (patient) => {
+          try {
+            const response = await apiService.get(`/api/daily-info/${patient.id}?date=${today}`);
 
-              if (response.ok) {
-                const result = await response.json();
-                if (result.success && result.entries && result.entries.length > 0) {
-                  const latestEntry = result.entries[0];
-                  console.log(`Found entry for patient ${patient.id}:`, latestEntry);
-                  loadedFieldValues[patient.id] = latestEntry.field_values || {};
-                  loadedCompletionStatus[patient.id] = latestEntry.status === 'completed' || latestEntry.status === 'signed';
+            console.log(`Background API Response for patient ${patient.id}:`, response.success ? 'SUCCESS' : 'FAILED');
+              
+            if (response.success && response.entries && response.entries.length > 0) {
+                const latestEntry = response.entries[0];
+                console.log(`✅ Background patient ${patient.id} has data:`, {
+                  fieldCount: Object.keys(latestEntry.field_values || {}).length,
+                  status: latestEntry.status,
+                  entryId: latestEntry.id
+                });
+                
+                loadedFieldValues[patient.id] = latestEntry.field_values || {};
+                loadedCompletionStatus[patient.id] = latestEntry.status === 'completed' || latestEntry.status === 'signed';
+                
+                // Check if this data was carried over from previous day
+                if (latestEntry.notes && latestEntry.notes.includes('Carried over from')) {
+                  if (!rolloverInfo) {
+                    setRolloverInfo({
+                      hasRollover: true,
+                      message: latestEntry.notes,
+                      count: 1
+                    });
+                  } else {
+                    setRolloverInfo(prev => ({
+                      ...prev,
+                      count: prev.count + 1
+                    }));
+                  }
                 }
+                
+                // Set the template if one was used
+                if (latestEntry.template_id && !selectedTemplate) {
+                  const template = availableTemplates.find(t => t.id === latestEntry.template_id);
+                  if (template) {
+                    setSelectedTemplate(template);
+                  }
+                }
+              } else {
+                console.log(`📭 No entries found for background patient ${patient.id}`);
               }
-            } catch (error) {
-              console.error(`Error loading daily info for patient ${patient.id}:`, error);
-            }
-          });
-          
-          await Promise.all(batchPromises);
-          
-          // Update state with new data as it comes in
-          if (Object.keys(loadedFieldValues).length > 0) {
-            setFieldValues(prev => ({ ...prev, ...loadedFieldValues }));
-            setCompletionStatus(prev => ({ ...prev, ...loadedCompletionStatus }));
+          } catch (error) {
+            console.error(`💥 Background request failed for patient ${patient.id}:`, error.message);
           }
-          
-          // Small delay between batches
-          if (batchIndex < batches.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 50));
-          }
-        }
+        });
+        
+        // Wait for all background patients to load
+        await Promise.all(remainingPromises);
       }
 
       // Final merge with localStorage data (localStorage takes precedence for unsaved changes)
-      console.log('Final backend data loaded. Processing merge...');
-      console.log('Final loadedFieldValues:', loadedFieldValues);
-      console.log('Final loadedCompletionStatus:', loadedCompletionStatus);
+      console.log('🔍 DEEP DEBUG - Final backend data loaded. Processing merge...');
+      console.log('🔍 Final loadedFieldValues:', loadedFieldValues);
+      console.log('🔍 Final loadedCompletionStatus:', loadedCompletionStatus);
+      
+      // Debug specific patients that are having issues
+      const problemPatients = [1153, 1161, 1168, 1150, 1152]; // Alexander, Alvarenga, Bustos, Camsel, Crabbe
+      console.log('🚨 PROBLEM PATIENTS DEBUG:');
+      problemPatients.forEach(patientId => {
+        const hasData = loadedFieldValues[patientId];
+        const fieldCount = hasData ? Object.keys(hasData).length : 0;
+        console.log(`🚨 Patient ${patientId}: ${hasData ? 'HAS DATA' : 'NO DATA'} (${fieldCount} fields)`);
+        if (hasData) {
+          console.log(`🚨 Patient ${patientId} fields:`, Object.keys(hasData).slice(0, 5));
+        }
+      });
 
       // Merge with localStorage data (localStorage takes precedence for unsaved changes)
-      const savedData = localStorage.getItem('dailyInfoEntryData');
+      const savedData = loadDataRobustly();
       if (savedData) {
-        try {
-          const parsedData = JSON.parse(savedData);
-          // Merge backend data with localStorage data (localStorage takes precedence)
-          const mergedFieldValues = { ...loadedFieldValues, ...(parsedData.fieldValues || {}) };
-          const mergedCompletionStatus = { ...loadedCompletionStatus, ...(parsedData.completionStatus || {}) };
+        // Merge backend data with localStorage data (localStorage takes precedence)
+        const mergedFieldValues = { ...loadedFieldValues, ...(savedData.fieldValues || {}) };
+        const mergedCompletionStatus = { ...loadedCompletionStatus, ...(savedData.completionStatus || {}) };
           
-          console.log('FINAL MERGE PROCESS:');
-          console.log('Backend loadedFieldValues:', loadedFieldValues);
-          console.log('localStorage parsedData.fieldValues:', parsedData.fieldValues);
-          console.log('Merged result:', mergedFieldValues);
-          
-          // Update with final merged data
-          setFieldValues(prev => ({ ...prev, ...mergedFieldValues }));
-          setCompletionStatus(prev => ({ ...prev, ...mergedCompletionStatus }));
-          console.log('Final merge completed');
-          
-          // Debug: Log what we're setting
-          console.log('Setting fieldValues to:', mergedFieldValues);
-          console.log('Patient 133 data in merged result:', mergedFieldValues[133]);
-        } catch (error) {
-          console.error('Error parsing localStorage data:', error);
-          setFieldValues(prev => ({ ...prev, ...loadedFieldValues }));
-          setCompletionStatus(prev => ({ ...prev, ...loadedCompletionStatus }));
-        }
-      } else {
-        console.log('FINAL BACKEND ONLY LOAD:');
+        console.log('FINAL MERGE PROCESS:');
         console.log('Backend loadedFieldValues:', loadedFieldValues);
-        console.log('Setting fieldValues to:', loadedFieldValues);
+        console.log('localStorage savedData.fieldValues:', savedData.fieldValues);
+        console.log('Merged result:', mergedFieldValues);
+        
+        // Update with final merged data
+        setFieldValues(mergedFieldValues);
+        setCompletionStatus(mergedCompletionStatus);
+        console.log('🔍 Final merge completed');
+        
+        // Debug: Log what we're setting
+        console.log('🔍 Setting fieldValues to:', mergedFieldValues);
+        
+        // Debug specific problem patients in merged data
+        console.log('🚨 MERGED DATA FOR PROBLEM PATIENTS:');
+        problemPatients.forEach(patientId => {
+          const mergedData = mergedFieldValues[patientId];
+          const fieldCount = mergedData ? Object.keys(mergedData).length : 0;
+          console.log(`🚨 Merged Patient ${patientId}: ${mergedData ? 'HAS DATA' : 'NO DATA'} (${fieldCount} fields)`);
+        });
+      } else {
+        console.log('🔍 FINAL BACKEND ONLY LOAD:');
+        console.log('🔍 Backend loadedFieldValues:', loadedFieldValues);
+        console.log('🔍 Setting fieldValues to:', loadedFieldValues);
+        
+        // Debug specific problem patients in backend-only data
+        console.log('🚨 BACKEND-ONLY DATA FOR PROBLEM PATIENTS:');
+        problemPatients.forEach(patientId => {
+          const backendData = loadedFieldValues[patientId];
+          const fieldCount = backendData ? Object.keys(backendData).length : 0;
+          console.log(`🚨 Backend Patient ${patientId}: ${backendData ? 'HAS DATA' : 'NO DATA'} (${fieldCount} fields)`);
+        });
         
         // Update with final backend data
-        setFieldValues(prev => ({ ...prev, ...loadedFieldValues }));
-        setCompletionStatus(prev => ({ ...prev, ...loadedCompletionStatus }));
-        console.log('Final backend load completed:', { loadedFieldValues, loadedCompletionStatus });
+        setFieldValues(loadedFieldValues);
+        setCompletionStatus(loadedCompletionStatus);
+        console.log('🔍 Final backend load completed:', { loadedFieldValues, loadedCompletionStatus });
       }
 
     } catch (error) {
       console.error('Error loading existing daily information:', error);
-      // Fall back to localStorage only
-      const savedData = localStorage.getItem('dailyInfoEntryData');
+      // Fall back to robust localStorage loading
+      const savedData = loadDataRobustly();
       if (savedData) {
-        try {
-          const parsedData = JSON.parse(savedData);
-          setFieldValues(parsedData.fieldValues || {});
-          setCompletionStatus(parsedData.completionStatus || {});
-          console.log('Fallback: Loaded daily info data from localStorage only');
-        } catch (error) {
-          console.error('Error loading daily info data from localStorage:', error);
-        }
+        setFieldValues(savedData.fieldValues || {});
+        setCompletionStatus(savedData.completionStatus || {});
+        console.log('Fallback: Loaded daily info data from robust storage');
       }
     } finally {
       setLoadingDailyInfo(false);
+      setDataLoadInProgress(false);
     }
-  }, [patients, availableTemplates]);
+  }, [sortedPatients, availableTemplates, dataLoadInProgress]);
 
-  // Reset state when modal opens to ensure fresh data load
+  // Initialize state when modal opens, preserving existing data
   useEffect(() => {
     if (isOpen) {
-      console.log('Modal opened - clearing state for fresh data load');
-      setFieldValues({});
-      setCompletionStatus({});
-      setCurrentPatientIndex(0);
-      setRolloverInfo(null);
-      setLastSaved(null);
-      setBackendDataLoaded(false);
-      setLoadingDailyInfo(false);
-      // Clear localStorage to ensure we get fresh data from backend
-      localStorage.removeItem('dailyInfoEntryData');
+      console.log('Modal opened - initializing state');
+      
+      // CRITICAL: Check for session expiration recovery
+      const sessionExpiredData = localStorage.getItem('sessionExpiredData');
+      if (sessionExpiredData) {
+        try {
+          const expiredData = JSON.parse(sessionExpiredData);
+          if (expiredData.preserved) {
+            alert(`🔄 Data Recovery: Your daily information for ${expiredData.patientCount} patients has been preserved from your previous session. Data was saved at ${new Date(expiredData.timestamp).toLocaleString()}.`);
+            localStorage.removeItem('sessionExpiredData'); // Clear the flag
+          }
+        } catch (error) {
+          console.error('Error checking session expiration data:', error);
+        }
+      }
+      
+      // Only reset if we don't have any existing data
+      const hasExistingData = Object.keys(fieldValues).length > 0;
+      if (!hasExistingData) {
+        console.log('No existing data found, resetting state for fresh load');
+        setCurrentPatientIndex(0);
+        setRolloverInfo(null);
+        setLastSaved(null);
+        setBackendDataLoaded(false);
+        setLoadingDailyInfo(false);
+        setDataLoadInProgress(false);
+      } else {
+        console.log('Existing data found, preserving current state');
+      }
     }
   }, [isOpen]);
 
-  // Load existing daily information when modal opens and patients are available
+  // SIMPLIFIED: Load existing daily information when modal opens and patients are available (once only)
   useEffect(() => {
-    console.log('Daily info loading effect triggered:', { 
-      isOpen, 
-      patientsLength: patients.length, 
-      loadingTemplates,
-      availableTemplatesLength: availableTemplates.length 
-    });
-    
-    // Only load when modal first opens, not on patient changes
-    if (isOpen && patients.length > 0 && !loadingTemplates && !backendDataLoaded) {
-      console.log('Loading existing daily info from backend...');
-      console.log('Patient count:', patients.length);
-      console.log('First few patients:', patients.slice(0, 3));
-      console.log('Available templates:', availableTemplates.length);
-      loadExistingDailyInfo();
+    if (!isOpen || dataLoadInProgress || backendDataLoaded) {
+      return; // Skip if modal closed, already loading, or data already loaded
     }
-  }, [isOpen, patients.length, loadingTemplates, backendDataLoaded]);
 
-  // Save data to localStorage whenever fieldValues or completionStatus changes
+    if (patients.length === 0 || loadingTemplates) {
+      console.log('🎯 Waiting for patients to load or templates to finish loading...');
+      return; // Wait for patients and templates
+    }
+
+    console.log('🎯 ========== SIMPLIFIED DAILY INFO LOADING ==========');
+    console.log('🎯 Loading daily info for', patients.length, 'patients');
+    
+    // Load daily information once when all conditions are met
+    loadExistingDailyInfo();
+    
+    console.log('🎯 ========== DAILY INFO LOADING TRIGGERED ==========');
+  }, [isOpen, patients.length, loadingTemplates, backendDataLoaded, dataLoadInProgress]);
+
+  // Save data robustly whenever fieldValues or completionStatus changes
   useEffect(() => {
     if (Object.keys(fieldValues).length > 0 || Object.keys(completionStatus).length > 0) {
       const dataToSave = {
         fieldValues,
         completionStatus,
-        timestamp: new Date().toISOString()
+        currentPatientIndex,
+        selectedTemplateId: selectedTemplate?.id,
+        lastModified: new Date().toISOString()
       };
-      localStorage.setItem('dailyInfoEntryData', JSON.stringify(dataToSave));
-      console.log('Saved daily info data to localStorage');
+      saveDataRobustly(dataToSave);
     }
-  }, [fieldValues, completionStatus]);
+  }, [fieldValues, completionStatus, currentPatientIndex, selectedTemplate?.id]);
 
-  // Auto-fill patient name fields when patient changes (only if no meaningful data exists)
+  // Load saved data robustly when modal opens
   useEffect(() => {
-    if (patients[currentPatientIndex] && backendDataLoaded) {
-      const patient = patients[currentPatientIndex];
+    if (isOpen && Object.keys(fieldValues).length === 0) {
+      console.log('🔍 Attempting to restore data from storage...');
+      const savedData = loadDataRobustly();
+      
+      if (savedData) {
+        console.log('🎯 Restoring data from storage:', {
+          fieldValuesCount: Object.keys(savedData.fieldValues || {}).length,
+          completionStatusCount: Object.keys(savedData.completionStatus || {}).length,
+          timestamp: savedData.timestamp
+        });
+        
+        if (savedData.fieldValues) {
+          setFieldValues(savedData.fieldValues);
+        }
+        if (savedData.completionStatus) {
+          setCompletionStatus(savedData.completionStatus);
+        }
+        if (savedData.currentPatientIndex !== undefined) {
+          setCurrentPatientIndex(savedData.currentPatientIndex);
+        }
+        if (savedData.selectedTemplateId && availableTemplates.length > 0) {
+          const template = availableTemplates.find(t => t.id === savedData.selectedTemplateId);
+          if (template) {
+            setSelectedTemplate(template);
+          }
+        }
+        
+        // DON'T mark backend as loaded yet - we still need to load today's data from backend
+        // setBackendDataLoaded(true); // Removed - this was preventing backend loading
+        console.log('✅ Data restoration complete - backend loading will still proceed');
+      } else {
+        console.log('📭 No saved data found to restore');
+      }
+    }
+  }, [isOpen, availableTemplates]);
+
+  // Auto-fill patient name fields when patient changes (only if no data exists)
+  useEffect(() => {
+    if (sortedPatients[currentPatientIndex] && backendDataLoaded) {
+      const patient = sortedPatients[currentPatientIndex];
       const [lastName, firstName] = (patient.patient_name || '').split(', ');
       
       setFieldValues(prev => {
         const existingData = prev[patient.id] || {};
         
-        // Check if there's meaningful data (not just auto-filled names)
-        const meaningfulFields = Object.keys(existingData).filter(key => 
-          key !== 'last_name' && key !== 'first_name'
-        );
-        
-        console.log(`Auto-fill check for patient ${patient.id}:`, {
-          existingData,
-          meaningfulFields,
-          meaningfulFieldsCount: meaningfulFields.length,
-          backendDataLoaded
-        });
-        
-        // Only auto-fill if there's no meaningful data beyond just names AND no existing data at all
-        if (meaningfulFields.length === 0 && Object.keys(existingData).length === 0) {
+        // Only auto-fill if there's NO existing data at all for this patient
+        if (Object.keys(existingData).length === 0) {
           console.log(`Auto-filling name fields for patient ${patient.id}: ${lastName}, ${firstName}`);
           return {
             ...prev,
             [patient.id]: {
-              ...existingData,
               'last_name': lastName || '',
               'first_name': firstName || ''
             }
           };
         }
         
-        // If there's meaningful data OR existing data, don't override anything
-        console.log(`Skipping auto-fill for patient ${patient.id} - existing data found:`, existingData);
+        // If there's ANY existing data, don't override anything
+        console.log(`Preserving existing data for patient ${patient.id}:`, existingData);
         return prev;
       });
     }
-  }, [currentPatientIndex, patients, backendDataLoaded]);
+  }, [currentPatientIndex, sortedPatients, backendDataLoaded]);
+
+  // Debug fieldValues state changes to track if data gets overwritten
+  useEffect(() => {
+    const problemPatients = [1153, 1161, 1168, 1150, 1152];
+    console.log('🔍 fieldValues STATE CHANGED:', {
+      totalPatients: Object.keys(fieldValues).length,
+      hasAnyData: Object.keys(fieldValues).length > 0
+    });
+    
+    problemPatients.forEach(patientId => {
+      const hasData = fieldValues[patientId];
+      const fieldCount = hasData ? Object.keys(hasData).length : 0;
+      if (hasData || fieldCount > 0) {
+        console.log(`🚨 STATE CHANGE - Patient ${patientId}: ${hasData ? 'HAS DATA' : 'NO DATA'} (${fieldCount} fields)`);
+      }
+    });
+  }, [fieldValues]);
 
   // Handle field changes
   const handleFieldChange = (fieldName, value) => {
-    const patientId = patients[currentPatientIndex]?.id;
+    const patientId = sortedPatients[currentPatientIndex]?.id;
     if (!patientId) return;
 
     console.log(`Field changed: ${fieldName} = "${value}" for patient ${patientId}`);
@@ -777,6 +1466,24 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
   const handleNavigate = (newIndex) => {
     if (newIndex >= 0 && newIndex < patients.length) {
       setCurrentPatientIndex(newIndex);
+      
+      // Debug navigation to problem patients
+      const targetPatient = sortedPatients[newIndex];
+      if (targetPatient) {
+        const patientData = fieldValues[targetPatient.id];
+        const fieldCount = patientData ? Object.keys(patientData).length : 0;
+        console.log(`🎯 NAVIGATED TO Patient ${targetPatient.id} (${targetPatient.patient_name}): ${patientData ? 'HAS DATA' : 'NO DATA'} (${fieldCount} fields)`);
+        
+        if ([1153, 1161, 1168, 1150, 1152].includes(targetPatient.id)) {
+          console.log(`🚨 PROBLEM PATIENT NAVIGATION - Patient ${targetPatient.id}:`, {
+            hasData: !!patientData,
+            fieldCount,
+            firstFewFields: patientData ? Object.keys(patientData).slice(0, 5) : [],
+            allFieldValues: fieldValues,
+            currentPatientData: patientData
+          });
+        }
+      }
     }
   };
 
@@ -814,22 +1521,65 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
     alert('Cleared localStorage and reset modal state');
   };
 
+  // CRITICAL: Preserve all current data robustly
+  const preserveAllDataToLocalStorage = () => {
+    try {
+      // Create emergency backup first
+      const currentData = {
+        fieldValues: fieldValues,
+        completionStatus: completionStatus,
+        selectedTemplateId: selectedTemplate?.id,
+        currentPatientIndex: currentPatientIndex
+      };
+      
+      createEmergencyBackup(currentData);
+      
+      const allData = {
+        ...currentData,
+        timestamp: new Date().toISOString(),
+        preserved: true, // Flag to indicate data was preserved due to session expiration
+        preservationReason: 'Session expiration or modal close'
+      };
+      
+      // Save to all storage locations
+      const saveSuccess = saveDataRobustly(allData);
+      
+      // Also save session expiration flag
+      localStorage.setItem('sessionExpiredData', JSON.stringify({
+        preserved: true,
+        timestamp: new Date().toISOString(),
+        patientCount: Object.keys(fieldValues).length
+      }));
+      
+      if (saveSuccess) {
+        console.log('🔒 Data preserved robustly due to session expiration/modal close');
+      } else {
+        console.error('⚠️ Failed to preserve some data - check emergency backup');
+      }
+    } catch (error) {
+      console.error('Failed to preserve data robustly:', error);
+    }
+  };
+
   // Handle save
   const handleSave = async () => {
     try {
-      const currentPatient = patients[currentPatientIndex];
+      const currentPatient = sortedPatients[currentPatientIndex];
       if (!currentPatient) return;
 
       const currentPatientValues = fieldValues[currentPatient.id] || {};
       const token = localStorage.getItem('token');
       
+      // CRITICAL: Preserve data BEFORE checking auth
+      preserveAllDataToLocalStorage();
+      
       if (!token) {
-        alert('❌ Authentication required. Please log in again.');
+        alert('❌ Session expired. Your data has been preserved locally. Please log in again to save to server.');
         return;
       }
       
       // Save to backend API
-      const response = await fetch('http://localhost:5000/api/daily-info', {
+      const response = await fetch(`${apiService.baseURL}/api/daily-info`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -865,24 +1615,42 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
         } else {
           throw new Error(result.error || 'Failed to save');
         }
+      } else if (response.status === 401 || response.status === 403) {
+        // CRITICAL: Session expired - preserve data and inform user
+        preserveAllDataToLocalStorage();
+        alert('❌ Session expired. Your data has been preserved locally. Please log in again to save to server.');
+        return;
       } else {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Server error: ${response.status}`);
       }
     } catch (error) {
       console.error('Error saving daily info:', error);
-      alert(`❌ Error saving daily information: ${error.message}`);
+      
+      // Check if it's a network/auth error
+      if (error.message.includes('401') || error.message.includes('403') || error.message.includes('Unauthorized')) {
+        preserveAllDataToLocalStorage();
+        alert('❌ Session expired. Your data has been preserved locally. Please log in again to save to server.');
+      } else {
+        alert(`❌ Error saving daily information: ${error.message}`);
+      }
     }
   };
 
   // Auto-save data to backend
   const autoSaveData = async (patientId, fieldData) => {
+    // Skip if backend is down
+    if (isBackendDown) {
+      console.log('Backend is down, skipping auto-save');
+      return;
+    }
+    
     try {
       setIsAutoSaving(true);
       const token = localStorage.getItem('token');
       if (!token) return;
       
-      const patient = patients.find(p => p.id === patientId);
+      const patient = sortedPatients.find(p => p.id === patientId);
       if (!patient) return;
       
       // Only save if there's actual data (not just auto-filled names)
@@ -894,7 +1662,7 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
       
       console.log(`Auto-saving data for patient ${patientId}:`, fieldData);
       
-      const response = await fetch('http://localhost:5000/api/daily-info', {
+      const response = await fetch(`${apiService.baseURL}/api/daily-info`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -906,110 +1674,262 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
           field_values: fieldData,
           status: 'draft',
           notes: `Auto-saved daily information for ${patient.patient_name}`
-        })
+        }),
+        signal: AbortSignal.timeout(5000)
       });
       
       if (response.ok) {
         const result = await response.json();
         console.log(`Auto-save successful for patient ${patientId}:`, result.action);
         setLastSaved(new Date());
+        setBackendErrors(0); // Reset error count on success
+        setIsBackendDown(false);
+      } else if (response.status === 401 || response.status === 403) {
+        // Session expired during auto-save - silently preserve data
+        console.warn('Session expired during auto-save, preserving data locally');
+        setIsBackendDown(true); // Stop further auto-save attempts
+        return;
+      } else {
+        throw new Error(`HTTP ${response.status}`);
       }
     } catch (error) {
       console.error('Auto-save failed:', error);
+      
+      // Check for authentication errors
+      if (error.message.includes('401') || error.message.includes('403')) {
+        console.warn('Session expired during auto-save, stopping auto-save');
+        setIsBackendDown(true);
+        return;
+      }
+      
+      // Track other backend errors
+      const newErrorCount = backendErrors + 1;
+      setBackendErrors(newErrorCount);
+      
+      // If we have multiple consecutive errors, assume backend is down
+      if (newErrorCount >= 3) {
+        setIsBackendDown(true);
+        console.warn('Backend appears to be down, disabling auto-save for 30 seconds');
+        setTimeout(() => {
+          setIsBackendDown(false);
+          setBackendErrors(0);
+        }, 30000);
+      }
     } finally {
       setIsAutoSaving(false);
     }
   };
 
-  // Auto-save when field values change (debounced)
+  // Auto-save when field values change (debounced per patient)
   useEffect(() => {
-    console.log('Auto-save effect triggered, fieldValues:', fieldValues);
+    console.log('Auto-save effect triggered');
     
     // Only save if modal is open and we have data
     if (!isOpen || Object.keys(fieldValues).length === 0) {
       return;
     }
     
-    const saveTimeout = setTimeout(() => {
-      console.log('Auto-save timeout executed');
-      Object.keys(fieldValues).forEach(patientId => {
-        const patientData = fieldValues[patientId];
-        console.log(`Checking patient ${patientId} data:`, patientData);
-        if (patientData && Object.keys(patientData).length > 0) {
+    // Create separate timeouts for each patient to avoid saving all at once
+    const timeouts = {};
+    
+    Object.keys(fieldValues).forEach(patientId => {
+      const patientData = fieldValues[patientId];
+      
+      // Only save if there's actual data (not just auto-filled names)
+      const hasRealData = patientData && Object.keys(patientData).some(field => 
+        field !== 'last_name' && field !== 'first_name' && patientData[field]
+      );
+      
+      if (hasRealData) {
+        timeouts[patientId] = setTimeout(() => {
+          console.log(`Auto-saving patient ${patientId}`);
           autoSaveData(parseInt(patientId), patientData);
-        }
-      });
-    }, 2000); // Save 2 seconds after user stops typing
+        }, 5000); // Increased to 5 seconds to prevent backend overload
+      }
+    });
     
     return () => {
-      console.log('Auto-save timeout cleared');
-      clearTimeout(saveTimeout);
+      console.log('Clearing auto-save timeouts');
+      Object.values(timeouts).forEach(clearTimeout);
     };
-  }, [fieldValues, selectedTemplate, isOpen]); // Removed patients dependency
+  }, [fieldValues, selectedTemplate, isOpen]);
 
   // Handle modal close
   const handleClose = async () => {
-    // Save any unsaved data before closing
-    const hasUnsavedData = Object.keys(fieldValues).some(patientId => 
-      Object.keys(fieldValues[patientId] || {}).some(field => 
-        field !== 'last_name' && field !== 'first_name' && fieldValues[patientId][field]
-      )
-    );
+    console.log('handleClose called');
+    
+    try {
+      // CRITICAL: Always preserve data before closing
+      preserveAllDataToLocalStorage();
+      
+      // Save any unsaved data before closing
+      const hasUnsavedData = Object.keys(fieldValues).some(patientId => 
+        Object.keys(fieldValues[patientId] || {}).some(field => 
+          field !== 'last_name' && field !== 'first_name' && fieldValues[patientId][field]
+        )
+      );
 
-    if (hasUnsavedData) {
-      console.log('Saving data before closing modal...');
-      
-      // Save all patient data
-      const savePromises = Object.keys(fieldValues).map(patientId => {
-        const patientData = fieldValues[patientId];
-        if (patientData && Object.keys(patientData).length > 0) {
-          return autoSaveData(parseInt(patientId), patientData);
+      if (hasUnsavedData) {
+        console.log('Saving data before closing modal...');
+        
+        // Check for valid token first
+        const token = localStorage.getItem('token');
+        if (!token) {
+          alert('⚠️ Session expired. Your data has been preserved locally and will be restored when you log back in.');
+          onClose();
+          return;
         }
-        return Promise.resolve();
-      });
-      
-      try {
-        await Promise.all(savePromises);
-        console.log('All data saved successfully');
         
-        // Clear state after successful save to prevent stale data
-        setFieldValues({});
-        setCompletionStatus({});
-        setBackendDataLoaded(false);
-        console.log('Data saved and state cleared, closing modal');
-      } catch (error) {
-        console.error('Error saving data:', error);
+        // Save all patient data with timeout
+        const savePromises = Object.keys(fieldValues).map(patientId => {
+          const patientData = fieldValues[patientId];
+          if (patientData && Object.keys(patientData).length > 0) {
+            return Promise.race([
+              autoSaveData(parseInt(patientId), patientData),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Save timeout')), 3000)
+              )
+            ]);
+          }
+          return Promise.resolve();
+        });
         
-        // Ask user if they want to keep unsaved data
-        const shouldKeep = window.confirm(
-          'Failed to save some data. Do you want to keep unsaved changes?\n\n' +
-          'Click "OK" to keep data in browser storage.\n' +
-          'Click "Cancel" to discard unsaved changes.'
-        );
-        
-        if (!shouldKeep) {
-          clearPersistedData();
-          setFieldValues({});
-          setCompletionStatus({});
+        try {
+          await Promise.all(savePromises);
+          console.log('All data saved successfully');
+          console.log('Data saved successfully, closing modal');
+        } catch (error) {
+          console.error('Error saving data:', error);
+          
+          // Don't block closing on save errors - data is preserved in localStorage
+          console.log('Save failed but data is preserved locally, closing modal');
         }
       }
+      
+      // Don't clear state here - let it persist for next time
+      console.log('Calling onClose() - data preserved');
+      onClose();
+    } catch (error) {
+      console.error('Error in handleClose:', error);
+      // Force close even if there's an error
+      onClose();
     }
-    
-    onClose();
   };
 
   if (!isOpen) return null;
 
-  const currentPatient = patients[currentPatientIndex];
-  const currentPatientValues = fieldValues[currentPatient?.id] || {};
-  const currentPatientPrevious = previousValues[currentPatient?.id] || {};
+  // Handle case where patients are being loaded or no patients are loaded yet
+  if (loadingPatients || sortedPatients.length === 0) {
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1050
+      }}>
+        <div style={{
+          backgroundColor: styles.bgPrimary,
+          borderRadius: '12px',
+          padding: '40px',
+          maxWidth: '400px',
+          width: '90%',
+          textAlign: 'center',
+          border: `1px solid ${styles.borderColor}`,
+          color: styles.textPrimary
+        }}>
+          <h3 style={{ marginBottom: '20px', color: styles.textPrimary }}>
+            {loadingPatients ? 'Loading Patient Data' : 'No Patients Found'}
+          </h3>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px',
+            marginBottom: '20px'
+          }}>
+            {loadingPatients && (
+              <div className="loading-spinner" style={{ 
+                width: '20px', 
+                height: '20px',
+                border: `2px solid ${styles.borderColor}`,
+                borderTop: `2px solid ${styles.primaryColor}`,
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }}></div>
+            )}
+            <span>
+              {loadingPatients 
+                ? 'Please wait while we load your patient census...' 
+                : 'No patients found in today\'s census. Please add patients via the Patient Census management.'}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: styles.textMuted,
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              cursor: 'pointer'
+            }}
+          >
+            {loadingPatients ? 'Cancel' : 'Close'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-  // Debug logging
-  console.log('Current patient:', currentPatient);
-  console.log('All fieldValues:', fieldValues);
-  console.log('Current patient ID:', currentPatient?.id);
-  console.log('FieldValues for current patient ID:', fieldValues[currentPatient?.id]);
-  console.log('Current patient values:', currentPatientValues);
+  // Ensure currentPatientIndex is valid with enhanced bounds checking
+  const validIndex = sortedPatients.length > 0 ? Math.max(0, Math.min(currentPatientIndex, sortedPatients.length - 1)) : 0;
+  const currentPatient = sortedPatients.length > 0 ? sortedPatients[validIndex] : null;
+  const currentPatientValues = (currentPatient && fieldValues[currentPatient.id]) ? fieldValues[currentPatient.id] : {};
+  const currentPatientPrevious = (currentPatient && previousValues[currentPatient.id]) ? previousValues[currentPatient.id] : {};
+  
+  // Debug current patient rendering data
+  if (currentPatient && [1153, 1161, 1168, 1150, 1152].includes(currentPatient.id)) {
+    const fieldCount = Object.keys(currentPatientValues).length;
+    console.log(`🚨 RENDERING PROBLEM PATIENT ${currentPatient.id} (${currentPatient.patient_name}):`);
+    console.log(`   hasCurrentPatientValues: ${!!currentPatientValues}`);
+    console.log(`   fieldCount: ${fieldCount}`);
+    console.log(`   currentPatientValues:`, currentPatientValues);
+    console.log(`   fieldValuesHasPatient: ${!!fieldValues[currentPatient.id]}`);
+    console.log(`   directLookup:`, fieldValues[currentPatient.id]);
+    console.log(`   fieldValues keys:`, Object.keys(fieldValues));
+    console.log(`   fieldValues total patients:`, Object.keys(fieldValues).length);
+  }
+
+  // Enhanced debug logging with validation
+  console.log('🎯 Current patient debugging (ENHANCED):', {
+    currentPatientIndex,
+    validIndex,
+    sortedPatientsLength: sortedPatients.length,
+    sortedPatientsAvailable: sortedPatients.length > 0,
+    currentPatient: currentPatient,
+    currentPatientId: currentPatient?.id,
+    currentPatientName: currentPatient?.patient_name,
+    hasFieldValues: Object.keys(fieldValues).length > 0,
+    fieldValueIds: Object.keys(fieldValues).slice(0, 5),
+    hasCurrentPatient: !!currentPatient,
+    validationCheck: sortedPatients.length > 0 && validIndex >= 0 && validIndex < sortedPatients.length
+  });
+
+  // Log the first few patients for debugging
+  if (sortedPatients.length > 0) {
+    console.log('🎯 First 3 sorted patients:', sortedPatients.slice(0, 3).map(p => ({ 
+      id: p.id, 
+      name: p.patient_name, 
+      room: p.room_number 
+    })));
+  }
 
   return (
     <div style={{
@@ -1066,13 +1986,15 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
         </div>
 
         {/* Patient Navigation */}
-        {patients.length > 0 && (
+        {sortedPatients.length > 0 && (
           <PatientNavigation
-            patients={patients}
+            patients={sortedPatients}
             currentIndex={currentPatientIndex}
             onNavigate={handleNavigate}
             completionStatus={completionStatus}
+            onCompletionToggle={handleCompletionToggle}
             theme={currentTheme}
+            updateTrigger={completionUpdateTrigger}
           />
         )}
 
@@ -1080,15 +2002,21 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
         <div style={{
           flex: 1,
           overflow: 'auto',
-          padding: '20px'
+          padding: '20px',
+          maxHeight: 'calc(90vh - 200px)',
+          overflowX: 'hidden',
+          overflowY: 'auto'
         }}>
-          {patients.length === 0 ? (
+          {sortedPatients.length === 0 ? (
             <div style={{
               textAlign: 'center',
               color: styles.textMuted,
               padding: '40px'
             }}>
-              No patients available for data entry.
+              {loadingPatients ? 'Loading patients...' : 'No patients available for data entry.'}
+              <div style={{ marginTop: '8px', fontSize: '12px', fontFamily: 'monospace' }}>
+                Raw patients: {patients.length} | Sorted patients: {sortedPatients.length}
+              </div>
             </div>
           ) : (
             <>
@@ -1177,18 +2105,6 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
               {/* Dynamic Template Renderer */}
               {selectedTemplate ? (
                 <div>
-                  <h4 style={{
-                    margin: 0,
-                    marginBottom: '16px',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    color: styles.textPrimary,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}>
-                    📋 {selectedTemplate.name} - {currentPatient?.patient_name || 'Patient'}
-                  </h4>
                   
                   {/* Loading and Debug info */}
                   <div style={{
@@ -1225,7 +2141,11 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
                     fontSize: '14px',
                     lineHeight: '1.6',
                     color: styles.textPrimary,
-                    whiteSpace: 'pre-wrap'
+                    whiteSpace: 'pre-wrap',
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word',
+                    maxWidth: '100%',
+                    overflow: 'hidden'
                   }}>
                     {(selectedTemplate.content || DEFAULT_TEMPLATE)
                       .split(/(\{\{[^}]+\}\})/)
@@ -1268,20 +2188,26 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
                                   border: value ? 'none' : `1px dashed ${styles.borderColor}`,
                                   borderBottom: value ? `2px solid ${styles.primaryColor}` : `1px dashed ${styles.borderColor}`,
                                   borderRadius: value ? '0' : '4px',
-                                  padding: value ? '2px 4px' : '8px',
+                                  padding: value ? '4px 6px' : '8px',
                                   color: value ? styles.textPrimary : styles.textMuted,
                                   fontSize: '14px',
                                   fontFamily: 'monospace',
                                   outline: 'none',
                                   transition: 'all 0.2s ease',
                                   fontWeight: value ? '500' : '400',
+                                  width: '100%',
+                                  maxWidth: '100%',
                                   minWidth: '200px',
                                   minHeight: value ? 'auto' : '60px',
                                   resize: 'vertical',
-                                  display: 'inline-block',
-                                  verticalAlign: 'top'
+                                  display: 'block',
+                                  verticalAlign: 'top',
+                                  wordWrap: 'break-word',
+                                  overflowWrap: 'break-word',
+                                  whiteSpace: 'pre-wrap',
+                                  boxSizing: 'border-box'
                                 }}
-                                rows={value ? Math.max(1, value.split('\\n').length) : 3}
+                                rows={value ? Math.max(2, value.split('\n').length) : 3}
                               />
                             );
                           } else {
@@ -1305,8 +2231,12 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
                                   outline: 'none',
                                   transition: 'all 0.2s ease',
                                   fontWeight: value ? '500' : '400',
-                                  minWidth: value ? `${Math.max(value.length * 8, 60)}px` : '120px',
-                                  maxWidth: '300px'
+                                  minWidth: value ? `${Math.min(Math.max(value.length * 8, 80), 400)}px` : '120px',
+                                  maxWidth: '100%',
+                                  width: 'auto',
+                                  boxSizing: 'border-box',
+                                  wordWrap: 'break-word',
+                                  overflowWrap: 'break-word'
                                 }}
                               />
                             );
@@ -1374,20 +2304,110 @@ const DailyInfoEntryModal = ({ isOpen, onClose, patients = [], theme = 'dark' })
                 </span>
               )}
             </div>
-            <button
-              onClick={debugClearStorage}
-              style={{
-                padding: '4px 8px',
-                backgroundColor: styles.errorColor,
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                fontSize: '10px',
-                cursor: 'pointer'
-              }}
-            >
-              Debug: Clear Storage
-            </button>
+            
+            {/* Emergency Recovery Tools */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={() => {
+                  const savedData = loadDataRobustly();
+                  if (savedData) {
+                    alert(`Found data for ${Object.keys(savedData.fieldValues || {}).length} patients in localStorage. Last saved: ${savedData.timestamp || 'Unknown'}`);
+                  } else {
+                    alert('No data found in localStorage.');
+                  }
+                }}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: 'transparent',
+                  color: styles.textMuted,
+                  border: `1px solid ${styles.borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  cursor: 'pointer'
+                }}
+                title="Check for saved data in browser storage"
+              >
+                Check Recovery
+              </button>
+              
+              <button
+                onClick={() => {
+                  const savedData = loadDataRobustly();
+                  if (savedData && savedData.fieldValues) {
+                    setFieldValues(savedData.fieldValues);
+                    setCompletionStatus(savedData.completionStatus || {});
+                    alert(`Restored data for ${Object.keys(savedData.fieldValues).length} patients from storage.`);
+                  } else {
+                    alert('No data available to restore.');
+                  }
+                }}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: styles.warningColor,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  cursor: 'pointer'
+                }}
+                title="Force restore data from browser storage"
+              >
+                Force Recovery
+              </button>
+              
+              <button
+                onClick={async () => {
+                  try {
+                    const token = localStorage.getItem('token');
+                    if (!token) {
+                      alert('❌ No authentication token. Please log in first.');
+                      return;
+                    }
+                    
+                    const response = await fetch(`${apiService.baseURL}/api/daily-info/today`, {
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                      }
+                    });
+                    
+                    if (response.ok) {
+                      const data = await response.json();
+                      if (data.success && data.mapped_entries) {
+                        const mappedData = {};
+                        Object.keys(data.mapped_entries).forEach(patientId => {
+                          const entry = data.mapped_entries[patientId];
+                          mappedData[parseInt(patientId)] = entry.field_values || {};
+                        });
+                        
+                        setFieldValues(mappedData);
+                        setBackendDataLoaded(true);
+                        alert(`🚨 EMERGENCY RECOVERY: Restored data for ${Object.keys(mappedData).length} patients directly from database.`);
+                      } else {
+                        alert('No data found in database for today.');
+                      }
+                    } else {
+                      alert(`Database query failed: ${response.status}`);
+                    }
+                  } catch (error) {
+                    alert(`Emergency recovery failed: ${error.message}`);
+                  }
+                }}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: styles.errorColor,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+                title="Emergency database query bypass for data recovery"
+              >
+                🚨 EMERGENCY DB RECOVERY
+              </button>
+            </div>
           </div>
           
           <div style={{

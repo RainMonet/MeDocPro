@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PatientCensusCard from './PatientCensusCard';
 import BatchDocumentationCard from './BatchDocumentationCard';
-import { RecentDocuments } from '../dashboard';
+import { RecentDocuments, ClockCard } from '../dashboard';
 import DailyInfoEntryModal from '../modals/DailyInfoEntryModal';
 import PreviewDocumentModal from '../modals/PreviewDocumentModal';
+import { useWeeklyAverages } from './StatCardTooltips';
+import apiService from '../../services/api';
+import aiAgentAPI from '../../services/aiAgentAPI';
 
 // Use CSS variables to match dashboard styling
 const getThemeStyles = () => ({
@@ -21,9 +24,13 @@ const getThemeStyles = () => ({
 });
 
 // Header section with date and quick stats - exactly matches dashboard StatCard grid
-const WorkspaceHeader = ({ censusData, userName, onOpenModal, onOpenDailyInfo }) => {
+const WorkspaceHeader = ({ censusData, userName, onOpenModal, onOpenDailyInfo, onOpenTemplateLibrary }) => {
   const [is24HourFormat, setIs24HourFormat] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipContent, setTooltipContent] = useState('');
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const { weeklyAverages, isLoading } = useWeeklyAverages();
 
   // Update time every minute
   useEffect(() => {
@@ -33,6 +40,51 @@ const WorkspaceHeader = ({ censusData, userName, onOpenModal, onOpenDailyInfo })
 
     return () => clearInterval(timer);
   }, []);
+
+  // Tooltip helper function
+  const showStatTooltip = (e, type) => {
+    console.log('showStatTooltip called with type:', type);
+    console.log('weeklyAverages:', weeklyAverages);
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltipPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.top - 10
+    });
+
+    let content = '';
+    
+    if (isLoading) {
+      content = 'Loading historical averages...';
+    } else if (weeklyAverages) {
+      switch (type) {
+        case 'total':
+          content = `Recent average: ${weeklyAverages.total} patients/day`;
+          break;
+        case 'admissions':
+          content = `Recent average: ${weeklyAverages.admissions} new admissions/day`;
+          break;
+        case 'followUps':
+          content = `Recent average: ${weeklyAverages.followUps} follow-up patients/day`;
+          break;
+        case 'discharges':
+          content = `Recent average: ${weeklyAverages.discharges} discharges/day`;
+          break;
+        default:
+          content = 'Historical data unavailable';
+      }
+    } else {
+      content = 'Historical data unavailable';
+    }
+
+    console.log('Setting tooltip content:', content);
+    setTooltipContent(content);
+    setShowTooltip(true);
+  };
+
+  const hideTooltip = () => {
+    setShowTooltip(false);
+  };
 
   const today = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
@@ -60,7 +112,7 @@ const WorkspaceHeader = ({ censusData, userName, onOpenModal, onOpenDailyInfo })
   // Calculate 7-day average daily caseload
   const calculate7DayAverage = () => {
     if (!censusData?.historical_data || censusData.historical_data.length === 0) {
-      return censusData?.current_census_count || 0;
+      return censusData?.rows?.length || 0;
     }
     
     // Get last 7 days of census data
@@ -73,124 +125,400 @@ const WorkspaceHeader = ({ censusData, userName, onOpenModal, onOpenDailyInfo })
 
   return (
     <div style={{ marginBottom: '1rem' }}>
-      {/* Page Title */}
+      {/* Header with integrated stats */}
       <div style={{ marginBottom: '1.5rem' }}>
         <div style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
-          alignItems: 'center' 
+          alignItems: 'center',
+          gap: '2rem'
         }}>
-          <div>
-            <h1 style={{
-              margin: 0,
-              fontSize: '1.8rem',
-              fontWeight: '700',
-              color: 'var(--text-primary)'
-            }}>
-              {userName ? `${userName}'s Workspace` : 'Clinical Workspace'}
+          {/* Left side - Title and Date/Time */}
+          <div 
+            id="workspace-title-section"
+            data-ai-component="workspace-title"
+            style={{ flex: '0 0 auto' }}
+          >
+            <h1 
+              id="workspace-title"
+              data-ai-element="page-title"
+              style={{
+                margin: 0,
+                fontSize: '1.8rem',
+                fontWeight: '700',
+                color: 'var(--text-primary)',
+                marginBottom: '0.25rem'
+              }}
+            >
+              Clinical Workspace
             </h1>
-            <div style={{
-              margin: '0.25rem 0 0 0',
-              fontSize: '1rem',
-              color: 'var(--text-secondary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}>
-              <span>{today}</span>
-              <span>•</span>
-              <button
-                onClick={() => setIs24HourFormat(!is24HourFormat)}
+            <div 
+              id="workspace-datetime"
+              data-ai-component="datetime-display"
+              style={{
+                fontSize: '0.9rem',
+                color: 'var(--text-secondary)',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'baseline',
+                gap: '1rem',
+                marginTop: '2px'
+              }}
+            >
+              <span 
+                id="current-date"
+                data-ai-element="current-date"
+                data-ai-value={today}
+              >
+                {today}
+              </span>
+              <span 
+                id="current-time"
+                data-ai-element="current-time"
+                data-ai-value={formatTime(currentTime)}
+                data-ai-format={is24HourFormat ? '24-hour' : '12-hour'}
+                data-ai-action="toggle-time-format"
+                role="button"
+                tabIndex="0"
+                aria-label={`Current time: ${formatTime(currentTime)}. Click to toggle format.`}
                 style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text-secondary)',
-                  fontSize: '1rem',
-                  cursor: 'pointer',
-                  textDecoration: 'underline',
-                  padding: '0'
+                  color: 'var(--text-tertiary)',
+                  cursor: 'pointer'
                 }}
-                title={`Switch to ${is24HourFormat ? '12-hour' : '24-hour'} format`}
+                onClick={() => setIs24HourFormat(!is24HourFormat)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setIs24HourFormat(!is24HourFormat);
+                  }
+                }}
+                title="Click to toggle time format"
               >
                 {formatTime(currentTime)}
-              </button>
+              </span>
             </div>
           </div>
-          
-          {/* Daily Info Button - positioned to the right of the header */}
-          <button
-            onClick={() => {
-              console.log('Daily Info Entry button clicked!');
-              if (onOpenDailyInfo) {
-                onOpenDailyInfo();
-              }
-            }}
+
+          {/* Right side - StatCards inline with header */}
+          <div style={{
+            display: 'flex',
+            gap: '1rem',
+            alignItems: 'center',
+            flexShrink: 0
+          }}>
+            {/* Total Patients StatCard */}
+            <div 
+              id="stat-total-patients"
+              className="workspace-stat-card"
+              role="button"
+              tabIndex="0"
+              data-ai-component="stat-card"
+              data-ai-stat-type="total-patients"
+              data-ai-value={censusData?.rows?.length || 0}
+              data-ai-action="view-patient-details"
+              aria-label={`Total Patients: ${censusData?.rows?.length || 0}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '8px 12px',
+                backgroundColor: 'var(--bg-tertiary)',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                minWidth: '120px',
+                boxShadow: 'var(--shadow-sm)',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                showStatTooltip(e, 'total');
+              }}
+              onMouseLeave={(e) => {
+                hideTooltip();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  showStatTooltip(e, 'total');
+                }
+              }}
+            >
+              <div style={{ textAlign: 'center', width: '100%' }}>
+                <div 
+                  data-ai-element="stat-value"
+                  style={{
+                    fontSize: '1.4rem',
+                    fontWeight: '700',
+                    color: 'var(--color-primary)',
+                    lineHeight: '1'
+                  }}
+                >
+                  {censusData?.rows?.length || 0}
+                </div>
+                <div 
+                  data-ai-element="stat-label"
+                  style={{
+                    fontSize: '10px',
+                    color: 'var(--text-secondary)',
+                    fontWeight: '500',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    marginTop: '2px'
+                  }}
+                >
+                  Total Patients
+                </div>
+              </div>
+            </div>
+
+            {/* Admissions StatCard */}
+            <div 
+              id="stat-admissions"
+              className="workspace-stat-card"
+              role="button"
+              tabIndex="0"
+              data-ai-component="stat-card"
+              data-ai-stat-type="admissions"
+              data-ai-value={censusData?.rows?.filter(row => row.workflow_type === 'admission' || row.status === 'admission').length || 0}
+              data-ai-action="view-admission-patients"
+              aria-label={`Admissions: ${censusData?.rows?.filter(row => row.workflow_type === 'admission' || row.status === 'admission').length || 0}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '8px 12px',
+                backgroundColor: 'var(--bg-tertiary)',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                minWidth: '100px',
+                boxShadow: 'var(--shadow-sm)',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                showStatTooltip(e, 'admissions');
+              }}
+              onMouseLeave={(e) => {
+                hideTooltip();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  showStatTooltip(e, 'admissions');
+                }
+              }}
+            >
+              <div style={{ textAlign: 'center', width: '100%' }}>
+                <div 
+                  data-ai-element="stat-value"
+                  style={{
+                    fontSize: '1.4rem',
+                    fontWeight: '700',
+                    color: 'var(--color-success)',
+                    lineHeight: '1'
+                  }}
+                >
+                  {censusData?.rows?.filter(row => row.workflow_type === 'admission' || row.status === 'admission').length || 0}
+                </div>
+                <div 
+                  data-ai-element="stat-label"
+                  style={{
+                    fontSize: '10px',
+                    color: 'var(--text-secondary)',
+                    fontWeight: '500',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    marginTop: '2px'
+                  }}
+                >
+                  Admissions
+                </div>
+              </div>
+            </div>
+
+            {/* Follow-ups StatCard */}
+            <div 
+              id="stat-followups"
+              className="workspace-stat-card"
+              role="button"
+              tabIndex="0"
+              data-ai-component="stat-card"
+              data-ai-stat-type="follow-ups"
+              data-ai-value={censusData?.rows?.filter(row => row.workflow_type === 'follow-up' || row.status === 'follow-up' || row.status === 'active').length || 0}
+              data-ai-action="view-followup-patients"
+              aria-label={`Follow-ups: ${censusData?.rows?.filter(row => row.workflow_type === 'follow-up' || row.status === 'follow-up' || row.status === 'active').length || 0}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '8px 12px',
+                backgroundColor: 'var(--bg-tertiary)',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                minWidth: '100px',
+                boxShadow: 'var(--shadow-sm)',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                showStatTooltip(e, 'followUps');
+              }}
+              onMouseLeave={(e) => {
+                hideTooltip();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  showStatTooltip(e, 'followUps');
+                }
+              }}
+            >
+              <div style={{ textAlign: 'center', width: '100%' }}>
+                <div 
+                  data-ai-element="stat-value"
+                  style={{
+                    fontSize: '1.4rem',
+                    fontWeight: '700',
+                    color: 'var(--color-info)',
+                    lineHeight: '1'
+                  }}
+                >
+                  {censusData?.rows?.filter(row => row.workflow_type === 'follow-up' || row.status === 'follow-up' || row.status === 'active').length || 0}
+                </div>
+                <div 
+                  data-ai-element="stat-label"
+                  style={{
+                    fontSize: '10px',
+                    color: 'var(--text-secondary)',
+                    fontWeight: '500',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    marginTop: '2px'
+                  }}
+                >
+                  Follow-Ups
+                </div>
+              </div>
+            </div>
+
+            {/* Discharges StatCard */}
+            <div 
+              id="stat-discharges"
+              className="workspace-stat-card"
+              role="button"
+              tabIndex="0"
+              data-ai-component="stat-card"
+              data-ai-stat-type="discharges"
+              data-ai-value={censusData?.rows?.filter(row => row.workflow_type === 'discharge' || row.status === 'discharge').length || 0}
+              data-ai-action="view-discharge-patients"
+              aria-label={`Discharges: ${censusData?.rows?.filter(row => row.workflow_type === 'discharge' || row.status === 'discharge').length || 0}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '8px 12px',
+                backgroundColor: 'var(--bg-tertiary)',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                minWidth: '100px',
+                boxShadow: 'var(--shadow-sm)',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                showStatTooltip(e, 'discharges');
+              }}
+              onMouseLeave={(e) => {
+                hideTooltip();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  showStatTooltip(e, 'discharges');
+                }
+              }}
+            >
+              <div style={{ textAlign: 'center', width: '100%' }}>
+                <div 
+                  data-ai-element="stat-value"
+                  style={{
+                    fontSize: '1.4rem',
+                    fontWeight: '700',
+                    color: 'var(--color-warning)',
+                    lineHeight: '1'
+                  }}
+                >
+                  {censusData?.rows?.filter(row => row.workflow_type === 'discharge' || row.status === 'discharge').length || 0}
+                </div>
+                <div 
+                  data-ai-element="stat-label"
+                  style={{
+                    fontSize: '10px',
+                    color: 'var(--text-secondary)',
+                    fontWeight: '500',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    marginTop: '2px'
+                  }}
+                >
+                  Discharges
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+
+      {/* Elegant App-Consistent Tooltip */}
+      {showTooltip && (
+        <div
+          style={{
+            position: 'fixed',
+            left: tooltipPosition.x,
+            top: tooltipPosition.y,
+            transform: 'translateX(-50%) translateY(-100%) translateY(-12px)',
+            backgroundColor: 'var(--bg-secondary)',
+            color: 'var(--text-primary)',
+            padding: '8px 12px',
+            borderRadius: 'var(--radius-md)',
+            border: `1px solid var(--border-color)`,
+            boxShadow: 'var(--shadow-lg)',
+            fontSize: '12px',
+            fontWeight: '500',
+            fontFamily: 'inherit',
+            zIndex: 10000,
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap',
+            textAlign: 'center',
+            lineHeight: '1.4',
+            backdropFilter: 'blur(8px)',
+            opacity: 0,
+            animation: 'tooltipFadeIn 0.2s ease-out forwards'
+          }}
+        >
+          {tooltipContent}
+          {/* Elegant arrow pointing down */}
+          <div
             style={{
-              padding: '8px 16px',
-              background: 'var(--color-success)',
-              color: 'white',
-              border: '1px solid var(--color-success)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '13px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: 'var(--shadow-sm)',
-              letterSpacing: '0.025em'
+              position: 'absolute',
+              top: '100%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '0',
+              height: '0',
+              borderLeft: '6px solid transparent',
+              borderRight: '6px solid transparent',
+              borderTop: `6px solid var(--border-color)`
             }}
-            onMouseEnter={(e) => {
-              e.target.style.transform = 'translateY(-1px)';
-              e.target.style.boxShadow = 'var(--shadow-md)';
-              e.target.style.background = 'var(--color-success)';
-              e.target.style.filter = 'brightness(1.1)';
+          />
+          <div
+            style={{
+              position: 'absolute',
+              top: 'calc(100% - 1px)',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '0',
+              height: '0',
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderTop: `5px solid var(--bg-secondary)`
             }}
-            onMouseLeave={(e) => {
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = 'var(--shadow-sm)';
-              e.target.style.background = 'var(--color-success)';
-              e.target.style.filter = 'brightness(1)';
-            }}
-          >
-            Daily Info Entry
-          </button>
-          
+          />
         </div>
-      </div>
-
-      {/* Stats Cards Row - exactly like dashboard with beautiful gradients */}
-      <div className="stats-row">
-        <div className="stat-card">
-          <div className="stat-value">{censusData?.rows?.length || 0}</div>
-          <div className="stat-label">Total Patients</div>
-          <div className="stat-change positive">
-            All patients in census
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: 'var(--color-success)' }}>
-            {censusData?.rows?.filter(row => row.workflow_type === 'admission' || row.status === 'admission').length || 0}
-          </div>
-          <div className="stat-label">Admissions</div>
-          <div className="stat-change positive">Total admission patients</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: 'var(--color-info)' }}>
-            {censusData?.rows?.filter(row => row.workflow_type === 'follow-up' || row.status === 'follow-up').length || 0}
-          </div>
-          <div className="stat-label">Follow-Ups</div>
-          <div className="stat-change">Total follow-up patients</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: 'var(--color-warning)' }}>
-            {censusData?.rows?.filter(row => row.workflow_type === 'discharge' || row.status === 'discharge').length || 0}
-          </div>
-          <div className="stat-label">Discharges</div>
-          <div className="stat-change">Total discharge patients</div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -350,7 +678,7 @@ const BatchDocumentationPanel = ({
   );
 };
 
-// Main Clinical Workspace component - matches dashboard design
+// Main Clinical Workspace component - AI Agent Enhanced for browser automation
 const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
   const [censusData, setCensusData] = useState(null);
   const [scratchNotes, setScratchNotes] = useState([]);
@@ -359,6 +687,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
   const [censusLoading, setCensusLoading] = useState(false);
   const [error, setError] = useState('');
   const [censusRefreshKey, setCensusRefreshKey] = useState(0);
+  const [recentDocumentsRefreshKey, setRecentDocumentsRefreshKey] = useState(0);
   const loadDataRef = useRef();
   const [selectedPatients, setSelectedPatients] = useState([]);
   const [dailyInfoModalOpen, setDailyInfoModalOpen] = useState(false);
@@ -366,6 +695,204 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
   const [generatedDocuments, setGeneratedDocuments] = useState([]);
   const [batchInfo, setBatchInfo] = useState({});
   const styles = getThemeStyles();
+
+  // AI Agent State Exposure and Keyboard Navigation Setup
+  useEffect(() => {
+    // Global state exposure for AI agents
+    window.MeDocProAPI = window.MeDocProAPI || {};
+    window.MeDocProAPI.clinicalWorkspace = {
+      // Current state
+      state: {
+        loading,
+        error,
+        censusData,
+        selectedPatients,
+        dailyInfoModalOpen,
+        previewModalOpen,
+        totalPatients: censusData?.rows?.length || 0,
+        activePatients: censusData?.rows?.filter(r => r.status === 'active').length || 0,
+        admissions: censusData?.rows?.filter(r => r.workflow_type === 'admission').length || 0,
+        discharges: censusData?.rows?.filter(r => r.workflow_type === 'discharge').length || 0,
+        followUps: censusData?.rows?.filter(r => r.workflow_type === 'follow-up').length || 0,
+      },
+      // Actions available to AI agents
+      actions: {
+        openDailyInfo: () => setDailyInfoModalOpen(true),
+        closeDailyInfo: () => setDailyInfoModalOpen(false),
+        openPreviewModal: () => setPreviewModalOpen(true),
+        closePreviewModal: () => setPreviewModalOpen(false),
+        refreshCensus: () => setCensusRefreshKey(prev => prev + 1),
+        refreshRecentDocuments: () => setRecentDocumentsRefreshKey(prev => prev + 1),
+        loadData: () => loadDataRef.current && loadDataRef.current(),
+        openTemplateEditor: onOpenTemplateEditor,
+        openModal: onOpenModal,
+        selectPatients: setSelectedPatients,
+        clearError: () => setError('')
+      },
+      // Patient data accessors
+      patients: {
+        getAll: () => censusData?.rows || [],
+        getActive: () => censusData?.rows?.filter(r => r.status === 'active') || [],
+        getByWorkflow: (type) => censusData?.rows?.filter(r => r.workflow_type === type) || [],
+        getSelected: () => selectedPatients,
+        findByName: (name) => censusData?.rows?.find(r => 
+          r.patient_name?.toLowerCase().includes(name.toLowerCase())
+        ),
+        findByRoom: (room) => censusData?.rows?.find(r => r.room_number === room)
+      },
+      // Utility functions
+      utils: {
+        isReady: () => !loading && !error && censusData,
+        hasPatients: () => censusData?.rows?.length > 0,
+        canGenerateDocuments: () => selectedPatients.length > 0,
+        getTimestamp: () => new Date().toISOString()
+      },
+      // Keyboard navigation helpers for AI agents
+      keyboard: {
+        focusNextElement: () => {
+          const focusable = document.querySelectorAll('[data-ai-component][tabindex]:not([tabindex="-1"])');
+          const current = document.activeElement;
+          const currentIndex = Array.from(focusable).indexOf(current);
+          const nextIndex = (currentIndex + 1) % focusable.length;
+          focusable[nextIndex]?.focus();
+        },
+        focusPreviousElement: () => {
+          const focusable = document.querySelectorAll('[data-ai-component][tabindex]:not([tabindex="-1"])');
+          const current = document.activeElement;
+          const currentIndex = Array.from(focusable).indexOf(current);
+          const prevIndex = currentIndex <= 0 ? focusable.length - 1 : currentIndex - 1;
+          focusable[prevIndex]?.focus();
+        },
+        focusElement: (selector) => {
+          const element = document.querySelector(selector);
+          element?.focus();
+          return !!element;
+        },
+        activateElement: (selector) => {
+          const element = document.querySelector(selector);
+          if (element) {
+            element.focus();
+            element.click();
+            element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+            return true;
+          }
+          return false;
+        }
+      }
+    };
+
+    // Global keyboard event handler for AI agent control
+    const handleGlobalKeyboard = (event) => {
+      // Allow AI agents to intercept keyboard events
+      if (window.MeDocProAPI?.keyboardInterceptor) {
+        const intercepted = window.MeDocProAPI.keyboardInterceptor(event);
+        if (intercepted) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+      }
+
+      // Skip if typing in input fields
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.contentEditable === 'true') {
+        return;
+      }
+
+      // Skip if modals are open (let modal handle its own navigation)
+      if (dailyInfoModalOpen || previewModalOpen) {
+        return;
+      }
+
+      // Global workspace shortcuts for AI agent automation
+      switch (event.key) {
+        case 'F1': // Help - show AI agent capabilities
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            console.log('MeDocPro AI Agent Capabilities:', window.MeDocProAI?.getCapabilities());
+            console.log('Usage Examples:', window.MeDocProAI?.getUsageExamples());
+          }
+          break;
+        
+        case 'F2': // Focus patient census
+          event.preventDefault();
+          document.querySelector('#patient-census-section')?.focus();
+          break;
+          
+        case 'F3': // Focus batch documentation
+          event.preventDefault();
+          document.querySelector('#batch-documentation-section')?.focus();
+          break;
+          
+        case 'F4': // Open daily information modal (if patients available)
+          if (censusData?.rows?.length > 0) {
+            event.preventDefault();
+            setDailyInfoModalOpen(true);
+          }
+          break;
+          
+        case 'F5': // Refresh census data
+          event.preventDefault();
+          setCensusRefreshKey(prev => prev + 1);
+          loadDataRef.current && loadDataRef.current();
+          break;
+
+        case 'Escape': // Clear error or close any open contexts
+          if (error) {
+            event.preventDefault();
+            setError('');
+          }
+          break;
+      }
+    };
+
+    // Listen for keyboard shortcut events
+    const handleDocumentGeneration = () => {
+      // Trigger document generation with default settings
+      if (selectedPatients.length > 0) {
+        // Find a batch documentation component and trigger its generation
+        const batchCard = document.querySelector('[data-ai-component="batch-documentation-card"]');
+        if (batchCard) {
+          const generateButton = batchCard.querySelector('[data-ai-action="generate-documents"]');
+          if (generateButton) {
+            generateButton.click();
+          }
+        }
+      }
+    };
+
+    const handleTemplateSave = () => {
+      // This would be handled by the template editor if it's open
+      console.log('🎹 Template save shortcut triggered (handled by template editor)');
+    };
+
+    const handleTextEnhancement = () => {
+      // Trigger text enhancement on currently focused textarea
+      const activeElement = document.activeElement;
+      if (activeElement && activeElement.tagName === 'TEXTAREA') {
+        // Trigger AI enhancement for the focused text area
+        window.dispatchEvent(new CustomEvent('triggerAIEnhancement', { 
+          detail: { element: activeElement }
+        }));
+      }
+    };
+
+    // Attach event listeners
+    document.addEventListener('keydown', handleGlobalKeyboard, true);
+    window.addEventListener('triggerDocumentGeneration', handleDocumentGeneration);
+    window.addEventListener('triggerTemplateSave', handleTemplateSave);
+    window.addEventListener('triggerTextEnhancement', handleTextEnhancement);
+    
+    // Cleanup
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeyboard, true);
+      window.removeEventListener('triggerDocumentGeneration', handleDocumentGeneration);
+      window.removeEventListener('triggerTemplateSave', handleTemplateSave);
+      window.removeEventListener('triggerTextEnhancement', handleTextEnhancement);
+    };
+  }, [
+    loading, error, censusData, selectedPatients, dailyInfoModalOpen, 
+    previewModalOpen, onOpenTemplateEditor, onOpenModal
+  ]);
 
   // Load today's census data with 7-day historical data
   const loadCensusData = useCallback(async () => {
@@ -408,7 +935,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
     
     try {
       // Load today's census data (primary data - required)
-      const todayResponse = await fetch('http://localhost:5000/api/patient-census/today', {
+      const todayResponse = await fetch(`${apiService.baseURL}/api/patient-census/today`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -431,7 +958,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
       // Try to load 7-day historical data (optional - for averages)
       let historicalData = [];
       try {
-        const historyResponse = await fetch('http://localhost:5000/api/patient-census/history?days=7', {
+        const historyResponse = await fetch(`${apiService.baseURL}/api/patient-census/history?days=7`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json'
@@ -512,7 +1039,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
     }
     
     try {
-      const response = await fetch('http://localhost:5000/api/scratch-notes', {
+      const response = await fetch(`${apiService.baseURL}/api/scratch-notes`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -573,6 +1100,10 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
         
         // Open preview modal
         setPreviewModalOpen(true);
+        
+        // Refresh recent documents to show newly generated documents
+        setRecentDocumentsRefreshKey(prev => prev + 1);
+        console.log('📄 Triggering Recent Documents refresh after document generation');
       }
     } catch (err) {
       console.error('Failed to generate documents:', err);
@@ -583,6 +1114,14 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
   // Handle daily info entry
   const handleOpenDailyInfo = () => {
     setDailyInfoModalOpen(true);
+  };
+
+  // Handle daily info modal close with refresh
+  const handleCloseDailyInfo = () => {
+    setDailyInfoModalOpen(false);
+    // Trigger census refresh to update daily info status
+    console.log('Daily info modal closed - triggering census refresh for status update');
+    setCensusRefreshKey(prev => prev + 1);
   };
 
   // Handle selected patients change from census card
@@ -652,29 +1191,72 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
   }
 
   return (
-    <div className="dashboard-grid">
+    <main 
+      id="clinical-workspace"
+      className="dashboard-grid"
+      role="main"
+      aria-label="Clinical Workspace"
+      data-ai-component="clinical-workspace"
+      data-ai-state={loading ? 'loading' : error ? 'error' : 'ready'}
+      data-ai-patients-total={censusData?.rows?.length || 0}
+      data-ai-patients-selected={selectedPatients.length}
+      data-ai-modal-open={dailyInfoModalOpen || previewModalOpen}
+    >
       {/* Error Display */}
       {error && (
-        <div style={{
-          padding: '0.75rem 1rem',
-          background: 'rgba(239, 68, 68, 0.1)',
-          borderLeft: '4px solid #ef4444',
-          color: '#ef4444',
-          borderRadius: '8px',
-          fontSize: '0.9rem',
-          border: '1px solid rgba(239, 68, 68, 0.2)'
-        }}>
+        <div 
+          id="workspace-error"
+          className="error-banner"
+          role="alert"
+          aria-live="polite"
+          data-ai-component="error-display"
+          data-ai-error-type="workspace-error"
+          style={{
+            padding: '0.75rem 1rem',
+            background: 'rgba(239, 68, 68, 0.1)',
+            borderLeft: '4px solid #ef4444',
+            color: '#ef4444',
+            borderRadius: '8px',
+            fontSize: '0.9rem',
+            border: '1px solid rgba(239, 68, 68, 0.2)'
+          }}
+        >
           {error}
         </div>
       )}
 
       {/* Workspace Header with Stats */}
-      <WorkspaceHeader censusData={censusData} userName={user?.firstName} onOpenModal={onOpenModal} onOpenDailyInfo={handleOpenDailyInfo} />
+      <header
+        id="workspace-header"
+        data-ai-component="workspace-header"
+        data-ai-action="view-stats"
+        aria-label="Workspace Header with Patient Statistics"
+      >
+        <WorkspaceHeader 
+          censusData={censusData} 
+          userName={user?.firstName} 
+          onOpenModal={onOpenModal} 
+          onOpenDailyInfo={handleOpenDailyInfo}
+          onOpenTemplateLibrary={() => onOpenModal && onOpenModal('template-library')}
+        />
+      </header>
 
-      {/* Main Content Row - like dashboard-row */}
-      <div className="dashboard-row">
+      {/* Main Content Row - Patient Census and Batch Documentation */}
+      <section 
+        id="main-content"
+        className="dashboard-row dashboard-row-main"
+        data-ai-component="main-content"
+        aria-label="Patient Management and Document Generation"
+      >
         {/* Patient Census */}
-        <div className="system-status">
+        <div 
+          id="patient-census-section"
+          className="system-status"
+          data-ai-component="patient-census"
+          data-ai-action="manage-patients"
+          data-ai-patients-count={censusData?.rows?.length || 0}
+          aria-label="Patient Census Management"
+        >
           <PatientCensusCard
             theme={document.documentElement.getAttribute('data-theme') || 'dark'}
             onBulkGenerate={handleGenerateDocuments}
@@ -685,7 +1267,15 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
         </div>
 
         {/* Batch Documentation Generation */}
-        <div className="system-status">
+        <div 
+          id="batch-documentation-section"
+          className="system-status"
+          data-ai-component="batch-documentation"
+          data-ai-action="generate-documents"
+          data-ai-selected-patients={selectedPatients.length}
+          data-ai-can-generate={selectedPatients.length > 0}
+          aria-label="Batch Document Generation"
+        >
           <BatchDocumentationCard
             selectedPatients={selectedPatients}
             onGenerate={handleGenerateDocuments}
@@ -694,28 +1284,71 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
             onOpenTemplateLibrary={() => onOpenModal && onOpenModal('template-library')}
           />
         </div>
-      </div>
+      </section>
 
-      {/* Recent Documents */}
-      <RecentDocuments theme={document.documentElement.getAttribute('data-theme') || 'dark'} />
+      {/* Secondary Content Row - Clock and Recent Documents */}
+      <section 
+        id="secondary-content"
+        className="dashboard-row dashboard-row-secondary"
+        data-ai-component="secondary-content"
+        aria-label="Time Display and Document History"
+      >
+        {/* Analog Clock */}
+        <div 
+          id="clock-section"
+          className="system-status"
+          data-ai-component="clock-display"
+          data-ai-action="view-time"
+          aria-label="Current Time Display"
+        >
+          <ClockCard
+            theme={document.documentElement.getAttribute('data-theme') || 'dark'}
+          />
+        </div>
+
+        {/* Recent Documents */}
+        <div 
+          id="recent-documents-section"
+          className="system-status"
+          data-ai-component="recent-documents"
+          data-ai-action="view-documents"
+          aria-label="Recent Documents History"
+        >
+          <RecentDocuments 
+            theme={document.documentElement.getAttribute('data-theme') || 'dark'} 
+            refreshKey={recentDocumentsRefreshKey}
+          />
+        </div>
+      </section>
 
       {/* Daily Information Entry Modal */}
       <DailyInfoEntryModal
+        id="daily-info-modal"
         isOpen={dailyInfoModalOpen}
-        onClose={() => setDailyInfoModalOpen(false)}
+        onClose={handleCloseDailyInfo}
         patients={censusData?.rows || []}
         theme={document.documentElement.getAttribute('data-theme') || 'dark'}
+        data-ai-component="daily-info-modal"
+        data-ai-modal-state={dailyInfoModalOpen ? 'open' : 'closed'}
+        data-ai-action="enter-daily-info"
+        aria-label="Daily Information Entry"
       />
 
       {/* Preview Document Modal */}
       <PreviewDocumentModal
+        id="preview-document-modal"
         isOpen={previewModalOpen}
         onClose={() => setPreviewModalOpen(false)}
         documents={generatedDocuments}
         batchInfo={batchInfo}
         theme={document.documentElement.getAttribute('data-theme') || 'dark'}
+        data-ai-component="preview-modal"
+        data-ai-modal-state={previewModalOpen ? 'open' : 'closed'}
+        data-ai-action="preview-documents"
+        data-ai-documents-count={generatedDocuments.length}
+        aria-label="Document Preview"
       />
-    </div>
+    </main>
   );
 };
 

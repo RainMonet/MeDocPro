@@ -1,294 +1,338 @@
 import React, { useState, useEffect } from 'react';
+import SymptomTrendChart from './SymptomTrendChart';
 
-// Visual aging color system matching scratch pad
-const getAgeStageDisplay = (ageStage) => {
-  const stageConfig = {
-    fresh: { 
-      color: '#10b981', 
-      bgColor: 'rgba(16, 185, 129, 0.1)', 
-      icon: '🟢', 
-      label: 'Fresh',
-      description: 'Just created'
-    },
-    aging: { 
-      color: '#f59e0b', 
-      bgColor: 'rgba(245, 158, 11, 0.1)', 
-      icon: '🟡', 
-      label: 'Aging',
-      description: '2-3 days old'
-    },
-    mature: { 
-      color: '#ea580c', 
-      bgColor: 'rgba(234, 88, 12, 0.1)', 
-      icon: '🟠', 
-      label: 'Mature',
-      description: '4-5 days old'
-    },
-    expiring: { 
-      color: '#ef4444', 
-      bgColor: 'rgba(239, 68, 68, 0.1)', 
-      icon: '🔴', 
-      label: 'Expiring',
-      description: 'Burns soon!'
-    },
-    expired: { 
-      color: '#b91c1c', 
-      bgColor: 'rgba(185, 28, 28, 0.1)', 
-      icon: '💀', 
-      label: 'Expired',
-      description: 'Auto-deleted'
-    }
-  };
-  return stageConfig[ageStage] || stageConfig.fresh;
-};
-
-// Group notes by day
-const groupNotesByDay = (notes) => {
-  const groups = {};
-  const today = new Date();
-  
-  notes.forEach(note => {
-    const createdDate = new Date(note.created_at);
-    const daysDiff = Math.floor((today - createdDate) / (1000 * 60 * 60 * 24));
-    
-    let dayKey;
-    if (daysDiff === 0) {
-      dayKey = 'Today';
-    } else if (daysDiff === 1) {
-      dayKey = 'Yesterday';
-    } else {
-      dayKey = `${daysDiff} days ago`;
-    }
-    
-    if (!groups[dayKey]) {
-      groups[dayKey] = [];
-    }
-    groups[dayKey].push(note);
-  });
-  
-  return groups;
-};
-
-// Individual day row component
-const DayRow = ({ dayLabel, notes, onClick }) => {
-  if (!notes || notes.length === 0) return null;
-  
-  // Group notes by age stage for this day
-  const stageGroups = {};
-  notes.forEach(note => {
-    const stage = note.visual_age_stage;
-    if (!stageGroups[stage]) {
-      stageGroups[stage] = [];
-    }
-    stageGroups[stage].push(note);
-  });
-  
-  // Get the most critical stage for this day
-  const stages = ['expired', 'expiring', 'mature', 'aging', 'fresh'];
-  const criticalStage = stages.find(stage => stageGroups[stage]?.length > 0) || 'fresh';
-  const stageDisplay = getAgeStageDisplay(criticalStage);
-  
-  return (
-    <div 
-      onClick={() => onClick && onClick(notes)}
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '12px 16px',
-        marginBottom: '8px',
-        backgroundColor: stageDisplay.bgColor,
-        borderLeft: `4px solid ${stageDisplay.color}`,
-        borderRadius: '6px',
-        cursor: onClick ? 'pointer' : 'default',
-        transition: 'all 0.2s ease'
-      }}
-      onMouseEnter={(e) => {
-        if (onClick) {
-          e.target.style.backgroundColor = stageDisplay.bgColor.replace('0.1', '0.15');
-          e.target.style.transform = 'translateX(2px)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (onClick) {
-          e.target.style.backgroundColor = stageDisplay.bgColor;
-          e.target.style.transform = 'translateX(0)';
-        }
-      }}
-    >
-      <div style={{ flex: 1 }}>
-        <div style={{
-          fontSize: '14px',
-          fontWeight: '500',
-          color: 'var(--text-primary)',
-          marginBottom: '2px'
-        }}>
-          {dayLabel} ({notes.length} note{notes.length !== 1 ? 's' : ''})
-        </div>
-        <div style={{
-          fontSize: '11px',
-          color: 'var(--text-muted)'
-        }}>
-          {Object.entries(stageGroups).map(([stage, stageNotes]) => (
-            <span key={stage} style={{ marginRight: '8px' }}>
-              {getAgeStageDisplay(stage).icon} {stageNotes.length}
-            </span>
-          ))}
+// AI Analysis Metrics Component
+const AnalysisMetrics = ({ analysisData }) => {
+  if (!analysisData || Object.keys(analysisData).length === 0) {
+    return (
+      <div style={{
+        textAlign: 'center',
+        padding: '40px 20px',
+        color: 'var(--text-muted)'
+      }}>
+        <div style={{ fontSize: '32px', marginBottom: '12px' }}>AI</div>
+        <div style={{ fontSize: '14px', marginBottom: '8px' }}>No analysis data available</div>
+        <div style={{ fontSize: '12px' }}>
+          AI analysis will appear here once clinical notes are processed
         </div>
       </div>
-      
+    );
+  }
+
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gap: '12px',
+      marginBottom: '16px'
+    }}>
+      {/* Documentation Completeness */}
       <div style={{
+        padding: '12px 16px',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        borderLeft: '4px solid #10b981',
+        borderRadius: '6px'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '4px'
+        }}>
+          <span style={{ fontSize: '16px' }}></span>
+          <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
+            Avg. Completeness
+          </span>
+        </div>
+        <div style={{ fontSize: '20px', fontWeight: '700', color: '#10b981' }}>
+          {analysisData.avgCompleteness || '--'}%
+        </div>
+      </div>
+
+      {/* Risk Flags */}
+      <div style={{
+        padding: '12px 16px',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        borderLeft: '4px solid #ef4444',
+        borderRadius: '6px'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '4px'
+        }}>
+          <span style={{ fontSize: '16px' }}></span>
+          <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
+            Risk Flags
+          </span>
+        </div>
+        <div style={{ fontSize: '20px', fontWeight: '700', color: '#ef4444' }}>
+          {analysisData.riskFlags || 0}
+        </div>
+      </div>
+
+      {/* Trend Analysis */}
+      <div style={{
+        padding: '12px 16px',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderLeft: '4px solid #3b82f6',
+        borderRadius: '6px'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '4px'
+        }}>
+          <span style={{ fontSize: '16px' }}></span>
+          <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
+            Trends Detected
+          </span>
+        </div>
+        <div style={{ fontSize: '20px', fontWeight: '700', color: '#3b82f6' }}>
+          {analysisData.trendsDetected || 0}
+        </div>
+      </div>
+
+      {/* Care Gaps */}
+      <div style={{
+        padding: '12px 16px',
+        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+        borderLeft: '4px solid #f59e0b',
+        borderRadius: '6px'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '4px'
+        }}>
+          <span style={{ fontSize: '16px' }}></span>
+          <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
+            Care Gaps
+          </span>
+        </div>
+        <div style={{ fontSize: '20px', fontWeight: '700', color: '#f59e0b' }}>
+          {analysisData.careGaps || 0}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Recent Recommendations Component
+const RecentRecommendations = ({ recommendations = [] }) => {
+  if (!recommendations || recommendations.length === 0) {
+    return (
+      <div style={{
+        padding: '16px',
+        textAlign: 'center',
+        color: 'var(--text-muted)',
+        fontSize: '14px'
+      }}>
+        No recent recommendations available
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: '16px' }}>
+      <h4 style={{
+        fontSize: '14px',
+        fontWeight: '600',
+        color: 'var(--text-primary)',
+        marginBottom: '12px',
         display: 'flex',
         alignItems: 'center',
         gap: '8px'
       }}>
-        <span style={{
-          fontSize: '12px',
-          fontWeight: '500',
-          color: stageDisplay.color
+        Recent AI Recommendations
+      </h4>
+      <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+        {recommendations.slice(0, 5).map((rec, index) => {
+          // Handle both old string format and new object format
+          const isObjectFormat = typeof rec === 'object';
+          const recommendationText = isObjectFormat ? rec.recommendation : rec;
+          const patientId = isObjectFormat ? rec.patient_id : null;
+          const contentSnippet = isObjectFormat ? rec.content_snippet : null;
+          const score = isObjectFormat ? rec.score : null;
+          const timestamp = isObjectFormat ? new Date(rec.timestamp).toLocaleDateString() : null;
+          
+          return (
+            <div
+              key={index}
+              style={{
+                padding: '10px 12px',
+                marginBottom: '8px',
+                backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                borderLeft: '3px solid #3b82f6',
+                borderRadius: '6px',
+                fontSize: '12px',
+                lineHeight: '1.4',
+                color: 'var(--text-primary)'
+              }}
+            >
+              {/* Main Recommendation */}
+              <div style={{ fontWeight: '600', marginBottom: '4px' }}>
+                {recommendationText}
+              </div>
+              
+              {/* Patient and Note Context */}
+              {isObjectFormat && (
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  <div style={{ marginBottom: '2px' }}>
+                    <span style={{ fontWeight: '500' }}>Patient:</span> {patientId || 'Unknown'}
+                    {score && (
+                      <span style={{ marginLeft: '8px' }}>
+                        <span style={{ fontWeight: '500' }}>Score:</span> {Math.round(score * 100)}%
+                      </span>
+                    )}
+                  </div>
+                  {contentSnippet && (
+                    <div style={{ 
+                      fontStyle: 'italic', 
+                      opacity: 0.8,
+                      marginTop: '3px',
+                      padding: '3px 6px',
+                      backgroundColor: 'rgba(0,0,0,0.05)',
+                      borderRadius: '3px'
+                    }}>
+                      "{contentSnippet}"
+                    </div>
+                  )}
+                  {timestamp && (
+                    <div style={{ marginTop: '2px', fontSize: '10px', opacity: 0.7 }}>
+                      {timestamp}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {recommendations.length > 5 && (
+        <div style={{
+          fontSize: '11px',
+          color: 'var(--text-muted)',
+          textAlign: 'center',
+          marginTop: '8px'
         }}>
-          {stageDisplay.icon} {stageDisplay.label}
-        </span>
-        {onClick && (
-          <span style={{
-            fontSize: '12px',
-            color: 'var(--text-muted)'
-          }}>
-            →
-          </span>
-        )}
-      </div>
+          Showing 5 of {recommendations.length} recommendations
+        </div>
+      )}
     </div>
   );
 };
 
-// Summary stats component
-const SummaryStats = ({ notes }) => {
-  const totalNotes = notes.length;
-  const expiringToday = notes.filter(n => n.days_until_expiration === 0).length;
-  const expiringSoon = notes.filter(n => n.days_until_expiration <= 1 && n.days_until_expiration > 0).length;
-  const transferred = notes.filter(n => n.transferred_to_census).length;
-  
-  return (
-    <div style={{
-      padding: '12px 16px',
-      backgroundColor: 'rgba(59, 130, 246, 0.05)',
-      borderRadius: '6px',
-      marginTop: '8px'
-    }}>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
-        gap: '8px',
-        fontSize: '12px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '16px' }}>📝</span>
-          <span style={{ color: 'var(--text-primary)' }}>
-            <strong>{totalNotes}</strong> total notes
-          </span>
-        </div>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '16px' }}>📊</span>
-          <span style={{ color: 'var(--text-primary)' }}>
-            <strong>{transferred}</strong> transferred
-          </span>
-        </div>
-        
-        {expiringToday > 0 && (
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '6px',
-            gridColumn: '1 / -1',
-            padding: '4px 8px',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            borderRadius: '4px'
-          }}>
-            <span style={{ fontSize: '16px' }}>🔥</span>
-            <span style={{ color: '#ef4444', fontWeight: '500' }}>
-              <strong>{expiringToday}</strong> note{expiringToday !== 1 ? 's' : ''} expire{expiringToday === 1 ? 's' : ''} today!
-            </span>
-          </div>
-        )}
-        
-        {expiringSoon > 0 && expiringToday === 0 && (
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '6px',
-            gridColumn: '1 / -1',
-            padding: '4px 8px',
-            backgroundColor: 'rgba(245, 158, 11, 0.1)',
-            borderRadius: '4px'
-          }}>
-            <span style={{ fontSize: '16px' }}>⚠️</span>
-            <span style={{ color: '#f59e0b', fontWeight: '500' }}>
-              <strong>{expiringSoon}</strong> note{expiringSoon !== 1 ? 's' : ''} expire{expiringSoon === 1 ? 's' : ''} tomorrow
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Main Clinical Notes Overview component
-const ClinicalNotesOverview = ({ onOpenClinicalWorkflow }) => {
-  const [notes, setNotes] = useState([]);
+// AI Analysis Overview Component
+const AIAnalysisOverview = ({ onOpenClinicalWorkflow }) => {
+  const [analysisData, setAnalysisData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [recentRecommendations, setRecentRecommendations] = useState([]);
 
-  // Load scratch notes
-  const loadNotes = async () => {
+  // Load AI analysis data from backend
+  const loadAnalysisData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/scratch-notes');
+      setError('');
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Authentication required');
+        setLoading(false);
+        return;
+      }
+      
+      // Fetch dashboard metrics from AI analysis API
+      const response = await fetch('http://localhost:5000/api/ai-analysis/dashboard-metrics', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
       const data = await response.json();
       
       if (data.success) {
-        setNotes(data.scratch_notes || []);
+        setAnalysisData(data.metrics);
+        
+        // Also load recent recommendations
+        loadRecentRecommendations();
       } else {
-        setError(data.error || 'Failed to load notes');
+        setError(data.error || 'Failed to load AI analysis data');
+        // Set fallback data structure
+        setAnalysisData({
+          avgCompleteness: null,
+          riskFlags: 0,
+          trendsDetected: 0,
+          careGaps: 0,
+          analysisSystemStatus: {
+            ollamaConnected: false,
+            modelsLoaded: false,
+            analysisReady: false,
+            error: data.error
+          }
+        });
       }
+      
+      setLoading(false);
     } catch (err) {
-      setError('Network error loading notes');
-    } finally {
+      console.error('Error loading AI analysis data:', err);
+      setError('Failed to connect to AI analysis service');
+      setAnalysisData({
+        avgCompleteness: null,
+        riskFlags: 0,
+        trendsDetected: 0,
+        careGaps: 0,
+        analysisSystemStatus: {
+          ollamaConnected: false,
+          modelsLoaded: false,
+          analysisReady: false,
+          error: 'Connection failed'
+        }
+      });
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadNotes();
-    // Refresh every 2 minutes
-    const interval = setInterval(loadNotes, 2 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleDayClick = (dayNotes) => {
-    if (onOpenClinicalWorkflow) {
-      onOpenClinicalWorkflow('scratch');
+  // Load recent recommendations from backend
+  const loadRecentRecommendations = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await fetch('http://localhost:5000/api/ai-analysis/recent-recommendations', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.recommendations) {
+        setRecentRecommendations(data.recommendations);
+      }
+    } catch (err) {
+      console.log('Recent recommendations not available:', err);
+      // Fail silently - recommendations are optional
     }
   };
 
-  const groupedNotes = groupNotesByDay(notes);
-  const dayKeys = Object.keys(groupedNotes).sort((a, b) => {
-    // Sort by recency (Today, Yesterday, 2 days ago, etc.)
-    if (a === 'Today') return -1;
-    if (b === 'Today') return 1;
-    if (a === 'Yesterday') return -1;
-    if (b === 'Yesterday') return 1;
-    
-    const daysA = parseInt(a.match(/(\d+) days ago/)?.[1] || '0');
-    const daysB = parseInt(b.match(/(\d+) days ago/)?.[1] || '0');
-    return daysA - daysB;
-  });
+  useEffect(() => {
+    loadAnalysisData();
+    // Refresh every 5 minutes when AI analysis is active
+    const interval = setInterval(loadAnalysisData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   if (loading) {
     return (
       <div className="system-status" style={{ minHeight: '200px' }}>
-        <h3>📝 Clinical Notes Overview</h3>
+        <h3>AI Clinical Analysis</h3>
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
@@ -297,7 +341,7 @@ const ClinicalNotesOverview = ({ onOpenClinicalWorkflow }) => {
           color: 'var(--text-muted)'
         }}>
           <div className="loading-spinner" style={{ width: '20px', height: '20px', marginRight: '8px' }}></div>
-          Loading notes...
+          Analyzing clinical data...
         </div>
       </div>
     );
@@ -305,8 +349,8 @@ const ClinicalNotesOverview = ({ onOpenClinicalWorkflow }) => {
 
   return (
     <div className="system-status" style={{ minHeight: '200px' }}>
-      <h3>📝 Clinical Notes Overview</h3>
-      <p>Daily scratch notes with visual burn indicators</p>
+      <h3>AI Clinical Analysis</h3>
+      <p>Automated insights from clinical documentation</p>
       
       {error && (
         <div style={{
@@ -323,56 +367,47 @@ const ClinicalNotesOverview = ({ onOpenClinicalWorkflow }) => {
       )}
 
       <div className="status-grid">
-        {notes.length === 0 ? (
-          <div style={{
-            textAlign: 'center',
-            padding: '40px 20px',
-            color: 'var(--text-muted)'
-          }}>
-            <div style={{ fontSize: '32px', marginBottom: '12px' }}>📝</div>
-            <div style={{ fontSize: '14px', marginBottom: '8px' }}>No clinical notes yet</div>
-            <div style={{ fontSize: '12px' }}>
-              Create your first scratch note to track clinical observations
-            </div>
-            {onOpenClinicalWorkflow && (
-              <button
-                onClick={() => onOpenClinicalWorkflow('scratch')}
-                style={{
-                  marginTop: '12px',
-                  padding: '6px 12px',
-                  backgroundColor: '#059669',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  cursor: 'pointer'
-                }}
-              >
-                Create First Note
-              </button>
-            )}
+        <AnalysisMetrics analysisData={analysisData} />
+        
+        {/* Symptom Trends Visualization */}
+        <div style={{ gridColumn: '1 / -1', marginBottom: '16px' }}>
+          <SymptomTrendChart 
+            timeRange="7d"
+            className="clinical-dashboard-chart"
+          />
+        </div>
+        
+        {/* Development Notice */}
+        <div style={{
+          padding: '12px 16px',
+          backgroundColor: 'rgba(59, 130, 246, 0.05)',
+          border: '1px solid rgba(59, 130, 246, 0.2)',
+          borderRadius: '6px',
+          fontSize: '12px',
+          color: 'var(--text-primary)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <span style={{ fontSize: '16px' }}></span>
+            <strong>AI Analysis Features In Development</strong>
           </div>
-        ) : (
-          <>
-            {dayKeys.map(dayKey => (
-              <DayRow
-                key={dayKey}
-                dayLabel={dayKey}
-                notes={groupedNotes[dayKey]}
-                onClick={handleDayClick}
-              />
-            ))}
-            
-            <SummaryStats notes={notes} />
-          </>
-        )}
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+            • Documentation completeness scoring<br/>
+            • Symptom tracking and extraction<br/>
+            • Risk flag detection<br/>
+            • Care gap identification<br/>
+            • Clinical trend analysis
+          </div>
+        </div>
+        
+        {/* Recent Recommendations Section */}
+        <RecentRecommendations recommendations={recentRecommendations} />
       </div>
 
       <div className="last-checked">
-        Last updated: {new Date().toLocaleTimeString()}
+        Last analysis: {new Date().toLocaleTimeString()}
       </div>
     </div>
   );
 };
 
-export default ClinicalNotesOverview;
+export default AIAnalysisOverview;

@@ -1,11 +1,11 @@
 // medocpro-dashboard/src/components/layout/Header.jsx
 import React, { useState, useRef, useEffect } from 'react';
-import QuoteDisplay from '../ui/QuoteDisplay';
+import QuoteTicker from '../quotes/QuoteTicker';
 import AddUserModal from '../modals/AddUserModal';
 import apiService from '../../services/api';
 import './Header.css';
 
-const Header = ({ user, theme, onToggleTheme, viewMode, onViewChange, onLogout, isNewLogin, onUserSwitch }) => {
+const Header = ({ user, theme, onToggleTheme, viewMode, onViewChange, onLogout, isNewLogin, onUserSwitch, onOpenDailyInfo }) => {
   
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -187,7 +187,7 @@ const Header = ({ user, theme, onToggleTheme, viewMode, onViewChange, onLogout, 
           </div>
         </div>
         
-        {/* Quote Display */}
+        {/* Quote Ticker */}
         <div style={{ 
           flex: 1, 
           display: 'flex', 
@@ -198,10 +198,20 @@ const Header = ({ user, theme, onToggleTheme, viewMode, onViewChange, onLogout, 
           maxWidth: '100%', // Prevent overflow
           overflow: 'hidden' // Ensure no overflow
         }}>
-          <QuoteDisplay theme={theme} onLogin={isNewLogin} />
+          <QuoteTicker showInHeader={true} />
         </div>
         
         <div className="header-right">
+          {/* Daily Info Entry Button */}
+          {onOpenDailyInfo && (
+            <button
+              className="daily-info-entry-button"
+              onClick={onOpenDailyInfo}
+            >
+              Daily Info Entry
+            </button>
+          )}
+          
           <button 
             className="theme-toggle"
             onClick={onToggleTheme}

@@ -3,17 +3,23 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/layout/Header';
 import Sidebar from './components/layout/Sidebar';
 import SidebarToggle from './components/layout/SidebarToggle';
-import StatCard from './components/ui/StatCard';
-import { SystemStatus, ClinicalNotesOverview, RecentDocuments } from './components/dashboard';
+import { SystemStatus, AIAnalysisOverview, RecentDocuments, WeeklyPassOffCard } from './components/dashboard';
 import { PatientCensusModal } from './components/modals';
 import DailyInfoEntryModal from './components/modals/DailyInfoEntryModal';
 import AccessibilityModal from './components/modals/AccessibilityModal';
+import AuditLoggingModal from './components/modals/AuditLoggingModal';
+import AIEnhancementModal from './components/modals/AIEnhancementModal';
 import AIEnhancement from './components/templates/AIEnhancement';
 import TemplateEditor from './components/TemplateEditor';
 import TemplateLibrary from './components/templates/TemplateLibrary';
 import ClinicalWorkflowDashboard from './components/clinical/ClinicalWorkflowDashboard';
 import ClinicalWorkspace from './components/clinical/ClinicalWorkspace';
 import LoginForm from './components/auth/LoginForm';
+import ProviderAbsenceManager from './components/provider/ProviderAbsenceManager';
+import QuoteTicker, { QuoteTickerSettings } from './components/quotes/QuoteTicker';
+import ColorPrioritySystemModal from './components/modals/ColorPrioritySystemModal';
+import AIChatbotModal from './components/modals/AIChatbotModal';
+import KeyboardShortcutsModal from './components/modals/KeyboardShortcutsModal';
 import apiService from './services/api';
 import quotesService from './services/quotesService';
 import './App.css';
@@ -25,7 +31,10 @@ function App() {
   });
   
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return !!localStorage.getItem('token');
+    const token = localStorage.getItem('token');
+    const hasToken = !!token;
+    console.log('🔍 Initial auth check - token exists:', hasToken, 'token:', token ? 'present' : 'none');
+    return hasToken;
   });
   
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
@@ -38,9 +47,12 @@ function App() {
   // Template editor state
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState(null);
+  const [templateRefreshKey, setTemplateRefreshKey] = useState(0);
   
-  // Patient data for daily info entry
-  const [patientList, setPatientList] = useState([]);
+  // AI Chatbot state
+  const [showAIChatbot, setShowAIChatbot] = useState(false);
+  
+  // Patient data state no longer needed - daily info modal loads its own data
 
   // User data - initially hardcoded, will be updated on login/switch
   const [user, setUser] = useState({
@@ -53,22 +65,30 @@ function App() {
 
   // Authentication handlers
   const handleLogin = async () => {
+    console.log('🔑 App.jsx handleLogin called!');
+    console.log('Current isAuthenticated before login:', isAuthenticated);
+    
     setIsAuthenticated(true);
     setIsNewLogin(true);
+    
+    console.log('✅ Authentication state set to true');
     
     // Load current user data after login
     try {
       const response = await apiService.getCurrentUser();
       if (response.success && response.user) {
-        setUser({
+        const userData = {
           firstName: response.user.firstName || response.user.first_name,
           lastName: response.user.lastName || response.user.last_name,
           role: response.user.role,
           id: response.user.id
-        });
+        };
+        setUser(userData);
+        console.log('👤 User data loaded:', userData);
       }
     } catch (error) {
-      console.error('Failed to load current user after login:', error);
+      console.error('❌ Failed to load current user after login:', error);
+      // Don't fail login if user data loading fails
     }
     
     // Reset the new login flag after a brief moment
@@ -76,15 +96,38 @@ function App() {
   };
 
   const handleLogout = () => {
-    console.log('App.jsx handleLogout called!');
+    console.log('🔄 App.jsx handleLogout called!');
     console.log('Current isAuthenticated:', isAuthenticated);
+    
+    // Clear all authentication-related localStorage items
     localStorage.removeItem('token');
     localStorage.removeItem('refresh_token');
-    quotesService.reset(); // Reset quotes service for next login
-    console.log('Token removed from localStorage');
+    localStorage.removeItem('user');
+    localStorage.removeItem('currentUser');
+    console.log('✅ All tokens removed from localStorage');
+    
+    // Reset all authentication-related state
     setIsAuthenticated(false);
     setIsNewLogin(false);
-    console.log('isAuthenticated set to false');
+    setActiveModal(null); // Close any open modals
+    setUser({
+      firstName: "Jane",
+      lastName: "Smith", 
+      role: "Psychiatrist"
+    }); // Reset to default user
+    
+    // Reset services
+    quotesService.reset();
+    
+    console.log('🔓 User logged out completely');
+    
+    // Force a small delay and page reload if still having issues
+    setTimeout(() => {
+      if (localStorage.getItem('token')) {
+        console.log('⚠️ Token still present after logout, forcing reload');
+        window.location.reload();
+      }
+    }, 100);
   };
 
   // User switch handler
@@ -145,6 +188,12 @@ function App() {
     loadInitialUser();
   }, []); // Run once on mount
 
+  // Track activeModal changes
+  useEffect(() => {
+    console.log('🎯 activeModal changed to:', activeModal);
+    console.log('🎯 Should render AIEnhancementModal:', activeModal === 'ai-assistant-settings');
+  }, [activeModal]);
+
   // Effects
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -158,9 +207,171 @@ function App() {
       }
     };
 
+    // Listen for keyboard shortcut events
+    const handleSwitchView = (event) => {
+      if (event.detail === 'workspace' || event.detail === 'dashboard') {
+        setViewMode(event.detail);
+      }
+    };
+
+    const handleToggleSidebar = () => {
+      setSidebarExpanded(prev => !prev);
+    };
+
+    const handleToggleTheme = () => {
+      setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    };
+
+    const handleOpenAIChat = () => {
+      setShowAIChatbot(true);
+    };
+
+    const handleGenerateDocuments = () => {
+      // Trigger document generation if in workspace mode
+      if (viewMode === 'workspace') {
+        window.dispatchEvent(new CustomEvent('triggerDocumentGeneration'));
+      }
+    };
+
+    const handleSaveTemplate = () => {
+      // Trigger template save in editor
+      window.dispatchEvent(new CustomEvent('triggerTemplateSave'));
+    };
+
+    const handleEnhanceText = () => {
+      // Trigger text enhancement
+      window.dispatchEvent(new CustomEvent('triggerTextEnhancement'));
+    };
+
+    // Add global keyboard shortcut handler
+    const handleGlobalKeyboard = (event) => {
+      // Don't trigger shortcuts when typing in form inputs
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      const { altKey, key } = event;
+
+      // Global shortcuts using Alt key (avoid browser conflicts)
+      if (altKey) {
+        switch (key.toLowerCase()) {
+          case 'w':
+            event.preventDefault();
+            setViewMode('workspace');
+            break;
+          case 'd':
+            event.preventDefault();
+            setViewMode('dashboard');
+            break;
+          case 's':
+            event.preventDefault();
+            setSidebarExpanded(prev => !prev);
+            break;
+          case 't':
+            event.preventDefault();
+            setTheme(prev => prev === 'light' ? 'dark' : 'light');
+            break;
+          case 'p':
+            event.preventDefault();
+            handleModalOpen('patient-census');
+            break;
+          case 'i':
+            event.preventDefault();
+            handleModalOpen('daily-info-entry');
+            break;
+          case 'e':
+            event.preventDefault();
+            handleModalOpen('template-editor');
+            break;
+          case 'l':
+            event.preventDefault();
+            handleModalOpen('template-library');
+            break;
+          case 'a':
+            event.preventDefault();
+            handleModalOpen('ai-assistant-settings');
+            break;
+          case 'c':
+            event.preventDefault();
+            setShowAIChatbot(true);
+            break;
+          case 'k':
+            event.preventDefault();
+            handleModalOpen('keyboard-shortcuts');
+            break;
+          case 'u':
+            event.preventDefault();
+            handleModalOpen('accessibility');
+            break;
+          case 'q':
+            event.preventDefault();
+            handleModalOpen('quote-ticker');
+            break;
+          case 'b':
+            event.preventDefault();
+            handleModalOpen('provider-absence');
+            break;
+          case 'o':
+            event.preventDefault();
+            handleModalOpen('color-priority-system');
+            break;
+          case 'h':
+            event.preventDefault();
+            handleModalOpen('audit-logging');
+            break;
+          case 'n':
+            event.preventDefault();
+            // Sort patients by name
+            if (window.MeDocProAPI?.patientCensus?.actions?.sortByName) {
+              window.MeDocProAPI.patientCensus.actions.sortByName();
+            }
+            break;
+          case 'r':
+            event.preventDefault();
+            // Refresh patient data
+            if (window.MeDocProAPI?.patientCensus?.actions?.refresh) {
+              window.MeDocProAPI.patientCensus.actions.refresh();
+            }
+            break;
+          case 'g':
+            event.preventDefault();
+            // Generate documents
+            window.dispatchEvent(new CustomEvent('triggerDocumentGeneration'));
+            break;
+        }
+      }
+
+      // Escape to close modal
+      if (key === 'Escape' && activeModal) {
+        event.preventDefault();
+        handleModalClose();
+      }
+    };
+
+    // Add event listeners
     window.addEventListener('openModal', handleCustomModalEvent);
-    return () => window.removeEventListener('openModal', handleCustomModalEvent);
-  }, [theme]);
+    window.addEventListener('switchView', handleSwitchView);
+    window.addEventListener('toggleSidebar', handleToggleSidebar);
+    window.addEventListener('toggleTheme', handleToggleTheme);
+    window.addEventListener('openAIChat', handleOpenAIChat);
+    window.addEventListener('generateDocuments', handleGenerateDocuments);
+    window.addEventListener('saveTemplate', handleSaveTemplate);
+    window.addEventListener('enhanceText', handleEnhanceText);
+    document.addEventListener('keydown', handleGlobalKeyboard);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('openModal', handleCustomModalEvent);
+      window.removeEventListener('switchView', handleSwitchView);
+      window.removeEventListener('toggleSidebar', handleToggleSidebar);
+      window.removeEventListener('toggleTheme', handleToggleTheme);
+      window.removeEventListener('openAIChat', handleOpenAIChat);
+      window.removeEventListener('generateDocuments', handleGenerateDocuments);
+      window.removeEventListener('saveTemplate', handleSaveTemplate);
+      window.removeEventListener('enhanceText', handleEnhanceText);
+      document.removeEventListener('keydown', handleGlobalKeyboard);
+    };
+  }, [theme, activeModal, viewMode]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -187,55 +398,37 @@ function App() {
     setSidebarExpanded(prev => !prev);
   };
 
-  // Load patient data for daily info entry
-  const loadPatientData = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      console.log('No authentication token available, skipping patient data load');
-      return;
-    }
-    
-    try {
-      const response = await fetch('http://localhost:5000/api/patient-census/today', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      const data = await response.json();
-      
-      if (data.success && data.census) {
-        console.log('Loaded patients:', data.census.rows?.length || 0);
-        setPatientList(data.census.rows || []);
-      } else {
-        console.error('Failed to load patient data:', data);
-      }
-    } catch (err) {
-      console.error('Failed to load patient data:', err);
-    }
-  };
+  // loadPatientData function removed - daily info modal now loads its own data
 
   const handleModalOpen = async (modalType) => {
     console.log('handleModalOpen called with:', modalType);
+    console.log('Current activeModal before change:', activeModal);
+    
     if (modalType === 'template-editor') {
       console.log('Opening template editor');
       setShowTemplateEditor(true);
       setCurrentTemplate(null);
     } else if (modalType === 'daily-info-entry') {
-      console.log('Opening daily info entry modal');
-      // Load fresh patient data when opening daily info entry
-      await loadPatientData();
+      console.log('🏥 Opening daily info entry modal (self-contained data loading)');
       setActiveModal(modalType);
-      console.log('Set activeModal to:', modalType);
     } else if (modalType === 'clinical-workflow') {
       setActiveModal(modalType);
     } else if (modalType === 'accessibility') {
       setActiveModal(modalType);
     } else if (modalType === 'ai-assistant-settings') {
+      console.log('Setting activeModal to ai-assistant-settings');
+      setActiveModal(modalType);
+      console.log('activeModal should now be:', modalType);
+    } else if (modalType === 'audit-logging') {
+      setActiveModal(modalType);
+    } else if (modalType === 'provider-absence') {
+      setActiveModal(modalType);
+    } else if (modalType === 'quote-ticker') {
       setActiveModal(modalType);
     } else {
       setActiveModal(modalType);
     }
+    
     // Close sidebar on mobile when opening modal
     if (isMobile) {
       setSidebarExpanded(false);
@@ -243,10 +436,14 @@ function App() {
   };
 
   const handleModalClose = () => {
+    console.log('🚨 handleModalClose called! Current activeModal:', activeModal);
+    console.trace('🚨 Modal close called from:');
+    
     // Check which modal is closing before setting it to null
     const wasPatientCensusModal = activeModal === 'patient-census' || activeModal === 'patients';
     
     setActiveModal(null);
+    console.log('🚨 Set activeModal to null');
     
     // Only refresh workspace if census data was actually modified (not for daily info modal)
     if (viewMode === 'workspace' && wasPatientCensusModal) {
@@ -279,6 +476,10 @@ function App() {
       }
       setShowTemplateEditor(false);
       setCurrentTemplate(null);
+      
+      // Trigger refresh of template-related components
+      setTemplateRefreshKey(prev => prev + 1);
+      console.log('Template saved successfully, triggering refresh');
     } catch (error) {
       console.error('Failed to save template:', error);
       alert('Failed to save template. Please try again.');
@@ -288,6 +489,15 @@ function App() {
   const handleCancelEdit = () => {
     setShowTemplateEditor(false);
     setCurrentTemplate(null);
+  };
+
+  // AI Chatbot handlers
+  const handleOpenAIChat = () => {
+    setShowAIChatbot(true);
+  };
+
+  const handleCloseAIChat = () => {
+    setShowAIChatbot(false);
   };
 
   const getModalTitle = (modalType) => {
@@ -308,8 +518,11 @@ function App() {
 
   // Show login form if not authenticated
   if (!isAuthenticated) {
+    console.log('🔒 Rendering LoginForm - isAuthenticated:', isAuthenticated);
     return <LoginForm onLogin={handleLogin} theme={theme} />;
   }
+  
+  console.log('🏠 Rendering main app - isAuthenticated:', isAuthenticated);
 
   return (
     <div className="app-container">
@@ -323,6 +536,8 @@ function App() {
         onLogout={handleLogout}
         onUserSwitch={handleUserSwitch}
         isNewLogin={isNewLogin}
+        onOpenDailyInfo={() => handleModalOpen('daily-info-entry')}
+        onOpenAIChat={handleOpenAIChat}
       />
 
       <div className="main-layout">
@@ -366,41 +581,18 @@ function App() {
             />
           ) : (
             <div className="dashboard-grid">
-              {/* Statistics Cards */}
-              <div className="stats-row">
-                <StatCard 
-                  value="24" 
-                  label="Active Templates" 
-                  change="+3 this week" 
-                  trend="positive" 
-                />
-                <StatCard 
-                  value="156" 
-                  label="Documents Created" 
-                  change="+12 today" 
-                  trend="positive" 
-                />
-                <StatCard 
-                  value="89%" 
-                  label="AI Efficiency" 
-                  change="+5% this month" 
-                  trend="positive" 
-                />
-                <StatCard 
-                  value="42" 
-                  label="Patient Records" 
-                  change="+8 today" 
-                  trend="positive" 
-                />
-              </div>
-
               {/* Dashboard Content Row */}
               <div className="dashboard-row">
                 <SystemStatus />
-                <ClinicalNotesOverview onOpenClinicalWorkflow={(view) => {
+                <AIAnalysisOverview onOpenClinicalWorkflow={(view) => {
                   setViewMode('workspace');
                   // Switch to workspace view instead of modal
                 }} />
+              </div>
+
+              {/* Weekly Pass-Off Summary Row */}
+              <div className="dashboard-row">
+                <WeeklyPassOffCard />
               </div>
 
             </div>
@@ -547,6 +739,7 @@ function App() {
               padding: '0'
             }}>
               <TemplateLibrary
+                key={templateRefreshKey}
                 onEditTemplate={(template) => {
                   setActiveModal(null);
                   handleEditTemplate(template);
@@ -570,7 +763,6 @@ function App() {
       <DailyInfoEntryModal
         isOpen={activeModal === 'daily-info-entry'}
         onClose={handleModalClose}
-        patients={patientList}
         theme={theme}
       />
       
@@ -581,90 +773,119 @@ function App() {
         theme={theme}
       />
       
+      {/* Audit Logging Modal */}
+      <AuditLoggingModal
+        isOpen={activeModal === 'audit-logging'}
+        onClose={handleModalClose}
+        theme={theme}
+      />
+      
       {/* Debug info */}
       {console.log('Current activeModal:', activeModal)}
       {console.log('Modal should be open:', activeModal === 'daily-info-entry')}
-      {console.log('Patient list length:', patientList.length)}
       
       {/* AI Assistant Settings Modal - Ollama AI Enhancement */}
-      {activeModal === 'ai-assistant-settings' && (
+      <AIEnhancementModal
+        isOpen={activeModal === 'ai-assistant-settings'}
+        onClose={handleModalClose}
+        theme={theme}
+        key="ai-enhancement-modal"
+      />
+      
+      {/* Provider Absence Management Modal */}
+      {activeModal === 'provider-absence' && (
         <div className="modal-overlay" onClick={handleModalClose}>
           <div 
             className="modal-content" 
-            onClick={e => e.stopPropagation()} 
+            onClick={(e) => e.stopPropagation()}
             style={{
-              backgroundColor: theme === 'dark' ? '#1e293b' : '#faf8f3',
-              border: `1px solid ${theme === 'dark' ? '#475569' : '#d4c4a8'}`,
-              maxWidth: '800px',
-              width: '90vw',
-              maxHeight: '80vh',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column'
+              width: '90%',
+              maxWidth: '1200px',
+              height: '90%',
+              padding: '0',
+              backgroundColor: theme === 'dark' ? '#0f172a' : '#faf8f3',
+              borderRadius: '12px',
+              overflow: 'hidden'
             }}
           >
-            {/* Header */}
             <div style={{
-              padding: '24px 24px 20px 24px',
-              borderBottom: `1px solid ${theme === 'dark' ? '#475569' : '#d4c4a8'}`,
-              flexShrink: 0
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 24px',
+              borderBottom: `1px solid ${theme === 'dark' ? '#374151' : '#d4c4a8'}`,
+              backgroundColor: theme === 'dark' ? '#1e293b' : '#f4f1eb'
             }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '8px'
+              <h2 style={{ 
+                margin: 0, 
+                fontSize: '18px', 
+                fontWeight: '600',
+                color: theme === 'dark' ? '#f1f5f9' : '#2d1810'
               }}>
-                <h2 style={{
-                  margin: 0,
-                  fontSize: '20px',
-                  fontWeight: '600',
-                  color: theme === 'dark' ? '#f1f5f9' : '#2d1810'
-                }}>
-                  🤖 AI Assistant Settings
-                </h2>
-                <button
-                  onClick={handleModalClose}
-                  style={{
-                    padding: '8px 12px',
-                    backgroundColor: 'transparent',
-                    color: theme === 'dark' ? '#94a3b8' : '#8b7355',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  ✕ Close
-                </button>
-              </div>
-              <p style={{
-                margin: 0,
-                fontSize: '14px',
-                color: theme === 'dark' ? '#cbd5e1' : '#5d4d3a'
-              }}>
-                Configure Ollama AI enhancement settings and text processing options
-              </p>
-            </div>
-
-            {/* AI Enhancement Content */}
-            <div style={{ flex: 1, overflow: 'auto' }}>
-              <AIEnhancement
-                content=""
-                onEnhancedContent={(enhancedContent) => {
-                  // This is a settings modal, so we don't need to handle enhanced content
-                  console.log('AI Enhancement settings updated');
+                Provider Absence Management
+              </h2>
+              <button 
+                className="modal-close" 
+                onClick={handleModalClose}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: theme === 'dark' ? '#94a3b8' : '#8b7355',
+                  padding: '4px',
+                  borderRadius: '4px'
                 }}
-                isVisible={true}
-                theme={theme}
-              />
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ 
+              height: 'calc(100% - 70px)', 
+              overflow: 'auto',
+              padding: '0'
+            }}>
+              <ProviderAbsenceManager />
             </div>
           </div>
         </div>
       )}
 
+      {/* Quote Ticker Settings Modal */}
+      {activeModal === 'quote-ticker' && (
+        <QuoteTickerSettings onClose={handleModalClose} />
+      )}
+
+      {/* Color Priority System Modal */}
+      {activeModal === 'color-priority-system' && (
+        <ColorPrioritySystemModal isOpen={true} onClose={handleModalClose} theme={theme} />
+      )}
+
+      {/* Daily Info Entry Modal */}
+      {activeModal === 'daily-info-entry' && (
+        <DailyInfoEntryModal
+          isOpen={true}
+          onClose={handleModalClose}
+          theme={theme}
+        />
+      )}
+
+      {/* AI Chatbot Modal */}
+      <AIChatbotModal
+        isOpen={showAIChatbot}
+        onClose={handleCloseAIChat}
+        theme={theme}
+      />
+
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        isOpen={activeModal === 'keyboard-shortcuts'}
+        onClose={handleModalClose}
+        theme={theme}
+      />
+
       {/* Coming Soon Modal for other features */}
-      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && activeModal !== 'accessibility' && activeModal !== 'ai-assistant-settings' && (
+      {activeModal && activeModal !== 'patients' && activeModal !== 'patient-census' && activeModal !== 'clinical-workflow' && activeModal !== 'template-library' && activeModal !== 'daily-info-entry' && activeModal !== 'accessibility' && activeModal !== 'ai-assistant-settings' && activeModal !== 'audit-logging' && activeModal !== 'provider-absence' && activeModal !== 'quote-ticker' && activeModal !== 'color-priority-system' && activeModal !== 'keyboard-shortcuts' && (
         <div className="modal-overlay" onClick={handleModalClose}>
           <div className="modal-content coming-soon" onClick={e => e.stopPropagation()}>
             <button className="modal-close" onClick={handleModalClose}>×</button>

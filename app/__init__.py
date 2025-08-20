@@ -86,6 +86,18 @@ def create_app(config_class=Config):
         from .routes.ai_enhancement import ai_bp
         app.register_blueprint(ai_bp, url_prefix='/api/ai')
         
+        # AI analysis endpoints
+        from .routes.ai_analysis import ai_analysis_bp
+        app.register_blueprint(ai_analysis_bp)
+        
+        # Audit log endpoints
+        from .routes.audit_logs import audit_logs_bp
+        app.register_blueprint(audit_logs_bp, url_prefix='/api')
+        
+        # Provider absence management endpoints
+        from .routes.provider_absence import provider_absence_bp
+        app.register_blueprint(provider_absence_bp, url_prefix='/api')
+        
         # Monitoring endpoints (Phase 2 - optional)
         try:
             from .routes.monitoring import monitoring_bp

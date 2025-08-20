@@ -1,8 +1,61 @@
-# Backend Stability Solutions for MeDocPro
+# MeDocPro Backend Stability Solutions
 
-This document outlines the different backend startup options available to ensure stable operation.
+## 🚨 **Problem: Frequent Backend Restarts**
 
-## Quick Start (Recommended)
+The backend was restarting every 30-60 seconds due to:
+
+### Root Causes:
+1. **Flask Development Server** - Not designed for production use
+2. **Aggressive Health Monitoring** - Health checks every 30 seconds
+3. **False Failure Detection** - Restarting healthy servers that were just busy
+4. **Single-threaded Processing** - Can't handle concurrent requests well
+
+## ✅ **Solutions Implemented**
+
+### **Solution 1: Production WSGI Server (RECOMMENDED)**
+**File:** `start-stable-production.bat`
+
+**What it does:**
+- Uses **Waitress WSGI server** instead of Flask development server
+- Handles multiple concurrent requests properly
+- No aggressive health monitoring
+- Production-grade stability and performance
+
+**How to use:**
+```bash
+start-stable-production.bat
+```
+
+**Benefits:**
+- ✅ **No more restarts** - Stable for hours/days
+- ✅ **Better performance** - Handles load properly  
+- ✅ **Production ready** - Designed for real-world use
+
+### **Solution 2: Fixed Development Server**
+**File:** `start-stable-windows.bat` (Updated)
+
+**What was fixed:**
+- Health checks reduced from **30 seconds → 2 minutes**
+- Only restart when process actually crashes (not HTTP timeouts)
+- Optimized Flask configuration for stability
+
+### **Solution 3: Simple Stable Backend**
+**File:** `start-simple-stable.py`
+
+**What it does:**
+- Minimal monitoring - no health checks
+- Uses production backend automatically
+- Clean startup and shutdown
+
+## 📊 **Comparison**
+
+| Startup Method | Stability | Restarts | Performance | Use Case |
+|---------------|-----------|----------|-------------|----------|
+| `start-windows.bat` | ❌ Poor | Every 30-60s | Slow | ❌ Don't use |
+| `start-stable-windows.bat` | 🟡 Better | Occasional | OK | 🔧 Development |
+| **`start-stable-production.bat`** | ✅ **Excellent** | **Rare** | **Fast** | ✅ **Daily use** |
+
+## 🎯 **Recommended Solution**
 
 For the most stable experience, use the enhanced startup script:
 

@@ -128,8 +128,8 @@ const DataFlowVisualization = ({ scratchNotes, censusData, theme = 'dark' }) => 
         
         <WorkflowStage 
           stage="census" 
-          isActive={scratchNotes.length > 0 && (!censusData || censusData.current_census_count === 0)}
-          isCompleted={censusData && censusData.current_census_count > 0}
+          isActive={scratchNotes.length > 0 && (!censusData || (censusData.rows?.length || 0) === 0)}
+          isCompleted={censusData && (censusData.rows?.length || 0) > 0}
           theme={theme}
         />
         
@@ -144,7 +144,7 @@ const DataFlowVisualization = ({ scratchNotes, censusData, theme = 'dark' }) => 
         
         <WorkflowStage 
           stage="template" 
-          isActive={censusData && censusData.current_census_count > 0}
+          isActive={censusData && (censusData.rows?.length || 0) > 0}
           isCompleted={false}
           theme={theme}
         />
@@ -170,7 +170,7 @@ const DataFlowVisualization = ({ scratchNotes, censusData, theme = 'dark' }) => 
         
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '24px', fontWeight: '700', color: '#10b981' }}>
-            {censusData?.current_census_count || 0}
+            {censusData?.rows?.length || 0}
           </div>
           <div style={{ fontSize: '11px', color: styles.textMuted }}>
             Census Patients
@@ -486,7 +486,7 @@ const ClinicalWorkflowDashboard = ({
               description="Create clinical documents from organized patient data"
               icon="📄"
               onClick={() => handleGenerateTemplates(censusData?.rows?.filter(r => r.status === 'active') || [])}
-              disabled={!censusData || censusData.current_census_count === 0}
+              disabled={!censusData || (censusData.rows?.length || 0) === 0}
               theme={theme}
             />
             
@@ -545,7 +545,7 @@ const ClinicalWorkflowDashboard = ({
                   borderRadius: '4px'
                 }}>
                   <div style={{ fontSize: '12px', fontWeight: '600', color: '#3b82f6' }}>
-                    📊 {censusData.current_census_count} active patients
+                    📊 {censusData.rows?.length || 0} active patients
                   </div>
                   <div style={{ fontSize: '11px', color: styles.textMuted, marginTop: '4px' }}>
                     Last updated: {new Date(censusData.last_updated).toLocaleTimeString()}

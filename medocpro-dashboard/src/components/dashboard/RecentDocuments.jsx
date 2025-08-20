@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import apiService from '../../services/api';
 
 // Helper function for theme-aware styling (matches PatientCensusCard)
 const getThemeStyles = (theme = 'dark') => ({
@@ -16,49 +18,102 @@ const getThemeStyles = (theme = 'dark') => ({
   errorColor: theme === 'dark' ? '#ef4444' : '#a0522d'
 });
 
-// Sample document data
-const sampleDocuments = [
-  {
-    id: 1,
-    title: 'Progress Note - Anderson, S.',
-    type: 'Progress Note',
-    date: 'Today, 2:30 PM',
-    status: 'completed'
-  },
-  {
-    id: 2,
-    title: 'Assessment - Chen, M.',
-    type: 'Psychiatric Assessment',
-    date: 'Today, 11:45 AM',
-    status: 'completed'
-  },
-  {
-    id: 3,
-    title: 'Treatment Plan - Johnson, R.',
-    type: 'Treatment Plan',
-    date: 'Yesterday, 4:15 PM',
-    status: 'draft'
-  },
-  {
-    id: 4,
-    title: 'Discharge Summary - Williams, T.',
-    type: 'Discharge Summary',
-    date: 'Yesterday, 1:20 PM',
-    status: 'completed'
+// Helper function to format date/time for display
+const formatDocumentDate = (dateString) => {
+  // Treat timestamp as UTC by appending 'Z' if missing
+  const utcString = dateString && !dateString.endsWith('Z') && !dateString.includes('+') 
+    ? dateString + 'Z' 
+    : dateString;
+  
+  const date = new Date(utcString);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const docDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  
+  if (docDate.getTime() === today.getTime()) {
+    return `Today, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  } else if (docDate.getTime() === yesterday.getTime()) {
+    return `Yesterday, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  } else {
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
-];
+};
+
+// Helper function to get document type display name
+const getDocumentTypeDisplay = (type) => {
+  switch(type) {
+    case 'follow-up': return 'Follow-up Note';
+    case 'admission': return 'Admission Note';
+    case 'discharge': return 'Discharge Summary';
+    default: return type || 'Clinical Note';
+  }
+};
+
+// Helper function to calculate days remaining before deletion
+const getDaysRemaining = (finalizedAt) => {
+  // Treat timestamp as UTC by appending 'Z' if missing
+  const utcString = finalizedAt && !finalizedAt.endsWith('Z') && !finalizedAt.includes('+') 
+    ? finalizedAt + 'Z' 
+    : finalizedAt;
+  
+  const finalizedDate = new Date(utcString);
+  const deletionDate = new Date(finalizedDate);
+  deletionDate.setDate(deletionDate.getDate() + 7); // Add 7 days
+  
+  const now = new Date();
+  const timeDiff = deletionDate.getTime() - now.getTime();
+  const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
+  
+  return Math.max(0, daysRemaining); // Don't return negative days
+};
+
+// Helper function to get color coding for days remaining
+const getDaysRemainingColor = (daysRemaining, styles) => {
+  if (daysRemaining <= 1) {
+    return styles.errorColor; // Red for urgent (1 day or less)
+  } else if (daysRemaining <= 2) {
+    return styles.warningColor; // Orange/yellow for warning (2 days)
+  } else if (daysRemaining <= 4) {
+    return '#f59e0b'; // Amber for caution (3-4 days)
+  } else {
+    return styles.successColor; // Green for safe (5+ days)
+  }
+};
+
+// Helper function to get deletion urgency text
+const getDaysRemainingText = (daysRemaining) => {
+  if (daysRemaining === 0) {
+    return 'Expires today';
+  } else if (daysRemaining === 1) {
+    return '1 day left';
+  } else {
+    return `${daysRemaining} days left`;
+  }
+};
 
 // Individual document row component
-const DocumentListItem = ({ document, theme }) => {
+const DocumentListItem = ({ document, theme, isSelected, onSelect, onView, loadingContent }) => {
   const [isHovered, setIsHovered] = useState(false);
   const styles = getThemeStyles(theme);
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed': return styles.successColor;
+      case 'finalized': return styles.successColor;
       case 'draft': return styles.warningColor;
       case 'pending': return styles.primaryColor;
       default: return styles.textMuted;
+    }
+  };
+
+  const getStatusDisplay = (status) => {
+    switch (status) {
+      case 'finalized': return 'FINALIZED';
+      case 'draft': return 'DRAFT';
+      case 'pending': return 'PENDING';
+      default: return status?.toUpperCase() || 'UNKNOWN';
     }
   };
 
@@ -69,13 +124,37 @@ const DocumentListItem = ({ document, theme }) => {
         alignItems: 'center',
         padding: '12px 16px',
         borderBottom: `1px solid ${styles.borderColor}`,
-        backgroundColor: isHovered ? styles.bgAccent : 'transparent',
-        cursor: 'pointer',
-        transition: 'background-color 0.2s ease'
+        backgroundColor: isSelected ? `${styles.primaryColor}15` : (isHovered ? styles.bgAccent : 'transparent'),
+        border: isSelected ? `1px solid ${styles.primaryColor}40` : '1px solid transparent',
+        borderRadius: isSelected ? '4px' : '0',
+        margin: isSelected ? '2px' : '0',
+        transition: 'all 0.2s ease'
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      {/* Selection Checkbox */}
+      <div style={{
+        marginRight: '12px',
+        display: 'flex',
+        alignItems: 'center'
+      }}>
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(e) => {
+            e.stopPropagation();
+            onSelect(document.id);
+          }}
+          style={{
+            width: '16px',
+            height: '16px',
+            accentColor: styles.primaryColor,
+            cursor: 'pointer'
+          }}
+        />
+      </div>
+
       {/* Document Type Indicator */}
       <div style={{
         fontSize: '12px',
@@ -99,7 +178,7 @@ const DocumentListItem = ({ document, theme }) => {
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap'
         }}>
-          {document.title}
+          {document.document_title}
         </div>
         <div style={{
           fontSize: '12px',
@@ -108,30 +187,105 @@ const DocumentListItem = ({ document, theme }) => {
           alignItems: 'center',
           gap: '8px'
         }}>
-          <span>{document.date}</span>
+          <span>{formatDocumentDate(document.finalized_at)}</span>
           <span>•</span>
-          <span>{document.type}</span>
+          <span>{getDocumentTypeDisplay(document.document_type)}</span>
+          <span>•</span>
+          <span>{document.patient_name}</span>
         </div>
       </div>
 
-      {/* Status Indicator */}
+      {/* Days Remaining Indicator */}
       <div style={{
-        fontSize: '11px',
-        fontWeight: '500',
-        color: getStatusColor(document.status),
-        textTransform: 'uppercase',
-        letterSpacing: '0.5px',
-        marginLeft: '12px'
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        marginLeft: '12px',
+        marginRight: '12px',
+        minWidth: '80px'
       }}>
-        {document.status}
+        {/* Days remaining badge */}
+        <div style={{
+          fontSize: '10px',
+          fontWeight: '600',
+          color: 'white',
+          backgroundColor: getDaysRemainingColor(getDaysRemaining(document.finalized_at), styles),
+          padding: '3px 8px',
+          borderRadius: '12px',
+          textAlign: 'center',
+          marginBottom: '2px',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+          minWidth: '65px'
+        }}>
+          {getDaysRemainingText(getDaysRemaining(document.finalized_at))}
+        </div>
+        
+        {/* Status indicator (smaller) */}
+        <div style={{
+          fontSize: '9px',
+          fontWeight: '500',
+          color: getStatusColor(document.status),
+          textTransform: 'uppercase',
+          letterSpacing: '0.3px',
+          opacity: 0.8
+        }}>
+          {getStatusDisplay(document.status)}
+        </div>
       </div>
+
+      {/* View Button */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onView(document);
+        }}
+        disabled={loadingContent}
+        style={{
+          padding: '4px 8px',
+          backgroundColor: 'transparent',
+          border: `1px solid ${styles.borderColor}`,
+          borderRadius: '4px',
+          fontSize: '11px',
+          color: loadingContent ? styles.textMuted : styles.textPrimary,
+          cursor: loadingContent ? 'wait' : 'pointer',
+          fontWeight: '500',
+          transition: 'all 0.2s ease',
+          opacity: loadingContent ? 0.5 : 1
+        }}
+        onMouseEnter={(e) => {
+          if (!loadingContent) {
+            e.target.style.backgroundColor = styles.primaryColor;
+            e.target.style.color = 'white';
+            e.target.style.borderColor = styles.primaryColor;
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!loadingContent) {
+            e.target.style.backgroundColor = 'transparent';
+            e.target.style.color = styles.textPrimary;
+            e.target.style.borderColor = styles.borderColor;
+          }
+        }}
+      >
+        {loadingContent ? '...' : 'View'}
+      </button>
     </div>
   );
 };
 
 const RecentDocuments = ({ theme }) => {
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showAll, setShowAll] = useState(false);
+  const [sortBy, setSortBy] = useState('finalized_at');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [filterType, setFilterType] = useState('');
   const [currentTheme, setCurrentTheme] = useState(theme || document.documentElement.getAttribute('data-theme') || 'dark');
+  const [selectedDocuments, setSelectedDocuments] = useState(new Set());
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [viewingDocuments, setViewingDocuments] = useState([]);
+  const [loadingContent, setLoadingContent] = useState(false);
   
   // Watch for theme changes
   useEffect(() => {
@@ -159,41 +313,178 @@ const RecentDocuments = ({ theme }) => {
     }
   }, [theme]);
 
+  // Fetch documents from API
+  const fetchDocuments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const params = new URLSearchParams({
+        limit: showAll ? '50' : '10',
+        sort_by: sortBy,
+        sort_order: sortOrder
+      });
+      
+      if (filterType) {
+        params.append('document_type', filterType);
+      }
+      
+      const response = await apiService.get(`/api/recent-documents?${params.toString()}`);
+      
+      if (response.success) {
+        setDocuments(response.documents || []);
+      } else {
+        throw new Error(response.error || 'Failed to fetch documents');
+      }
+    } catch (err) {
+      console.error('Error fetching recent documents:', err);
+      setError(err.message);
+      // Set empty array on error so UI still renders
+      setDocuments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch documents on mount and when filters change
+  useEffect(() => {
+    fetchDocuments();
+  }, [showAll, sortBy, sortOrder, filterType]);
+
+  // Selection handling functions
+  const handleSelectDocument = (documentId) => {
+    const newSelected = new Set(selectedDocuments);
+    if (newSelected.has(documentId)) {
+      newSelected.delete(documentId);
+    } else {
+      newSelected.add(documentId);
+    }
+    setSelectedDocuments(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedDocuments.size === displayedDocuments.length) {
+      setSelectedDocuments(new Set());
+    } else {
+      setSelectedDocuments(new Set(displayedDocuments.map(doc => doc.id)));
+    }
+  };
+
+  const handleViewSelected = async () => {
+    const selected = documents.filter(doc => selectedDocuments.has(doc.id));
+    if (selected.length > 0) {
+      setLoadingContent(true);
+      try {
+        // Fetch full content for selected documents
+        const documentsWithContent = await fetchDocumentContent(selected);
+        setViewingDocuments(documentsWithContent);
+        setViewModalOpen(true);
+      } catch (error) {
+        console.error('Error loading documents for viewing:', error);
+      } finally {
+        setLoadingContent(false);
+      }
+    }
+  };
+
+  const handleViewSingle = async (document) => {
+    setLoadingContent(true);
+    try {
+      // Fetch full content for single document
+      const documentsWithContent = await fetchDocumentContent([document]);
+      setViewingDocuments(documentsWithContent);
+      setViewModalOpen(true);
+    } catch (error) {
+      console.error('Error loading document for viewing:', error);
+    } finally {
+      setLoadingContent(false);
+    }
+  };
+
+  // Fetch full document content for viewing
+  const fetchDocumentContent = async (documentsToFetch) => {
+    try {
+      const documentsWithContent = await Promise.all(
+        documentsToFetch.map(async (doc) => {
+          // If document already has content, return as-is
+          if (doc.document_content) {
+            return doc;
+          }
+          
+          // Fetch full document details including content
+          try {
+            const response = await apiService.get(`/api/recent-documents/${doc.id}`);
+            if (response.success && response.document) {
+              return response.document;
+            } else {
+              // If fetch fails, return document with placeholder content
+              return { ...doc, document_content: 'Content could not be loaded.' };
+            }
+          } catch (error) {
+            console.error(`Error fetching content for document ${doc.id}:`, error);
+            return { ...doc, document_content: 'Error loading content.' };
+          }
+        })
+      );
+      
+      return documentsWithContent;
+    } catch (error) {
+      console.error('Error fetching document content:', error);
+      // Return original documents with placeholder content
+      return documentsToFetch.map(doc => ({ 
+        ...doc, 
+        document_content: doc.document_content || 'Content could not be loaded.' 
+      }));
+    }
+  };
+
   const styles = getThemeStyles(currentTheme);
   
   // Display logic for documents
-  const displayedDocuments = showAll ? sampleDocuments : sampleDocuments.slice(0, 3);
-  const hasMoreDocuments = sampleDocuments.length > 3;
+  const displayedDocuments = showAll ? documents : documents.slice(0, 3);
+  const hasMoreDocuments = documents.length > 3;
 
   return (
-    <div style={{
-      backgroundColor: styles.bgPrimary,
-      borderRadius: '8px',
-      border: `1px solid ${styles.borderColor}`,
-      overflow: 'hidden',
-      position: 'relative'
-    }}>
+    <div 
+      data-component="recent-documents"
+      className="recent-documents-card"
+      style={{
+        backgroundColor: styles.bgPrimary,
+        borderRadius: '8px',
+        border: `1px solid ${styles.borderColor}`,
+        overflow: 'hidden',
+        position: 'relative',
+        background: `linear-gradient(135deg, ${styles.bgPrimary} 0%, ${styles.bgSecondary} 100%)`,
+        boxShadow: `inset 0 1px 0 rgba(255, 255, 255, ${currentTheme === 'dark' ? '0.05' : '0.1'}), 0 1px 3px rgba(0, 0, 0, ${currentTheme === 'dark' ? '0.2' : '0.1'})`,
+        transition: 'all 0.3s ease',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%'
+      }}
+    >
       {/* Gradient top border */}
       <div style={{
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
-        height: '2px',
-        background: `linear-gradient(90deg, ${styles.primaryColor}, ${styles.warningColor})`,
+        height: '3px',
+        background: `linear-gradient(90deg, ${styles.primaryColor}, ${currentTheme === 'dark' ? '#10b981' : '#d97706'})`,
         zIndex: 1
       }} />
       
       {/* Header */}
       <div style={{
         padding: '20px 20px 16px 20px',
-        borderBottom: `1px solid ${styles.borderColor}`
+        borderBottom: `1px solid ${styles.borderColor}`,
+        background: `linear-gradient(180deg, ${styles.bgPrimary} 0%, ${styles.bgSecondary} 100%)`,
+        position: 'relative'
       }}>
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '8px'
+          marginBottom: '12px'
         }}>
           <h3 style={{
             margin: 0,
@@ -203,126 +494,756 @@ const RecentDocuments = ({ theme }) => {
           }}>
             Recent Documents
           </h3>
-          <button
-            style={{
-              padding: '6px 12px',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '13px',
-              cursor: 'pointer'
-            }}
-          >
-            View All
-          </button>
+          
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {selectedDocuments.size > 0 && (
+              <>
+                <button
+                  onClick={handleViewSelected}
+                  disabled={loadingContent}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: loadingContent ? styles.bgAccent : styles.primaryColor,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    cursor: loadingContent ? 'wait' : 'pointer',
+                    fontWeight: '500',
+                    opacity: loadingContent ? 0.7 : 1,
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {loadingContent ? 'Loading...' : `View Selected (${selectedDocuments.size})`}
+                </button>
+                <button
+                  onClick={() => setSelectedDocuments(new Set())}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: 'transparent',
+                    color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
+                    border: `1px solid ${styles.borderColor}`,
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = styles.bgAccent;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  Clear
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+        
+        {/* Subtitle with retention notice */}
+        <div style={{
+          fontSize: '13px',
+          color: styles.textSecondary,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <span>Finalized documents stored for 7 days within the application</span>
+          <RetentionInfoTooltip theme={currentTheme} />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{ padding: '20px' }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '16px'
+        }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            
+            {/* Sort dropdown */}
+            <select
+              value={`${sortBy}_${sortOrder}`}
+              onChange={(e) => {
+                const [field, order] = e.target.value.split('_');
+                setSortBy(field);
+                setSortOrder(order);
+              }}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: styles.bgSecondary,
+                color: styles.textPrimary,
+                border: `1px solid ${styles.borderColor}`,
+                borderRadius: '4px',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="finalized_at_desc">Newest First</option>
+              <option value="finalized_at_asc">Oldest First</option>
+              <option value="patient_name_asc">Patient A-Z</option>
+              <option value="patient_name_desc">Patient Z-A</option>
+              <option value="document_type_asc">Type A-Z</option>
+            </select>
+            
+            {/* Type filter dropdown */}
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              style={{
+                padding: '4px 8px',
+                backgroundColor: styles.bgSecondary,
+                color: styles.textPrimary,
+                border: `1px solid ${styles.borderColor}`,
+                borderRadius: '4px',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">All Types</option>
+              <option value="follow-up">Follow-up</option>
+              <option value="admission">Admission</option>
+              <option value="discharge">Discharge</option>
+            </select>
+          </div>
         </div>
         
         <div style={{
           fontSize: '12px',
-          color: styles.textMuted
+          color: styles.textMuted,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
         }}>
-          {showAll ? sampleDocuments.length : Math.min(3, sampleDocuments.length)} of {sampleDocuments.length} documents
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Select All checkbox when documents are available */}
+            {!loading && !error && displayedDocuments.length > 0 && (
+              <>
+                <input
+                  type="checkbox"
+                  checked={selectedDocuments.size === displayedDocuments.length && displayedDocuments.length > 0}
+                  onChange={handleSelectAll}
+                  style={{
+                    width: '14px',
+                    height: '14px',
+                    accentColor: styles.primaryColor,
+                    cursor: 'pointer'
+                  }}
+                />
+                <span>Select All</span>
+                <span>•</span>
+              </>
+            )}
+            <span>
+              {loading ? 'Loading...' : error ? 'Error loading documents' : 
+               selectedDocuments.size > 0 ? 
+               `${selectedDocuments.size} selected • ${showAll ? documents.length : Math.min(3, documents.length)} of ${documents.length} documents` :
+               `${showAll ? documents.length : Math.min(3, documents.length)} of ${documents.length} documents`}
+            </span>
+          </div>
+          {!loading && !error && documents.length > 0 && (
+            <button
+              onClick={() => fetchDocuments()}
+              style={{
+                padding: '2px 6px',
+                backgroundColor: 'transparent',
+                color: styles.textMuted,
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                textDecoration: 'underline'
+              }}
+            >
+              Refresh
+            </button>
+          )}
         </div>
       </div>
 
       {/* Document List */}
       <div style={{
-        maxHeight: '300px',
-        overflowY: 'auto'
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column'
       }}>
-        {displayedDocuments.length > 0 ? (
+        {loading ? (
+          <div style={{
+            padding: '40px 20px',
+            textAlign: 'center',
+            color: styles.textMuted
+          }}>
+            <div style={{ fontSize: '14px' }}>Loading documents...</div>
+          </div>
+        ) : error ? (
+          <div style={{
+            padding: '40px 20px',
+            textAlign: 'center',
+            color: styles.errorColor
+          }}>
+            <div style={{ fontSize: '14px' }}>Error loading documents</div>
+            <div style={{ fontSize: '12px', marginTop: '4px' }}>
+              {error}
+            </div>
+            <button
+              onClick={() => fetchDocuments()}
+              style={{
+                marginTop: '12px',
+                padding: '6px 12px',
+                backgroundColor: styles.primaryColor,
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        ) : displayedDocuments.length > 0 ? (
           <>
-            {displayedDocuments.map(document => (
-              <DocumentListItem
-                key={document.id}
-                document={document}
-                theme={currentTheme}
-              />
-            ))}
+            <div style={{
+              flex: showAll ? 1 : 'none',
+              maxHeight: showAll ? 'none' : '200px',
+              overflowY: showAll ? 'visible' : 'scroll', // Force scroll when collapsed
+              border: `1px solid ${styles.borderColor}`,
+              borderRadius: '6px',
+              marginBottom: '16px',
+              // Always show scrollbar when collapsed
+              scrollbarWidth: showAll ? 'none' : 'thin',
+              scrollbarColor: showAll ? 'transparent transparent' : `${styles.borderColor} ${styles.bgSecondary}`
+            }}>
+              {documents.map(document => (
+                <DocumentListItem
+                  key={document.id}
+                  document={document}
+                  theme={currentTheme}
+                  isSelected={selectedDocuments.has(document.id)}
+                  onSelect={handleSelectDocument}
+                  onView={handleViewSingle}
+                  loadingContent={loadingContent}
+                />
+              ))}
+            </div>
             
-            {/* More button */}
-            {hasMoreDocuments && !showAll && (
-              <div style={{
-                padding: '12px 16px',
-                borderTop: `1px solid ${styles.borderColor}`,
-                textAlign: 'center'
+            {/* More button - centered vertically in remaining space */}
+            {hasMoreDocuments && (
+              <div style={{ 
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flex: 1,
+                minHeight: '60px'
               }}>
                 <button
-                  onClick={() => setShowAll(true)}
+                  onClick={() => setShowAll(!showAll)}
                   style={{
-                    background: 'none',
+                    padding: '8px 16px',
+                    backgroundColor: 'transparent',
+                    color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
                     border: `1px solid ${styles.borderColor}`,
-                    color: styles.textSecondary,
-                    padding: '6px 16px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
                     cursor: 'pointer',
                     fontWeight: '500',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    margin: '0 auto'
                   }}
                   onMouseEnter={(e) => {
                     e.target.style.backgroundColor = styles.bgAccent;
-                    e.target.style.borderColor = styles.primaryColor;
                   }}
                   onMouseLeave={(e) => {
                     e.target.style.backgroundColor = 'transparent';
-                    e.target.style.borderColor = styles.borderColor;
                   }}
                 >
-                  Show {sampleDocuments.length - 3} more documents
-                </button>
-              </div>
-            )}
-            
-            {/* Show less button when all are displayed */}
-            {showAll && hasMoreDocuments && (
-              <div style={{
-                padding: '12px 16px',
-                borderTop: `1px solid ${styles.borderColor}`,
-                textAlign: 'center'
-              }}>
-                <button
-                  onClick={() => setShowAll(false)}
-                  style={{
-                    background: 'none',
-                    border: `1px solid ${styles.borderColor}`,
-                    color: styles.textSecondary,
-                    padding: '6px 16px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    fontWeight: '500',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = styles.bgAccent;
-                    e.target.style.borderColor = styles.primaryColor;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = 'transparent';
-                    e.target.style.borderColor = styles.borderColor;
-                  }}
-                >
-                  Show less
+                  {showAll ? 'Collapse view' : 'Expand view'}
                 </button>
               </div>
             )}
           </>
         ) : (
           <div style={{
-            padding: '40px 20px',
             textAlign: 'center',
+            padding: '40px 20px',
             color: styles.textMuted
           }}>
-            <div style={{ fontSize: '14px' }}>No recent documents</div>
-            <div style={{ fontSize: '12px', marginTop: '4px' }}>
-              Documents will appear here after creation
+            <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.6 }}>📄</div>
+            <div style={{ fontSize: '14px', marginBottom: '6px', fontWeight: '500' }}>
+              {filterType ? `No ${getDocumentTypeDisplay(filterType).toLowerCase()} documents found` : 'No recent documents'}
+            </div>
+            <div style={{ fontSize: '12px', lineHeight: '1.4' }}>
+              Finalized documents will appear here after being saved during document generation
             </div>
           </div>
         )}
       </div>
+
+      {/* View Documents Modal */}
+      {viewModalOpen && (
+        <ViewDocumentsModal
+          isOpen={viewModalOpen}
+          onClose={() => {
+            setViewModalOpen(false);
+            setViewingDocuments([]);
+            setLoadingContent(false);
+          }}
+          documents={viewingDocuments}
+          theme={currentTheme}
+        />
+      )}
     </div>
+  );
+};
+
+// Retention Information Tooltip Component
+const RetentionInfoTooltip = ({ theme }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const styles = getThemeStyles(theme);
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }}>
+      <span
+        onClick={() => setShowTooltip(!showTooltip)}
+        style={{
+          fontSize: '14px',
+          color: styles.primaryColor,
+          cursor: 'pointer',
+          userSelect: 'none',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '16px',
+          height: '16px',
+          borderRadius: '50%',
+          border: `1px solid ${styles.primaryColor}`,
+          fontWeight: 'bold',
+          transition: 'all 0.2s ease'
+        }}
+        onMouseDown={(e) => e.target.style.transform = 'scale(0.95)'}
+        onMouseUp={(e) => e.target.style.transform = 'scale(1)'}
+        title="Click for more information about document retention"
+      >
+        ?
+      </span>
+      
+      {showTooltip && createPortal(
+        <>
+          {/* Modal overlay */}
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            zIndex: 10000
+          }} onClick={() => setShowTooltip(false)} />
+          
+          {/* Tooltip modal */}
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 10001,
+            minWidth: '340px',
+            maxWidth: '420px',
+            backgroundColor: styles.bgPrimary,
+            border: `1px solid ${styles.borderColor}`,
+            borderRadius: '12px',
+            padding: '20px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+            fontSize: '13px',
+            lineHeight: '1.4'
+          }}>
+            {/* Header with close button */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              marginBottom: '12px'
+            }}>
+              <div style={{
+                fontWeight: '600',
+                color: styles.textPrimary,
+                fontSize: '16px'
+              }}>
+                7-Day Document Retention Policy
+              </div>
+              <button
+                onClick={() => setShowTooltip(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  color: styles.textMuted,
+                  cursor: 'pointer',
+                  padding: '0',
+                  lineHeight: '1',
+                  marginLeft: '12px'
+                }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div style={{
+              color: styles.textSecondary,
+              marginBottom: '16px'
+            }}>
+              Documents are automatically stored within MeDocPro for 7 days after finalization to provide quick access for review and reference. This temporary storage helps maintain application performance and manages data efficiently.
+            </div>
+            
+            <div style={{
+              fontWeight: '500',
+              color: styles.textPrimary,
+              marginBottom: '8px'
+            }}>
+              Long-term Storage Options:
+            </div>
+            
+            <ul style={{
+              margin: 0,
+              paddingLeft: '16px',
+              color: styles.textSecondary,
+              marginBottom: '16px'
+            }}>
+              <li style={{ marginBottom: '6px' }}>
+                <strong>Individual Download:</strong> Click "View" on any document, then save/print from your browser
+              </li>
+              <li style={{ marginBottom: '6px' }}>
+                <strong>Bulk Export:</strong> Select multiple documents and use "View Selected" to review before saving
+              </li>
+              <li style={{ marginBottom: '6px' }}>
+                <strong>ZIP Backup:</strong> Use the document generation preview modal's "Download Files" button to export all documents as a ZIP file
+              </li>
+            </ul>
+            
+            <div style={{
+              padding: '12px',
+              backgroundColor: styles.bgSecondary,
+              borderRadius: '6px',
+              fontSize: '12px',
+              color: styles.textMuted,
+              fontStyle: 'italic',
+              lineHeight: '1.4'
+            }}>
+              💡 <strong>Tip:</strong> Create regular ZIP backups of important documents to your preferred storage location (local drive, cloud storage, etc.) for permanent retention beyond the 7-day period.
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
+    </div>
+  );
+};
+
+// View Documents Modal Component (Read-only)
+const ViewDocumentsModal = ({ isOpen, onClose, documents, theme }) => {
+  const [currentDocIndex, setCurrentDocIndex] = useState(0);
+  const [currentTheme, setCurrentTheme] = useState(theme);
+  
+  const styles = getThemeStyles(currentTheme);
+
+  // Listen for theme changes
+  useEffect(() => {
+    const updateTheme = () => {
+      const newTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+      setCurrentTheme(newTheme);
+    };
+
+    updateTheme();
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Reset to first document when documents change
+  useEffect(() => {
+    setCurrentDocIndex(0);
+  }, [documents]);
+
+  if (!isOpen || !documents || documents.length === 0) return null;
+
+  const currentDoc = documents[currentDocIndex];
+
+  const goToPrevious = () => {
+    setCurrentDocIndex(prev => (prev > 0 ? prev - 1 : documents.length - 1));
+  };
+
+  const goToNext = () => {
+    setCurrentDocIndex(prev => (prev < documents.length - 1 ? prev + 1 : 0));
+  };
+
+  return createPortal(
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 10010
+    }}>
+      <div style={{
+        backgroundColor: styles.bgPrimary,
+        borderRadius: '12px',
+        width: '95%',
+        maxWidth: '1000px',
+        maxHeight: '90vh',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '20px',
+          borderBottom: `1px solid ${styles.borderColor}`
+        }}>
+          <div>
+            <h2 style={{
+              margin: 0,
+              fontSize: '20px',
+              fontWeight: '600',
+              color: styles.textPrimary,
+              marginBottom: '4px'
+            }}>
+              View Documents
+            </h2>
+            <div style={{
+              fontSize: '14px',
+              color: styles.textSecondary
+            }}>
+              {documents.length} finalized document(s) • Read-only view
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '24px',
+              color: styles.textMuted,
+              cursor: 'pointer',
+              padding: '4px'
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Document tabs when multiple documents */}
+        {documents.length > 1 && (
+          <div style={{
+            display: 'flex',
+            overflowX: 'auto',
+            backgroundColor: styles.bgSecondary,
+            borderBottom: `1px solid ${styles.borderColor}`,
+            padding: '0 20px'
+          }}>
+            {documents.map((doc, index) => (
+              <button
+                key={doc.id}
+                onClick={() => setCurrentDocIndex(index)}
+                style={{
+                  padding: '12px 16px',
+                  backgroundColor: currentDocIndex === index ? styles.bgPrimary : 'transparent',
+                  border: 'none',
+                  borderBottom: currentDocIndex === index ? `2px solid ${styles.primaryColor}` : '2px solid transparent',
+                  fontSize: '12px',
+                  color: currentDocIndex === index ? styles.textPrimary : styles.textMuted,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  fontWeight: currentDocIndex === index ? '500' : 'normal',
+                  minWidth: '120px',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                {doc.patient_name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Content */}
+        <div style={{
+          flex: 1,
+          overflow: 'auto',
+          padding: '20px'
+        }}>
+          {/* Document info header */}
+          <div style={{
+            marginBottom: '20px',
+            paddingBottom: '16px',
+            borderBottom: `1px solid ${styles.borderColor}`
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              marginBottom: '12px'
+            }}>
+              <div>
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: styles.textPrimary,
+                  marginBottom: '4px'
+                }}>
+                  {currentDoc.document_title}
+                </h3>
+                <div style={{
+                  fontSize: '14px',
+                  color: styles.textSecondary,
+                  marginBottom: '8px'
+                }}>
+                  {currentDoc.patient_name} • Room {currentDoc.room_number || 'N/A'}
+                </div>
+              </div>
+
+              {/* Navigation when multiple documents */}
+              {documents.length > 1 && (
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  alignItems: 'center'
+                }}>
+                  <button
+                    onClick={goToPrevious}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: styles.bgSecondary,
+                      border: `1px solid ${styles.borderColor}`,
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      color: styles.textPrimary,
+                      fontWeight: '500'
+                    }}
+                  >
+                    ← Previous
+                  </button>
+                  
+                  <span style={{
+                    fontSize: '12px',
+                    color: styles.textMuted,
+                    fontWeight: '500'
+                  }}>
+                    {currentDocIndex + 1} of {documents.length}
+                  </span>
+                  
+                  <button
+                    onClick={goToNext}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: styles.bgSecondary,
+                      border: `1px solid ${styles.borderColor}`,
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      color: styles.textPrimary,
+                      fontWeight: '500'
+                    }}
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            <div style={{
+              fontSize: '12px',
+              color: styles.textMuted,
+              display: 'flex',
+              gap: '16px',
+              flexWrap: 'wrap'
+            }}>
+              <span>Type: {getDocumentTypeDisplay(currentDoc.document_type)}</span>
+              <span>Date: {formatDocumentDate(currentDoc.finalized_at)}</span>
+              <span>Status: {currentDoc.status?.toUpperCase() || 'FINALIZED'}</span>
+              {currentDoc.template_name && <span>Template: {currentDoc.template_name}</span>}
+            </div>
+          </div>
+
+          {/* Document content (read-only) */}
+          <div style={{
+            fontFamily: 'Georgia, serif',
+            fontSize: '14px',
+            lineHeight: '1.6',
+            color: styles.textPrimary,
+            whiteSpace: 'pre-wrap',
+            backgroundColor: styles.bgSecondary,
+            border: `1px solid ${styles.borderColor}`,
+            borderRadius: '4px',
+            padding: '16px',
+            minHeight: '300px',
+            maxHeight: '400px',
+            overflowY: 'auto'
+          }}>
+            {currentDoc.document_content || 'No content available'}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '20px',
+          borderTop: `1px solid ${styles.borderColor}`,
+          backgroundColor: styles.bgSecondary
+        }}>
+          <div style={{
+            fontSize: '12px',
+            color: styles.textMuted
+          }}>
+            Viewing {documents.length} finalized document(s) • Read-only mode
+          </div>
+          
+          <button
+            onClick={onClose}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: styles.primaryColor,
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 };
 

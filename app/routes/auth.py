@@ -15,9 +15,13 @@ def auth_test():
     user_count = User.query.count()
     return f"Authentication blueprint is live! User count: {user_count}"
 
-@auth_bp.route('/login', methods=['POST'])
+@auth_bp.route('/login', methods=['POST', 'OPTIONS'])
 def login():
     """User login endpoint with comprehensive debugging"""
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         print("=== LOGIN ATTEMPT DEBUG ===")
         

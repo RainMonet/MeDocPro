@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import apiService from '../../services/api';
 
 // Helper function for theme-aware styling
 const getThemeStyles = (theme = 'dark') => ({
@@ -26,25 +27,121 @@ const getWorkflowDisplay = (workflowType) => {
   return workflowConfig[workflowType] || workflowConfig['follow-up'];
 };
 
+// Completion status remains simple - patients are either completed or not
+
+// Color priority system for patient management
+// ENHANCED: Colors persist day-to-day using patient names as keys (rollover-safe)
+// Completion status resets daily (as requested)
+const getColorOptions = () => {
+  // Default color configuration
+  const defaultOptions = [
+    { name: 'None', value: '', color: 'transparent', description: 'No special priority' },
+    { name: 'High Priority', value: 'red', color: '#ef4444', description: 'Urgent attention needed' },
+    { name: 'Medical Review', value: 'orange', color: '#f59e0b', description: 'Requires medical review' },
+    { name: 'Different Provider', value: 'blue', color: '#3b82f6', description: 'Assigned to different provider' },
+    { name: 'Legal Status', value: 'purple', color: '#8b5cf6', description: 'Legal status attention' },
+    { name: 'Discharge Planning', value: 'green', color: '#10b981', description: 'Ready for discharge planning' },
+    { name: 'Family Contact', value: 'pink', color: '#ec4899', description: 'Family meeting or contact needed' }
+  ];
+
+  try {
+    // Load custom configuration from localStorage
+    const savedConfig = localStorage.getItem('colorPriorityConfig');
+    if (savedConfig) {
+      const customConfig = JSON.parse(savedConfig);
+      
+      // Update names and descriptions from custom config while keeping default structure
+      return defaultOptions.map(defaultOption => {
+        if (defaultOption.value === '') return defaultOption; // Skip "None" option
+        
+        const customOption = customConfig.find(item => item.value === defaultOption.value);
+        if (customOption) {
+          return {
+            ...defaultOption,
+            name: customOption.customName.trim() || defaultOption.name,
+            description: customOption.customDescription.trim() || defaultOption.description
+          };
+        }
+        return defaultOption;
+      });
+    }
+  } catch (error) {
+    console.error('Failed to load color priority configuration:', error);
+  }
+
+  return defaultOptions;
+};
+
 // Individual patient row component
-const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme }) => {
+const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, onCompletionToggle, onColorChange, theme }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [showColorDropdown, setShowColorDropdown] = useState(false);
+  const [showCompletedText, setShowCompletedText] = useState(true);
   const styles = getThemeStyles(theme);
   const workflowDisplay = getWorkflowDisplay(patient.workflow_type || patient.status || 'follow-up');
+  const colorOptions = getColorOptions();
+  const currentColor = colorOptions.find(c => c.value === patient.priorityColor) || colorOptions[0];
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showColorDropdown && !event.target.closest('.color-dropdown-container')) {
+        setShowColorDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showColorDropdown]);
+
+  // Handle responsive "Completed" text based on window width
+  useEffect(() => {
+    const handleResize = () => {
+      // Hide "Completed" text when window is too narrow to prevent overlap with color dots
+      // Use 900px as breakpoint - provides comfortable spacing for patient name + color dot + completed text + workflow
+      setShowCompletedText(window.innerWidth > 900);
+    };
+
+    // Set initial state
+    handleResize();
+
+    // Listen for window resize events with throttling for better performance
+    let timeoutId;
+    const throttledResize = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(handleResize, 100);
+    };
+
+    window.addEventListener('resize', throttledResize);
+    return () => {
+      window.removeEventListener('resize', throttledResize);
+      clearTimeout(timeoutId);
+    };
+  }, []);
 
   const getBackgroundColor = () => {
     if (isSelected) return `${styles.primaryColor}15`;
     if (isHovered) return styles.bgAccent;
+    
+    // Add subtle background tint based on priority color
+    if (currentColor.color !== 'transparent' && currentColor.color) {
+      return `${currentColor.color}08`; // Very light tint
+    }
+    
     return 'transparent';
   };
 
   return (
     <div
+      className="patient-list-item"
       style={{
         display: 'flex',
         alignItems: 'center',
         padding: '12px 16px',
         borderBottom: `1px solid ${styles.borderColor}`,
+        borderLeft: currentColor.color !== 'transparent' && currentColor.color 
+          ? `4px solid ${currentColor.color}` 
+          : '4px solid transparent',
         backgroundColor: getBackgroundColor(),
         cursor: 'pointer',
         transition: 'all 0.2s ease'
@@ -55,6 +152,7 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
     >
       {/* Selection Checkbox */}
       <div
+        className={`patient-checkbox ${isSelected ? 'selected' : ''}`}
         style={{
           width: '18px',
           height: '18px',
@@ -73,6 +171,106 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
         )}
       </div>
 
+      {/* Priority Color Indicator - aligned with checkbox */}
+      <div className="color-dropdown-container" style={{ 
+        position: 'relative',
+        marginRight: '12px',
+        display: 'flex',
+        alignItems: 'center',
+        flexShrink: 0
+      }}>
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowColorDropdown(!showColorDropdown);
+          }}
+          style={{
+            width: '16px',
+            height: '16px',
+            borderRadius: '50%',
+            backgroundColor: currentColor.color || styles.borderColor,
+            border: `2px solid ${currentColor.color === 'transparent' ? styles.borderColor : currentColor.color}`,
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            transform: showColorDropdown ? 'scale(1.1)' : 'scale(1)'
+          }}
+          title={currentColor.description}
+        />
+        
+        {/* Color Dropdown */}
+        {showColorDropdown && (
+          <div style={{
+            position: 'absolute',
+            top: '20px',
+            left: '0',
+            backgroundColor: styles.bgPrimary,
+            border: `1px solid ${styles.borderColor}`,
+            borderRadius: '6px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            zIndex: 1000,
+            minWidth: '200px',
+            padding: '4px'
+          }}>
+            {colorOptions.map((colorOption) => (
+              <div
+                key={colorOption.value}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onColorChange(patient.id, colorOption.value);
+                  setShowColorDropdown(false);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 8px',
+                  cursor: 'pointer',
+                  borderRadius: '4px',
+                  backgroundColor: currentColor.value === colorOption.value ? styles.bgAccent : 'transparent',
+                  transition: 'background-color 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (currentColor.value !== colorOption.value) {
+                    e.target.style.backgroundColor = styles.bgSecondary;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (currentColor.value !== colorOption.value) {
+                    e.target.style.backgroundColor = 'transparent';
+                  }
+                }}
+              >
+                <div
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    backgroundColor: colorOption.color,
+                    border: `1px solid ${colorOption.color === 'transparent' ? styles.borderColor : colorOption.color}`,
+                    flexShrink: 0
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    color: styles.textPrimary
+                  }}>
+                    {colorOption.name}
+                  </div>
+                  <div style={{
+                    fontSize: '10px',
+                    color: styles.textMuted
+                  }}>
+                    {colorOption.description}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Patient Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
@@ -88,23 +286,6 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
           }}>
             {patient.patient_name || 'Unknown Patient'}
           </span>
-          <span style={{
-            fontSize: '12px',
-            color: styles.textMuted,
-            backgroundColor: styles.bgSecondary,
-            padding: '2px 6px',
-            borderRadius: '10px'
-          }}>
-            {patient.patient_id || 'No ID'}
-          </span>
-          {patient.room_number && (
-            <span style={{
-              fontSize: '12px',
-              color: styles.textMuted
-            }}>
-              Room {patient.room_number}
-            </span>
-          )}
         </div>
         
         {/* Additional patient data */}
@@ -121,8 +302,52 @@ const PatientListItem = ({ patient, isSelected, onSelect, onStatusChange, theme 
         )}
       </div>
 
+      {/* Completion Checkbox */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: showCompletedText ? '8px' : '0px',
+          marginRight: '12px'
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onCompletionToggle(patient.id);
+        }}
+      >
+        {showCompletedText && (
+          <span style={{
+            fontSize: '12px',
+            color: styles.textSecondary,
+            fontWeight: '500'
+          }}>
+            Completed
+          </span>
+        )}
+        <div
+          className={`completion-checkbox ${patient.completed ? 'completed' : ''}`}
+          style={{
+            width: '20px',
+            height: '20px',
+            border: `2px solid ${patient.completed ? styles.successColor : styles.borderColor}`,
+            borderRadius: '4px',
+            backgroundColor: patient.completed ? styles.successColor : 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          {patient.completed && (
+            <span style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>✓</span>
+          )}
+        </div>
+      </div>
+
       {/* Workflow Type Indicator */}
       <div
+        className="workflow-indicator"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -223,13 +448,187 @@ const PatientCensusCard = ({
           const bName = getLastName(b.patient_name || '');
           compareValue = aName.localeCompare(bName);
         }
+      } else if (sortBy === 'completion') {
+        // Sort by completion status
+        const aCompleted = a.completed || false;
+        const bCompleted = b.completed || false;
+        
+        // Completed patients first (1) or last (0) depending on sort order
+        const aValue = aCompleted ? 1 : 0;
+        const bValue = bCompleted ? 1 : 0;
+        
+        compareValue = bValue - aValue; // Completed first in ascending order
+        
+        // If same completion status, sort by name as secondary sort
+        if (compareValue === 0) {
+          const getLastName = (name) => {
+            const parts = name.split(',');
+            return parts[0].trim().toLowerCase();
+          };
+          const aName = getLastName(a.patient_name || '');
+          const bName = getLastName(b.patient_name || '');
+          compareValue = aName.localeCompare(bName);
+        }
+      } else if (sortBy === 'color') {
+        // Sort by priority color with specific ordering
+        const colorOrder = { 
+          'red': 0,        // High priority first
+          'orange': 1,     // Medical review 
+          'purple': 2,     // Legal status
+          'blue': 3,       // Different provider
+          'pink': 4,       // Family contact
+          'green': 5,      // Discharge planning
+          '': 6            // No color last
+        };
+        
+        const aColor = a.priorityColor || '';
+        const bColor = b.priorityColor || '';
+        
+        const aOrder = colorOrder[aColor] !== undefined ? colorOrder[aColor] : 6;
+        const bOrder = colorOrder[bColor] !== undefined ? colorOrder[bColor] : 6;
+        
+        compareValue = aOrder - bOrder;
+        
+        // If same color, sort by name as secondary sort
+        if (compareValue === 0) {
+          const getLastName = (name) => {
+            const parts = name.split(',');
+            return parts[0].trim().toLowerCase();
+          };
+          const aName = getLastName(a.patient_name || '');
+          const bName = getLastName(b.patient_name || '');
+          compareValue = aName.localeCompare(bName);
+        }
       }
       
       return sortOrder === 'asc' ? compareValue : -compareValue;
     });
   };
 
-  // Load patient census data
+  // Function to load completion status with daily reset
+  const loadCompletionStatus = async (token) => {
+    try {
+      const today = new Date().toDateString();
+      const savedCompletions = localStorage.getItem('patientCompletions');
+      const completionMap = savedCompletions ? JSON.parse(savedCompletions) : {};
+      const todayCompletions = {};
+      
+      // Only load today's completions, ignore old data
+      Object.keys(completionMap).forEach(patientId => {
+        const completionData = completionMap[patientId];
+        if (completionData && typeof completionData === 'object' && completionData.date === today) {
+          todayCompletions[patientId] = completionData.completed;
+        } else if (typeof completionData === 'boolean') {
+          // Legacy format - assume it's old, don't carry over
+          todayCompletions[patientId] = false;
+        } else {
+          todayCompletions[patientId] = false;
+        }
+      });
+      
+      return todayCompletions;
+    } catch (error) {
+      console.warn('Failed to load completion status:', error);
+      return {};
+    }
+  };
+
+  // Function to load patient priority colors (persistent across days using patient names)
+  const loadPatientColors = () => {
+    try {
+      const savedColors = localStorage.getItem('patientPriorityColors');
+      return savedColors ? JSON.parse(savedColors) : {};
+    } catch (error) {
+      console.warn('Failed to load patient colors:', error);
+      return {};
+    }
+  };
+
+  // Migration function to convert old ID-based colors to name-based (one-time)
+  const migrateOldColorStorage = (patients) => {
+    try {
+      const savedColors = localStorage.getItem('patientPriorityColors');
+      if (!savedColors) return;
+      
+      const colorMap = JSON.parse(savedColors);
+      let migrationNeeded = false;
+      const newColorMap = {};
+      
+      // Check if we have any numeric keys (old ID-based storage)
+      Object.keys(colorMap).forEach(key => {
+        const isNumericKey = /^\d+$/.test(key);
+        if (isNumericKey) {
+          // Find patient with this ID
+          const patient = patients.find(p => p.id.toString() === key);
+          if (patient && patient.patient_name) {
+            const patientKey = patient.patient_name.trim().toLowerCase();
+            newColorMap[patientKey] = colorMap[key];
+            migrationNeeded = true;
+            console.log(`Migrated color for patient ID ${key} → '${patient.patient_name}' (key: '${patientKey}')`);
+          }
+        } else {
+          // Keep existing name-based entries
+          newColorMap[key] = colorMap[key];
+        }
+      });
+      
+      // Save updated mapping if migration occurred
+      if (migrationNeeded) {
+        localStorage.setItem('patientPriorityColors', JSON.stringify(newColorMap));
+        console.log('Color storage migration completed');
+      }
+    } catch (error) {
+      console.warn('Failed to migrate old color storage:', error);
+    }
+  };
+
+  // Function to save patient priority colors (using patient name as key for rollover persistence)
+  const savePatientColor = (patientId, color) => {
+    try {
+      // Find patient name for this ID
+      const patient = patients.find(p => p.id === patientId);
+      if (!patient || !patient.patient_name) {
+        console.warn(`Cannot save color for patient ${patientId}: patient name not found`);
+        return;
+      }
+
+      const patientKey = patient.patient_name.trim().toLowerCase(); // Normalize patient name
+      const savedColors = localStorage.getItem('patientPriorityColors');
+      const colorMap = savedColors ? JSON.parse(savedColors) : {};
+      
+      if (color) {
+        colorMap[patientKey] = color;
+      } else {
+        delete colorMap[patientKey]; // Remove if no color selected
+      }
+      
+      localStorage.setItem('patientPriorityColors', JSON.stringify(colorMap));
+      console.log(`Saved priority color '${color}' for patient '${patient.patient_name}' (key: '${patientKey}')`);
+    } catch (error) {
+      console.warn('Failed to save patient color:', error);
+    }
+  };
+
+  // Function to save completion status with daily reset
+  const saveCompletionStatus = (patientId, completed) => {
+    try {
+      const today = new Date().toDateString();
+      const savedCompletions = localStorage.getItem('patientCompletions');
+      const completionMap = savedCompletions ? JSON.parse(savedCompletions) : {};
+      
+      // Store with date stamp for daily reset
+      completionMap[patientId] = {
+        completed: completed,
+        date: today
+      };
+      
+      localStorage.setItem('patientCompletions', JSON.stringify(completionMap));
+    } catch (error) {
+      console.warn('Failed to save completion status:', error);
+    }
+  };
+
+  // Load patient census data with completion status
   const loadPatients = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -242,7 +641,8 @@ const PatientCensusCard = ({
       setLoading(true);
       setError('');
       
-      const response = await fetch('http://localhost:5000/api/patient-census/today', {
+      // Load patient census data
+      const response = await fetch(`${apiService.baseURL}/api/patient-census/today`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -252,7 +652,16 @@ const PatientCensusCard = ({
       const data = await response.json();
       
       if (data.success && data.census) {
-        // Use existing workflow_type or status, ensure consistency
+        // Load completion status and colors from localStorage
+        const completionStatusMap = await loadCompletionStatus(token);
+        
+        // Migrate old ID-based color storage to name-based (one-time)
+        migrateOldColorStorage(data.census.rows);
+        
+        // Load colors after potential migration
+        const colorMap = loadPatientColors();
+        
+        // Use existing workflow_type or status, ensure consistency and add completion status and colors
         const patientsWithStatus = data.census.rows.map(patient => {
           const workflowType = patient.workflow_type || patient.status || 'follow-up';
           
@@ -260,9 +669,15 @@ const PatientCensusCard = ({
           const validWorkflowTypes = ['follow-up', 'admission', 'discharge'];
           const normalizedWorkflowType = validWorkflowTypes.includes(workflowType) ? workflowType : 'follow-up';
           
+          // Map priority color by patient name (for rollover persistence)
+          const patientKey = patient.patient_name ? patient.patient_name.trim().toLowerCase() : '';
+          const priorityColor = patientKey ? (colorMap[patientKey] || '') : '';
+          
           return {
             ...patient,
-            workflow_type: normalizedWorkflowType
+            workflow_type: normalizedWorkflowType,
+            completed: completionStatusMap[patient.id] || false,
+            priorityColor: priorityColor
           };
         });
         
@@ -272,6 +687,27 @@ const PatientCensusCard = ({
           return acc;
         }, {});
         console.log('Workflow type distribution:', workflowCounts);
+        
+        // Debug: Log completion status distribution
+        const completionCounts = patientsWithStatus.reduce((acc, patient) => {
+          const status = patient.completed ? 'completed' : 'not_completed';
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        }, {});
+        console.log('Completion status distribution:', completionCounts);
+        
+        // Debug: Log color persistence mapping
+        const colorCounts = patientsWithStatus.reduce((acc, patient) => {
+          const color = patient.priorityColor || 'none';
+          acc[color] = (acc[color] || 0) + 1;
+          return acc;
+        }, {});
+        console.log('Priority color distribution:', colorCounts);
+        console.log('Color mapping details:', patientsWithStatus.filter(p => p.priorityColor).map(p => ({
+          name: p.patient_name,
+          id: p.id,
+          color: p.priorityColor
+        })));
         
         setPatients(sortPatients(patientsWithStatus));
       } else {
@@ -320,6 +756,31 @@ const PatientCensusCard = ({
     }
   };
 
+  // Handle completion toggle
+  const handleCompletionToggle = (patientId) => {
+    setPatients(prev => prev.map(patient => {
+      if (patient.id === patientId) {
+        const newCompleted = !patient.completed;
+        // Save to localStorage
+        saveCompletionStatus(patientId, newCompleted);
+        return { ...patient, completed: newCompleted };
+      }
+      return patient;
+    }));
+  };
+
+  // Handle priority color change
+  const handleColorChange = (patientId, color) => {
+    setPatients(prev => prev.map(patient => {
+      if (patient.id === patientId) {
+        // Save to localStorage
+        savePatientColor(patientId, color);
+        return { ...patient, priorityColor: color };
+      }
+      return patient;
+    }));
+  };
+
   // Handle workflow type change
   const handleStatusChange = async (patientId) => {
     const patient = patients.find(p => p.id === patientId);
@@ -332,7 +793,7 @@ const PatientCensusCard = ({
 
     try {
       // Update in backend
-      const response = await fetch(`http://localhost:5000/api/patient-census/rows/${patientId}`, {
+      const response = await fetch(`${apiService.baseURL}/api/patient-census/rows/${patientId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -442,14 +903,23 @@ const PatientCensusCard = ({
           alignItems: 'center',
           marginBottom: '12px'
         }}>
-          <h3 style={{
-            margin: 0,
-            fontSize: '18px',
-            fontWeight: '600',
-            color: styles.textPrimary
-          }}>
-            Patient Census
-          </h3>
+          <div>
+            <h3 style={{
+              margin: 0,
+              fontSize: '18px',
+              fontWeight: '600',
+              color: styles.textPrimary
+            }}>
+              Patient Census
+            </h3>
+            <div style={{
+              fontSize: '11px',
+              color: styles.textMuted,
+              marginTop: '2px'
+            }}>
+              {selectedPatients.size} of {patients.length} selected
+            </div>
+          </div>
           <button
             onClick={onOpenCensusModal}
             style={{
@@ -492,91 +962,216 @@ const PatientCensusCard = ({
           </div>
         )}
 
-        {/* Sort, Selection Controls and Status */}
+        {/* Controls Container */}
         <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '12px',
-          marginBottom: '4px'
+          backgroundColor: styles.bgSecondary,
+          border: `1px solid ${styles.borderColor}`,
+          borderRadius: '6px',
+          padding: '12px',
+          marginBottom: '8px'
         }}>
-          {/* Sort and Select Controls */}
+          {/* Section Header */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px'
+            marginBottom: '8px',
+            paddingBottom: '6px',
+            borderBottom: `1px solid ${styles.borderColor}`
           }}>
-            <span style={{ color: styles.textMuted, fontSize: '11px' }}>Sort:</span>
-            <button
-              onClick={() => handleSortChange('name')}
-              style={{
-                padding: '0 6px',
-                backgroundColor: sortBy === 'name' ? styles.primaryColor : 'transparent',
-                color: sortBy === 'name' ? '#ffffff' : styles.textSecondary,
-                border: 'none',
-                borderRadius: '3px',
+            <div style={{
+              width: '3px',
+              height: '14px',
+              backgroundColor: styles.primaryColor,
+              marginRight: '8px',
+              borderRadius: '2px'
+            }}></div>
+            <span style={{
+              fontSize: '12px',
+              fontWeight: '600',
+              color: styles.textPrimary,
+              letterSpacing: '0.025em'
+            }}>
+              Patient Organization
+            </span>
+          </div>
+
+          {/* Controls Row */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexWrap: 'wrap'
+          }}>
+            {/* Sort Controls */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              flexWrap: 'wrap'
+            }}>
+              <span style={{
                 fontSize: '10px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '2px',
-                lineHeight: '1',
-                height: '14px'
-              }}
-            >
-              Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
-            </button>
-            <button
-              onClick={() => handleSortChange('workflow')}
-              style={{
-                padding: '0 6px',
-                backgroundColor: sortBy === 'workflow' ? styles.primaryColor : 'transparent',
-                color: sortBy === 'workflow' ? '#ffffff' : styles.textSecondary,
-                border: 'none',
-                borderRadius: '3px',
-                fontSize: '10px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '2px',
-                lineHeight: '1',
-                height: '14px'
-              }}
-            >
-              Type {sortBy === 'workflow' && (sortOrder === 'asc' ? '↑' : '↓')}
-            </button>
+                color: styles.textMuted,
+                fontWeight: '500',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                marginRight: '6px'
+              }}>
+                Sort:
+              </span>
+              <button
+                onClick={() => handleSortChange('name')}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: sortBy === 'name' ? styles.primaryColor : styles.bgPrimary,
+                  color: sortBy === 'name' ? '#ffffff' : styles.textSecondary,
+                  border: `1px solid ${sortBy === 'name' ? styles.primaryColor : styles.borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (sortBy !== 'name') {
+                    e.target.style.backgroundColor = styles.bgAccent;
+                    e.target.style.borderColor = styles.primaryColor;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (sortBy !== 'name') {
+                    e.target.style.backgroundColor = styles.bgPrimary;
+                    e.target.style.borderColor = styles.borderColor;
+                  }
+                }}
+              >
+                Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </button>
+              <button
+                onClick={() => handleSortChange('workflow')}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: sortBy === 'workflow' ? styles.primaryColor : styles.bgPrimary,
+                  color: sortBy === 'workflow' ? '#ffffff' : styles.textSecondary,
+                  border: `1px solid ${sortBy === 'workflow' ? styles.primaryColor : styles.borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (sortBy !== 'workflow') {
+                    e.target.style.backgroundColor = styles.bgAccent;
+                    e.target.style.borderColor = styles.primaryColor;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (sortBy !== 'workflow') {
+                    e.target.style.backgroundColor = styles.bgPrimary;
+                    e.target.style.borderColor = styles.borderColor;
+                  }
+                }}
+              >
+                Type {sortBy === 'workflow' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </button>
+              <button
+                onClick={() => handleSortChange('completion')}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: sortBy === 'completion' ? styles.primaryColor : styles.bgPrimary,
+                  color: sortBy === 'completion' ? '#ffffff' : styles.textSecondary,
+                  border: `1px solid ${sortBy === 'completion' ? styles.primaryColor : styles.borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (sortBy !== 'completion') {
+                    e.target.style.backgroundColor = styles.bgAccent;
+                    e.target.style.borderColor = styles.primaryColor;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (sortBy !== 'completion') {
+                    e.target.style.backgroundColor = styles.bgPrimary;
+                    e.target.style.borderColor = styles.borderColor;
+                  }
+                }}
+              >
+                Status {sortBy === 'completion' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </button>
+              <button
+                onClick={() => handleSortChange('color')}
+                style={{
+                  padding: '4px 8px',
+                  backgroundColor: sortBy === 'color' ? styles.primaryColor : styles.bgPrimary,
+                  color: sortBy === 'color' ? '#ffffff' : styles.textSecondary,
+                  border: `1px solid ${sortBy === 'color' ? styles.primaryColor : styles.borderColor}`,
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  if (sortBy !== 'color') {
+                    e.target.style.backgroundColor = styles.bgAccent;
+                    e.target.style.borderColor = styles.primaryColor;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (sortBy !== 'color') {
+                    e.target.style.backgroundColor = styles.bgPrimary;
+                    e.target.style.borderColor = styles.borderColor;
+                  }
+                }}
+              >
+                Priority {sortBy === 'color' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </button>
+            </div>
+
+            {/* Selection Controls */}
             <button
               onClick={handleSelectAll}
               style={{
-                padding: '0 6px',
-                backgroundColor: 'transparent',
+                padding: '4px 12px',
+                backgroundColor: styles.bgPrimary,
                 color: styles.textSecondary,
-                border: 'none',
-                borderRadius: '3px',
-                fontSize: '10px',
+                border: `1px solid ${styles.borderColor}`,
+                borderRadius: '4px',
+                fontSize: '11px',
                 cursor: 'pointer',
-                lineHeight: '1',
-                height: '14px'
+                fontWeight: '500',
+                transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = styles.bgAccent;
+                e.target.style.borderColor = styles.primaryColor;
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = styles.bgPrimary;
+                e.target.style.borderColor = styles.borderColor;
               }}
             >
               {selectedPatients.size === patients.length ? 'Deselect All' : 'Select All'}
             </button>
-          </div>
-
-          {/* Selection Status */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '10px'
-          }}>
-            <span style={{ color: styles.textMuted }}>
-              {selectedPatients.size} of {patients.length} selected
-            </span>
-            <span style={{ color: styles.textMuted, fontSize: '9px' }}>|</span>
-            <span style={{ color: styles.textMuted, fontSize: '9px' }}>
-              Selection synced with batch generation
-            </span>
           </div>
         </div>
       </div>
@@ -594,6 +1189,8 @@ const PatientCensusCard = ({
               isSelected={selectedPatients.has(patient.id)}
               onSelect={handlePatientSelect}
               onStatusChange={handleStatusChange}
+              onCompletionToggle={handleCompletionToggle}
+              onColorChange={handleColorChange}
               theme={currentTheme}
             />
           ))

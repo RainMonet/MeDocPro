@@ -101,6 +101,10 @@ def create_template():
         if 'placeholders' in data:
             template.placeholders = data['placeholders']
         
+        # Handle AI enhancement zones if provided
+        if 'aiEnhancementZones' in data:
+            template.aiEnhancementZones = data['aiEnhancementZones']
+        
         db.session.add(template)
         db.session.commit()
         
@@ -136,6 +140,10 @@ def update_template(template_id):
         # Handle placeholders if provided
         if 'placeholders' in data:
             template.placeholders = data['placeholders']
+        
+        # Handle AI enhancement zones if provided
+        if 'aiEnhancementZones' in data:
+            template.aiEnhancementZones = data['aiEnhancementZones']
         
         db.session.commit()
         

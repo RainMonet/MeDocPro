@@ -83,9 +83,20 @@ const FormatSelector = ({ value, onChange, theme }) => {
 };
 
 // Document preview component
-const DocumentPreview = ({ documents, theme }) => {
+const DocumentPreview = ({ 
+  documents, 
+  theme, 
+  editedDocuments, 
+  setEditedDocuments, 
+  finalizedDocuments, 
+  isEditMode, 
+  setIsEditMode, 
+  selectedDoc, 
+  setSelectedDoc, 
+  handleIndividualFinalize, 
+  isFinalizing 
+}) => {
   const styles = getThemeStyles(theme);
-  const [selectedDoc, setSelectedDoc] = useState(0);
 
   if (!documents || documents.length === 0) {
     return (
@@ -115,7 +126,10 @@ const DocumentPreview = ({ documents, theme }) => {
       border: `1px solid ${styles.borderColor}`,
       borderRadius: '8px',
       overflow: 'hidden',
-      marginBottom: '20px'
+      marginBottom: '20px',
+      display: 'flex',
+      flexDirection: 'column',
+      flex: 1
     }}>
       {/* Document tabs */}
       {documents.length > 1 && (
@@ -182,9 +196,9 @@ const DocumentPreview = ({ documents, theme }) => {
       <div style={{
         padding: '20px',
         backgroundColor: styles.bgPrimary,
-        minHeight: '300px',
-        maxHeight: '400px',
-        overflowY: 'auto'
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column'
       }}>
         <div style={{
           marginBottom: '16px',
@@ -282,22 +296,115 @@ const DocumentPreview = ({ documents, theme }) => {
           </div>
         </div>
 
+        {/* Document editing and finalization controls */}
         <div style={{
-          fontFamily: 'Georgia, serif',
-          fontSize: '14px',
-          lineHeight: '1.6',
-          color: styles.textPrimary,
-          whiteSpace: 'pre-wrap'
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '16px',
+          alignItems: 'center'
         }}>
-          {currentDoc.populated_content || currentDoc.content || 'No content available'}
+          <button
+            onClick={() => setIsEditMode(prev => ({ ...prev, [selectedDoc]: !prev[selectedDoc] }))}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: isEditMode[selectedDoc] ? styles.primaryColor : styles.bgSecondary,
+              color: isEditMode[selectedDoc] ? 'white' : styles.textPrimary,
+              border: `1px solid ${styles.borderColor}`,
+              borderRadius: '4px',
+              fontSize: '12px',
+              cursor: 'pointer',
+              fontWeight: '500'
+            }}
+          >
+            {isEditMode[selectedDoc] ? 'Done Editing' : 'Edit Document'}
+          </button>
+          
+          <button
+            onClick={() => handleIndividualFinalize(selectedDoc)}
+            disabled={isFinalizing || finalizedDocuments[selectedDoc]}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: finalizedDocuments[selectedDoc] ? styles.successColor : styles.primaryColor,
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              fontSize: '12px',
+              cursor: (isFinalizing || finalizedDocuments[selectedDoc]) ? 'not-allowed' : 'pointer',
+              fontWeight: '500',
+              opacity: (isFinalizing || finalizedDocuments[selectedDoc]) ? 0.6 : 1
+            }}
+          >
+            {finalizedDocuments[selectedDoc] ? '✓ Finalized' : 
+             isFinalizing ? 'Finalizing...' : 'Finalize This Document'}
+          </button>
+          
+          {isEditMode[selectedDoc] && (
+            <span style={{
+              fontSize: '11px',
+              color: styles.textMuted,
+              fontStyle: 'italic'
+            }}>
+              Click "Done Editing" to save changes
+            </span>
+          )}
         </div>
+
+        {/* Document content - editable or read-only */}
+        {isEditMode[selectedDoc] ? (
+          <textarea
+            value={editedDocuments[selectedDoc] || ''}
+            onChange={(e) => setEditedDocuments(prev => ({
+              ...prev,
+              [selectedDoc]: e.target.value
+            }))}
+            style={{
+              width: '100%',
+              flex: 1,
+              minHeight: '300px',
+              maxHeight: '60vh',
+              fontFamily: 'Georgia, serif',
+              fontSize: '14px',
+              lineHeight: '1.6',
+              color: styles.textPrimary,
+              backgroundColor: styles.bgSecondary,
+              border: `1px solid ${styles.borderColor}`,
+              borderRadius: '4px',
+              padding: '12px',
+              resize: 'none',
+              outline: 'none',
+              overflow: 'auto'
+            }}
+            placeholder="Enter document content..."
+          />
+        ) : (
+          <div style={{
+            fontFamily: 'Georgia, serif',
+            fontSize: '14px',
+            lineHeight: '1.6',
+            color: styles.textPrimary,
+            whiteSpace: 'pre-wrap',
+            backgroundColor: styles.bgSecondary,
+            border: `1px solid ${styles.borderColor}`,
+            borderRadius: '4px',
+            padding: '12px',
+            flex: 1,
+            minHeight: '300px',
+            maxHeight: '60vh',
+            overflow: 'auto',
+            // Custom scrollbar styling for read-only view
+            scrollbarWidth: 'thin',
+            scrollbarColor: `${styles.borderColor} transparent`
+          }}>
+            {editedDocuments[selectedDoc] || currentDoc.populated_content || currentDoc.content || 'No content available'}
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 // Export options component
-const ExportOptions = ({ onExport, isExporting, theme }) => {
+const ExportOptions = ({ onExport, onFinalize, isExporting, isFinalizing, theme, finalizedCount, totalDocuments, allFinalized }) => {
   const styles = getThemeStyles(theme);
 
   return (
@@ -307,8 +414,40 @@ const ExportOptions = ({ onExport, isExporting, theme }) => {
       justifyContent: 'flex-end'
     }}>
       <button
+        onClick={() => onFinalize()}
+        disabled={isExporting || isFinalizing || allFinalized}
+        style={{
+          padding: '10px 20px',
+          backgroundColor: allFinalized ? styles.successColor : (finalizedCount > 0 ? styles.warningColor : styles.successColor),
+          color: 'white',
+          border: 'none',
+          borderRadius: '6px',
+          fontSize: '14px',
+          fontWeight: '500',
+          cursor: (isExporting || isFinalizing || allFinalized) ? 'not-allowed' : 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          opacity: (isExporting || isFinalizing || allFinalized) ? 0.6 : 1
+        }}
+      >
+        {isFinalizing ? (
+          <>
+            <div className="loading-spinner" style={{ width: '16px', height: '16px' }} />
+            Finalizing...
+          </>
+        ) : allFinalized ? (
+          `✓ All ${totalDocuments} Documents Finalized`
+        ) : finalizedCount > 0 ? (
+          `Finalize Remaining (${totalDocuments - finalizedCount})`
+        ) : (
+          '✓ Finalize All Documents'
+        )}
+      </button>
+      
+      <button
         onClick={() => onExport('download')}
-        disabled={isExporting}
+        disabled={isExporting || isFinalizing}
         style={{
           padding: '10px 20px',
           backgroundColor: styles.primaryColor,
@@ -317,11 +456,11 @@ const ExportOptions = ({ onExport, isExporting, theme }) => {
           borderRadius: '6px',
           fontSize: '14px',
           fontWeight: '500',
-          cursor: isExporting ? 'not-allowed' : 'pointer',
+          cursor: (isExporting || isFinalizing) ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          opacity: isExporting ? 0.6 : 1
+          opacity: (isExporting || isFinalizing) ? 0.6 : 1
         }}
       >
         {isExporting ? (
@@ -336,7 +475,7 @@ const ExportOptions = ({ onExport, isExporting, theme }) => {
 
       <button
         onClick={() => onExport('email')}
-        disabled={isExporting}
+        disabled={isExporting || isFinalizing}
         style={{
           padding: '10px 20px',
           backgroundColor: 'transparent',
@@ -344,11 +483,11 @@ const ExportOptions = ({ onExport, isExporting, theme }) => {
           border: `1px solid ${styles.borderColor}`,
           borderRadius: '6px',
           fontSize: '14px',
-          cursor: isExporting ? 'not-allowed' : 'pointer',
+          cursor: (isExporting || isFinalizing) ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          opacity: isExporting ? 0.6 : 1
+          opacity: (isExporting || isFinalizing) ? 0.6 : 1
         }}
       >
         Email Documents
@@ -367,7 +506,12 @@ const PreviewDocumentModal = ({
 }) => {
   const [outputFormat, setOutputFormat] = useState('individual');
   const [isExporting, setIsExporting] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const [currentTheme, setCurrentTheme] = useState(theme);
+  const [editedDocuments, setEditedDocuments] = useState({});
+  const [finalizedDocuments, setFinalizedDocuments] = useState({});
+  const [isEditMode, setIsEditMode] = useState({});
+  const [selectedDoc, setSelectedDoc] = useState(0);
   const styles = getThemeStyles(currentTheme);
 
   // Listen for theme changes
@@ -387,28 +531,302 @@ const PreviewDocumentModal = ({
     return () => observer.disconnect();
   }, []);
 
+  // Initialize edited documents state when documents change
+  useEffect(() => {
+    if (documents.length > 0) {
+      const initialEdited = {};
+      documents.forEach((doc, index) => {
+        initialEdited[index] = doc.populated_content || doc.content || '';
+      });
+      setEditedDocuments(initialEdited);
+      setSelectedDoc(0);
+      setFinalizedDocuments({});
+      setIsEditMode({});
+    }
+  }, [documents]);
+
   // Handle export
   const handleExport = async (exportType) => {
     setIsExporting(true);
     try {
-      // Simulate export process
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
       if (exportType === 'download') {
-        alert(`Documents exported successfully!\nFormat: ${outputFormat}\nTotal files: ${documents.length}`);
+        // Get authentication token
+        const token = localStorage.getItem('token');
+        if (!token) {
+          alert('❌ Authentication required. Please log in again.');
+          return;
+        }
+
+        // Merge original documents with edited content  
+        const updatedDocuments = documents.map((doc, index) => ({
+          ...doc,
+          // Use edited content if available, otherwise use original content (use index not doc.id)
+          populated_content: editedDocuments[index] || doc.populated_content || doc.content,
+          content: editedDocuments[index] || doc.populated_content || doc.content
+        }));
+
+        // Prepare download URL with updated documents data
+        const apiBaseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+        const documentsParam = encodeURIComponent(JSON.stringify(updatedDocuments));
+        const downloadUrl = `${apiBaseURL}/api/generate-documents/${batchInfo.batchId || 'unknown'}/download?format=${outputFormat}&documents=${documentsParam}`;
+        
+        console.log('Starting document download...', {
+          batchId: batchInfo.batchId,
+          format: outputFormat,
+          documentCount: documents.length
+        });
+
+        // Create a temporary link to trigger download
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.target = '_blank';
+        
+        // Add authorization header by fetching the file and creating a blob URL
+        try {
+          const response = await fetch(downloadUrl, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            throw new Error(errorData.error || `Download failed: ${response.status}`);
+          }
+
+          // Get the filename from Content-Disposition header or use default
+          const contentDisposition = response.headers.get('Content-Disposition');
+          let filename = `batch_documents_${batchInfo.batchId || 'export'}_${outputFormat}.zip`;
+          
+          if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            if (filenameMatch) {
+              filename = filenameMatch[1].replace(/['"]/g, '');
+            }
+          }
+
+          // Create blob and download
+          const blob = await response.blob();
+          const blobUrl = window.URL.createObjectURL(blob);
+          
+          // Create and click download link
+          const downloadLink = document.createElement('a');
+          downloadLink.href = blobUrl;
+          downloadLink.download = filename;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+          
+          // Clean up blob URL
+          window.URL.revokeObjectURL(blobUrl);
+          
+          alert(`✅ Documents downloaded successfully!\nFormat: ${outputFormat}\nTotal files: ${documents.length}\nFilename: ${filename}`);
+          
+        } catch (fetchError) {
+          console.error('Download fetch error:', fetchError);
+          throw fetchError;
+        }
+        
       } else if (exportType === 'email') {
-        alert(`Documents sent via email!\nRecipients will receive ${documents.length} document(s).`);
+        // Email functionality - to be implemented
+        alert(`📧 Email functionality coming soon!\n\nFor now, please use the download option and send the files manually.\nRecipients would receive ${documents.length} document(s).`);
       }
       
       // Close modal after successful export
       onClose();
     } catch (error) {
       console.error('Export error:', error);
-      alert('Error exporting documents. Please try again.');
+      
+      // Show user-friendly error message
+      const errorMessage = error.message || 'Unknown error occurred';
+      if (errorMessage.includes('Authentication') || errorMessage.includes('401')) {
+        alert('❌ Authentication expired. Please log in again and try the export.');
+      } else if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+        alert('❌ Network error. Please check your connection and try again.');
+      } else {
+        alert(`❌ Export failed: ${errorMessage}\n\nPlease try again or contact support if the issue persists.`);
+      }
     } finally {
       setIsExporting(false);
     }
   };
+
+  // Helper function to get document data for finalization
+  const getDocumentData = (doc, index) => {
+    // Use index as key to match the editing interface (not doc.id)
+    const editedContent = editedDocuments[index] || doc.populated_content || doc.content || '';
+    
+    return {
+      patient_census_row_id: doc.patient_census_row_id || doc.patient_id,
+      document_title: doc.title || doc.template_name || `Document for ${doc.patient_name || 'Unknown Patient'}`,
+      document_content: editedContent,
+      document_type: doc.workflow_type || doc.patient_workflow_type || doc.document_type || 'follow-up',
+      template_id: doc.template_id || null,
+      document_format: 'text',
+      document_date: new Date().toISOString().split('T')[0],
+      metadata: {
+        batch_id: batchInfo.batchId,
+        generated_at: new Date().toISOString(),
+        original_format: doc.format || 'text',
+        edited: editedDocuments[index] !== (doc.populated_content || doc.content)
+      }
+    };
+  };
+
+  // Handle individual document finalization
+  const handleIndividualFinalize = async (docIndex) => {
+    const doc = documents[docIndex];
+    if (!doc) return;
+
+    try {
+      setIsFinalizing(true);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('❌ Authentication required. Please log in again.');
+        return;
+      }
+
+      const apiBaseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      const finalizeData = getDocumentData(doc, docIndex);
+
+      console.log('Finalizing individual document:', finalizeData);
+
+      const response = await fetch(`${apiBaseURL}/api/finalize-document`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(finalizeData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `Finalization failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log(`Document finalized for ${doc.patient_name}:`, result);
+
+      // Mark document as finalized
+      setFinalizedDocuments(prev => ({
+        ...prev,
+        [docIndex]: result.document
+      }));
+
+      alert(`✅ Document finalized for ${doc.patient_name}!\n\nThe document is now saved and will be available for 7 days for backup download.`);
+
+    } catch (error) {
+      console.error('Individual finalization error:', error);
+      alert(`❌ Failed to finalize document for ${doc.patient_name}: ${error.message}`);
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
+
+  // Handle bulk document finalization
+  const handleFinalize = async () => {
+    setIsFinalizing(true);
+    try {
+      // Get authentication token
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('❌ Authentication required. Please log in again.');
+        return;
+      }
+
+      const apiBaseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      let successCount = 0;
+      let errorCount = 0;
+      const errors = [];
+
+      console.log('Starting document finalization...', {
+        batchId: batchInfo.batchId,
+        documentCount: documents.length
+      });
+
+      // Finalize each document that hasn't been finalized yet
+      for (let index = 0; index < documents.length; index++) {
+        const doc = documents[index];
+        
+        // Skip if already finalized
+        if (finalizedDocuments[index]) {
+          successCount++;
+          continue;
+        }
+        
+        try {
+          const finalizeData = getDocumentData(doc, index);
+
+          const response = await fetch(`${apiBaseURL}/api/finalize-document`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(finalizeData)
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            throw new Error(errorData.error || `Finalization failed: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log(`Document finalized for ${doc.patient_name}:`, result);
+          
+          // Mark document as finalized
+          setFinalizedDocuments(prev => ({
+            ...prev,
+            [index]: result.document
+          }));
+          
+          successCount++;
+
+        } catch (docError) {
+          console.error(`Error finalizing document for ${doc.patient_name}:`, docError);
+          errorCount++;
+          errors.push(`${doc.patient_name}: ${docError.message}`);
+        }
+      }
+
+      // Show results
+      if (successCount > 0 && errorCount === 0) {
+        alert(`✅ All ${successCount} documents finalized successfully!\n\nDocuments are now saved in your Recent Documents and will be available for 7 days for backup download.`);
+        onClose(); // Close modal on complete success
+      } else if (successCount > 0 && errorCount > 0) {
+        alert(`⚠️ Finalization completed with some issues:\n\n✅ Successfully finalized: ${successCount} documents\n❌ Failed: ${errorCount} documents\n\nErrors:\n${errors.slice(0, 3).join('\n')}${errors.length > 3 ? '\n...' : ''}`);
+      } else {
+        alert(`❌ Document finalization failed!\n\nAll ${errorCount} documents encountered errors:\n${errors.slice(0, 3).join('\n')}${errors.length > 3 ? '\n...' : ''}\n\nPlease try again or contact support.`);
+      }
+
+    } catch (error) {
+      console.error('Finalization error:', error);
+      
+      // Show user-friendly error message
+      const errorMessage = error.message || 'Unknown error occurred';
+      if (errorMessage.includes('Authentication') || errorMessage.includes('401')) {
+        alert('❌ Authentication expired. Please log in again and try the finalization.');
+      } else if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+        alert('❌ Network error. Please check your connection and try again.');
+      } else {
+        alert(`❌ Finalization failed: ${errorMessage}\n\nPlease try again or contact support if the issue persists.`);
+      }
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
+
+  // Helper to get current document
+  const currentDoc = documents[selectedDoc] || documents[0] || {};
+  
+  // Get finalization status
+  const totalDocuments = documents.length;
+  const finalizedCount = Object.keys(finalizedDocuments).length;
+  const allFinalized = totalDocuments > 0 && finalizedCount === totalDocuments;
 
   if (!isOpen) return null;
 
@@ -478,8 +896,13 @@ const PreviewDocumentModal = ({
         {/* Content */}
         <div style={{
           flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
           overflow: 'auto',
-          padding: '20px'
+          padding: '20px',
+          // Custom scrollbar styling
+          scrollbarWidth: 'thin',
+          scrollbarColor: `${styles.borderColor} transparent`
         }}>
           {/* Format Selector */}
           <FormatSelector
@@ -489,19 +912,35 @@ const PreviewDocumentModal = ({
           />
 
           {/* Document Preview */}
-          <div style={{ marginBottom: '20px' }}>
+          <div style={{ 
+            marginBottom: '20px',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
             <label style={{
               display: 'block',
               fontSize: '14px',
               fontWeight: '600',
               color: styles.textPrimary,
-              marginBottom: '8px'
+              marginBottom: '8px',
+              flexShrink: 0
             }}>
               Document Preview
             </label>
             <DocumentPreview 
               documents={documents} 
               theme={currentTheme}
+              editedDocuments={editedDocuments}
+              setEditedDocuments={setEditedDocuments}
+              finalizedDocuments={finalizedDocuments}
+              isEditMode={isEditMode}
+              setIsEditMode={setIsEditMode}
+              selectedDoc={selectedDoc}
+              setSelectedDoc={setSelectedDoc}
+              handleIndividualFinalize={handleIndividualFinalize}
+              isFinalizing={isFinalizing}
             />
           </div>
         </div>
@@ -542,8 +981,13 @@ const PreviewDocumentModal = ({
             </button>
             <ExportOptions
               onExport={handleExport}
+              onFinalize={handleFinalize}
               isExporting={isExporting}
+              isFinalizing={isFinalizing}
               theme={currentTheme}
+              finalizedCount={finalizedCount}
+              totalDocuments={totalDocuments}
+              allFinalized={allFinalized}
             />
           </div>
         </div>

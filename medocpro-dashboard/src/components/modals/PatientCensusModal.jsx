@@ -28,6 +28,20 @@ const getWorkflowDisplay = (workflowType) => {
   return workflowConfig[workflowType] || workflowConfig['follow-up'];
 };
 
+// Priority color mapping for CSV export
+const getPriorityDisplayName = (colorValue) => {
+  const priorityMap = {
+    'red': 'High Priority',
+    'orange': 'Medical Review', 
+    'blue': 'Different Provider',
+    'purple': 'Legal Status',
+    'green': 'Discharge Planning',
+    'pink': 'Family Contact',
+    '': 'None'
+  };
+  return priorityMap[colorValue] || 'None';
+};
+
 // Individual patient row component for editing
 const EditablePatientRow = ({ patient, onUpdate, onDelete, theme }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -271,7 +285,11 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
   const calculateStats = useCallback((patientList) => {
     const total = patientList.length;
     const workflowCounts = patientList.reduce((acc, patient) => {
-      const workflowType = patient.workflow_type || patient.status || 'follow-up';
+      let workflowType = patient.workflow_type || patient.status || 'follow-up';
+      // Treat 'active' patients as 'follow-up' for statistics
+      if (workflowType === 'active') {
+        workflowType = 'follow-up';
+      }
       acc[workflowType] = (acc[workflowType] || 0) + 1;
       return acc;
     }, {});
@@ -528,6 +546,96 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
     }
   };
 
+  // CSV Export function
+  const handleExportCSV = () => {
+    try {
+      // Parse patient names to separate last and first names
+      const parsePatientName = (fullName) => {
+        if (!fullName || typeof fullName !== 'string') {
+          return { lastName: '', firstName: '' };
+        }
+        
+        // Handle formats like "Last, First M." or "First Last"
+        if (fullName.includes(',')) {
+          const parts = fullName.split(',').map(part => part.trim());
+          return {
+            lastName: parts[0] || '',
+            firstName: parts[1] || ''
+          };
+        } else {
+          // Handle "First Last" format
+          const parts = fullName.split(' ');
+          if (parts.length >= 2) {
+            return {
+              lastName: parts[parts.length - 1] || '',
+              firstName: parts.slice(0, -1).join(' ') || ''
+            };
+          } else {
+            return {
+              lastName: fullName,
+              firstName: ''
+            };
+          }
+        }
+      };
+
+      // Create CSV data with specified column structure
+      const csvData = sortedPatients.map(patient => {
+        const { lastName, firstName } = parsePatientName(patient.patient_name);
+        const workflowType = patient.workflow_type || patient.status || 'follow-up';
+        const priorityStatus = getPriorityDisplayName(patient.priorityColor || '');
+        
+        return [
+          lastName,
+          firstName,
+          patient.patient_id || '',
+          patient.room_number || '',
+          workflowType,
+          priorityStatus
+        ];
+      });
+
+      // Create CSV content with headers
+      const headers = ['Last Name', 'First Name', 'Patient ID', 'Room Number', 'Workflow Type', 'Priority Status'];
+      const csvContent = [headers, ...csvData]
+        .map(row => row.map(cell => `"${cell.toString().replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+      // Create and download CSV file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        
+        // Generate filename with current date
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+        const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS format
+        const filename = `patient-census-${dateStr}-${timeStr}.csv`;
+        
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Show success notification
+        setNotification({
+          type: 'success',
+          message: `CSV exported successfully as ${filename}`
+        });
+      }
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      setNotification({
+        type: 'error',
+        message: 'Error exporting CSV file. Please try again.'
+      });
+    }
+  };
+
   // Get sorted patients
   const sortedPatients = sortPatients(patients);
 
@@ -681,22 +789,43 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
                 </button>
               </div>
               
-              {/* Add Patient Button */}
-              <button
-                onClick={() => setShowAddForm(true)}
-                style={{
-                  padding: '6px 12px',
-                  backgroundColor: styles.primaryColor,
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  cursor: 'pointer'
-                }}
-              >
-                Add Patient
-              </button>
+              {/* Add Patient and Export CSV Buttons */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => setShowAddForm(true)}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: styles.primaryColor,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Add Patient
+                </button>
+                
+                <button
+                  onClick={handleExportCSV}
+                  disabled={sortedPatients.length === 0}
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: sortedPatients.length === 0 ? styles.textMuted : styles.successColor,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    cursor: sortedPatients.length === 0 ? 'not-allowed' : 'pointer',
+                    opacity: sortedPatients.length === 0 ? 0.6 : 1
+                  }}
+                  title={sortedPatients.length === 0 ? 'No patients to export' : 'Export patient list to CSV file'}
+                >
+                  Export as CSV
+                </button>
+              </div>
             </div>
           </div>
           
@@ -894,8 +1023,13 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
           </div>
         )}
 
-        {/* Patient List */}
-        <div style={{ flex: 1, overflow: 'auto' }}>
+        {/* Patient List with Sticky Headers */}
+        <div style={{ 
+          flex: 1, 
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
           {loading ? (
             <div style={{
               padding: '40px',
@@ -909,121 +1043,151 @@ const PatientCensusModal = ({ isOpen, onClose, theme = 'dark', onDataChange }) =
               <div style={{ color: styles.textMuted }}>Loading patient census...</div>
             </div>
           ) : (
-            <table style={{
-              width: '100%',
-              borderCollapse: 'collapse'
-            }}>
-              <thead>
-                <tr style={{
-                  backgroundColor: styles.bgSecondary,
-                  borderBottom: `2px solid ${styles.borderColor}`
+            <>
+              {/* Sticky Header */}
+              <div style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                backgroundColor: styles.bgSecondary,
+                borderBottom: `2px solid ${styles.borderColor}`,
+                flexShrink: 0
+              }}>
+                <table style={{
+                  width: '100%',
+                  borderCollapse: 'collapse'
                 }}>
-                  <th 
-                    style={{
-                      padding: '12px 16px',
-                      textAlign: 'left',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      color: styles.textPrimary,
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      position: 'relative'
-                    }}
-                    onClick={() => handleSort('type')}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      Workflow Type
-                      <span style={{ 
-                        opacity: sortBy === 'type' ? 1 : 0.3,
-                        fontSize: '10px'
+                  <thead>
+                    <tr>
+                      <th 
+                        style={{
+                          padding: '12px 16px',
+                          textAlign: 'left',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: styles.textPrimary,
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                          width: '140px',
+                          minWidth: '140px'
+                        }}
+                        onClick={() => handleSort('type')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          Workflow Type
+                          <span style={{ 
+                            opacity: sortBy === 'type' ? 1 : 0.3,
+                            fontSize: '10px'
+                          }}>
+                            {sortBy === 'type' && sortOrder === 'asc' ? '↑' : '↓'}
+                          </span>
+                        </div>
+                      </th>
+                      <th 
+                        style={{
+                          padding: '12px 16px',
+                          textAlign: 'left',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: styles.textPrimary,
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                          width: '250px',
+                          minWidth: '250px'
+                        }}
+                        onClick={() => handleSort('name')}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          Patient Name
+                          <span style={{ 
+                            opacity: sortBy === 'name' ? 1 : 0.3,
+                            fontSize: '10px'
+                          }}>
+                            {sortBy === 'name' && sortOrder === 'asc' ? '↑' : '↓'}
+                          </span>
+                        </div>
+                      </th>
+                      <th style={{
+                        padding: '12px 16px',
+                        textAlign: 'left',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: styles.textPrimary,
+                        width: '120px',
+                        minWidth: '120px'
                       }}>
-                        {sortBy === 'type' && sortOrder === 'asc' ? '↑' : '↓'}
-                      </span>
-                    </div>
-                  </th>
-                  <th 
-                    style={{
-                      padding: '12px 16px',
-                      textAlign: 'left',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      color: styles.textPrimary,
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                      position: 'relative'
-                    }}
-                    onClick={() => handleSort('name')}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      Patient Name
-                      <span style={{ 
-                        opacity: sortBy === 'name' ? 1 : 0.3,
-                        fontSize: '10px'
+                        Patient ID
+                      </th>
+                      <th style={{
+                        padding: '12px 16px',
+                        textAlign: 'left',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: styles.textPrimary,
+                        width: '80px',
+                        minWidth: '80px'
                       }}>
-                        {sortBy === 'name' && sortOrder === 'asc' ? '↑' : '↓'}
-                      </span>
-                    </div>
-                  </th>
-                  <th style={{
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    color: styles.textPrimary
-                  }}>
-                    Patient ID
-                  </th>
-                  <th style={{
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    color: styles.textPrimary
-                  }}>
-                    Room
-                  </th>
-                  <th style={{
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    color: styles.textPrimary
-                  }}>
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedPatients.length > 0 ? (
-                  sortedPatients.map(patient => (
-                    <EditablePatientRow
-                      key={patient.id}
-                      patient={patient}
-                      onUpdate={handleUpdatePatient}
-                      onDelete={handleDeletePatient}
-                      theme={theme}
-                    />
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      style={{
-                        padding: '40px',
-                        textAlign: 'center',
-                        color: styles.textMuted
-                      }}
-                    >
-                      <div style={{ fontSize: '16px', marginBottom: '12px', fontWeight: '500', color: styles.textMuted }}>No Data</div>
-                      <div>No patients in census</div>
-                      <div style={{ fontSize: '12px', marginTop: '4px' }}>
-                        Add patients using the form above
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                        Room
+                      </th>
+                      <th style={{
+                        padding: '12px 16px',
+                        textAlign: 'left',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: styles.textPrimary,
+                        width: '120px',
+                        minWidth: '120px'
+                      }}>
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                </table>
+              </div>
+
+              {/* Scrollable Body */}
+              <div style={{
+                flex: 1,
+                overflow: 'auto',
+                maxHeight: 'calc(90vh - 320px)' // Adjust based on modal height minus header/form sections
+              }}>
+                <table style={{
+                  width: '100%',
+                  borderCollapse: 'collapse'
+                }}>
+                  <tbody>
+                    {sortedPatients.length > 0 ? (
+                      sortedPatients.map(patient => (
+                        <EditablePatientRow
+                          key={patient.id}
+                          patient={patient}
+                          onUpdate={handleUpdatePatient}
+                          onDelete={handleDeletePatient}
+                          theme={theme}
+                        />
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          style={{
+                            padding: '40px',
+                            textAlign: 'center',
+                            color: styles.textMuted
+                          }}
+                        >
+                          <div style={{ fontSize: '16px', marginBottom: '12px', fontWeight: '500', color: styles.textMuted }}>No Data</div>
+                          <div>No patients in census</div>
+                          <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                            Add patients using the form above
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import apiService from '../../services/api';
 
 // Helper function for theme-aware styling
 const getThemeStyles = (theme) => ({
@@ -477,7 +478,7 @@ const PatientCensusTable = ({
   const loadTodaysCensus = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/patient-census/today', {
+      const response = await fetch(`${apiService.baseURL}/api/patient-census/today`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
@@ -701,7 +702,7 @@ const PatientCensusTable = ({
             fontSize: '12px',
             color: styles.textSecondary
           }}>
-            {census.current_census_count} active patients • 
+            {census.rows?.length || 0} active patients • 
             Last updated: {new Date(census.last_updated).toLocaleTimeString()}
           </p>
         </div>
@@ -874,7 +875,7 @@ const PatientCensusTable = ({
               cursor: 'pointer'
             }}
           >
-            📄 Generate Documentation for Active Patients ({census.current_census_count})
+            📄 Generate Documentation for Active Patients ({census.rows?.filter(r => r.status === 'active').length || 0})
           </button>
         </div>
       )}

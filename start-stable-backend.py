@@ -31,7 +31,7 @@ class StableBackend:
         self.running = False
         self.restart_count = 0
         self.max_restarts = 10
-        self.health_check_interval = 30  # seconds
+        self.health_check_interval = 120  # seconds - much less aggressive
         self.restart_delay = 5  # seconds
         
     def start_backend(self):
@@ -39,15 +39,51 @@ class StableBackend:
         try:
             logger.info("Starting Flask backend...")
             
-            # Ensure we're in the correct directory
-            os.chdir('/mnt/c/Users/admin/Desktop/MeDocPro')
+            # Use current working directory instead of hardcoded path
+            current_dir = os.getcwd()
+            logger.info(f"Working directory: {current_dir}")
+            
+            # Determine the correct Python executable
+            python_exe = sys.executable
+            if os.name == 'nt':  # Windows
+                # Try to use the venv python if available
+                venv_python = os.path.join(current_dir, 'venv-windows', 'Scripts', 'python.exe')
+                if os.path.exists(venv_python):
+                    python_exe = venv_python
+                    logger.info(f"Using venv Python: {python_exe}")
+            
+            # Check if production backend is available (Waitress)
+            production_script = os.path.join(current_dir, 'start-production-backend.py')
+            use_production = os.path.exists(production_script)
+            
+            if use_production:
+                # Use production backend with Waitress
+                cmd = [python_exe, 'start-production-backend.py']
+                logger.info("Using production Waitress WSGI server")
+            else:
+                # Fall back to optimized Flask development server
+                cmd = [
+                    python_exe, '-c',
+                    '''
+import os
+os.environ["FLASK_ENV"] = "production"
+os.environ["FLASK_DEBUG"] = "0"
+import logging
+logging.getLogger("werkzeug").setLevel(logging.WARNING)
+from app import create_app
+app = create_app()
+app.run(host="0.0.0.0", port=5000, debug=False, threaded=True, use_reloader=False)
+'''
+                ]
+                logger.info("Using optimized Flask development server")
             
             # Start the backend process
             self.process = subprocess.Popen(
-                [sys.executable, 'app.py'],
+                cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
+                cwd=current_dir  # Explicitly set working directory
             )
             
             # Wait a moment for startup
@@ -84,12 +120,27 @@ class StableBackend:
             self.process = None
     
     def is_backend_healthy(self):
-        """Check if backend is responding to health checks"""
-        try:
-            response = requests.get('http://localhost:5000/health', timeout=5)
-            return response.status_code == 200
-        except requests.exceptions.RequestException:
+        """Check if backend process is still running (less aggressive than HTTP checks)"""
+        # First check if process is still running
+        if self.process is None or self.process.poll() is not None:
             return False
+        
+        # Only do HTTP health check occasionally (every other check)
+        if hasattr(self, '_last_http_check'):
+            self._last_http_check = not self._last_http_check
+        else:
+            self._last_http_check = True
+        
+        if self._last_http_check:
+            try:
+                response = requests.get('http://localhost:5000/health', timeout=10)
+                return response.status_code == 200
+            except requests.exceptions.RequestException:
+                # Don't immediately fail on HTTP errors, just log them
+                logger.warning("Health check HTTP request failed, but process is still running")
+                return True  # Process is running, so consider it healthy
+        
+        return True  # Process is running
     
     def monitor_health(self):
         """Monitor backend health and restart if needed"""

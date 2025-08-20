@@ -679,3 +679,111 @@ def transfer_patient(row_id):
         logger.error(f"Error transferring patient {row_id}: {str(e)}")
         db.session.rollback()
         return jsonify({'success': False, 'error': 'Failed to transfer patient'}), 500
+
+
+@patient_census_bp.route('/api/patient-census/cleanup', methods=['POST'])
+@jwt_required()
+def cleanup_old_census_data():
+    """Clean up old patient census data to prevent database growth"""
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json() or {}
+        
+        # Get parameters
+        days_to_keep = data.get('days_to_keep', 7)
+        dry_run = data.get('dry_run', False)
+        
+        # Validate parameters
+        if not isinstance(days_to_keep, int) or days_to_keep < 1:
+            return jsonify({
+                'success': False, 
+                'error': 'days_to_keep must be a positive integer'
+            }), 400
+        
+        if days_to_keep > 365:
+            return jsonify({
+                'success': False, 
+                'error': 'days_to_keep cannot exceed 365 days'
+            }), 400
+        
+        # Check user permissions (you might want to restrict this to admin users)
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        if dry_run:
+            # Perform dry run - show what would be deleted without actually deleting
+            cutoff_date = date.today() - timedelta(days=days_to_keep)
+            
+            old_censuses = PatientCensus.query.filter(
+                PatientCensus.census_date < cutoff_date,
+                PatientCensus.is_active == True
+            ).all()
+            
+            if not old_censuses:
+                return jsonify({
+                    'success': True,
+                    'dry_run': True,
+                    'deleted_censuses': 0,
+                    'deleted_rows': 0,
+                    'deleted_daily_info': 0,
+                    'cutoff_date': cutoff_date.isoformat(),
+                    'message': f'No censuses older than {days_to_keep} days found'
+                }), 200
+            
+            # Count what would be deleted
+            total_rows = sum(len(census.rows) for census in old_censuses)
+            total_daily_info = 0
+            
+            from ..models.daily_information import DailyInformation
+            for census in old_censuses:
+                for row in census.rows:
+                    daily_info_count = DailyInformation.query.filter_by(
+                        patient_census_row_id=row.id
+                    ).count()
+                    total_daily_info += daily_info_count
+            
+            census_summary = []
+            for census in sorted(old_censuses, key=lambda c: c.census_date):
+                census_summary.append({
+                    'date': census.census_date.isoformat(),
+                    'user_id': census.user_id,
+                    'patient_count': len(census.rows)
+                })
+            
+            return jsonify({
+                'success': True,
+                'dry_run': True,
+                'would_delete': {
+                    'censuses': len(old_censuses),
+                    'patient_rows': total_rows,
+                    'daily_info_entries': total_daily_info
+                },
+                'cutoff_date': cutoff_date.isoformat(),
+                'old_censuses': census_summary,
+                'message': f'Dry run: {len(old_censuses)} censuses would be deleted'
+            }), 200
+        
+        else:
+            # Perform actual cleanup
+            result = PatientCensus.cleanup_old_censuses(days_to_keep=days_to_keep)
+            
+            log_audit_event(
+                user_id,
+                'census_cleanup_performed',
+                f'Cleaned up census data: {result["deleted_censuses"]} censuses, '
+                f'{result["deleted_rows"]} rows, {result["deleted_daily_info"]} daily info entries deleted'
+            )
+            
+            return jsonify({
+                'success': True,
+                'dry_run': False,
+                **result
+            }), 200
+        
+    except Exception as e:
+        logger.error(f"Error during census cleanup: {str(e)}")
+        return jsonify({
+            'success': False, 
+            'error': 'Failed to perform census cleanup'
+        }), 500
