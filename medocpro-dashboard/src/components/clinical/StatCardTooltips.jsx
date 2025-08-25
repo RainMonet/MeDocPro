@@ -15,8 +15,7 @@ const useWeeklyAverages = () => {
         console.log('Loading weekly averages from API...');
         const response = await fetch(`${apiService.baseURL}/api/patient-census/history?days=7`, {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Authorization': `Bearer ${token}`
           }
         });
 

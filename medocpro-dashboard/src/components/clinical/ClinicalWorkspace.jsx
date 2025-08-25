@@ -937,8 +937,7 @@ const ClinicalWorkspace = ({ onOpenTemplateEditor, onOpenModal, user }) => {
       // Load today's census data (primary data - required)
       const todayResponse = await fetch(`${apiService.baseURL}/api/patient-census/today`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         },
         // Add timeout to prevent hanging
         signal: AbortSignal.timeout(5000) // 5 second timeout

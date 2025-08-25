@@ -13,10 +13,12 @@ class ApiService {
   }
 
   // Helper method to get headers with authentication
-  getHeaders(includeAuth = true) {
-    const headers = {
-      'Content-Type': 'application/json',
-    };
+  getHeaders(includeAuth = true, includeContentType = true) {
+    const headers = {};
+    
+    if (includeContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
     
     if (includeAuth) {
       // Always get fresh token from localStorage
@@ -284,7 +286,7 @@ class ApiService {
   async checkOllamaStatus() {
     const response = await fetch(`${this.baseURL}/health/ai`, {
       method: 'GET',
-      headers: this.getHeaders(),
+      headers: this.getHeaders(true, false),
     });
     
     const result = await this.handleResponse(response);
@@ -344,7 +346,7 @@ class ApiService {
   async getHealth() {
     const response = await fetch(`${this.baseURL}/health`, {
       method: 'GET',
-      headers: this.getHeaders(false),
+      headers: this.getHeaders(false, false),
     });
     
     return this.handleResponse(response);
@@ -412,7 +414,7 @@ class ApiService {
   async getPatientCensusToday() {
     const response = await fetch(`${this.baseURL}/api/patient-census/today`, {
       method: 'GET',
-      headers: this.getHeaders(),
+      headers: this.getHeaders(true, false),
     });
     
     return this.handleResponse(response);
@@ -451,7 +453,7 @@ class ApiService {
   async getCurrentUser() {
     const response = await fetch(`${this.baseURL}/api/users/current`, {
       method: 'GET',
-      headers: this.getHeaders(),
+      headers: this.getHeaders(true, false),
     });
     
     return this.handleResponse(response);
@@ -593,7 +595,7 @@ class ApiService {
     
     const response = await fetch(finalUrl, {
       method: 'GET',
-      headers: this.getHeaders(),
+      headers: this.getHeaders(true, false),
     });
     
     return this.handleResponse(response);

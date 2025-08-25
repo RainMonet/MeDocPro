@@ -644,8 +644,7 @@ const PatientCensusCard = ({
       // Load patient census data
       const response = await fetch(`${apiService.baseURL}/api/patient-census/today`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       });
 

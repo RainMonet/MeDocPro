@@ -99,6 +99,169 @@ def get_ai_enhancement_status():
             'ai_enhancement_available': False
         }), 500
 
+@document_generation_bp.route('/test-pdf-download', methods=['POST'])
+def test_pdf_download():
+    """Test the PDF download functionality with sample data"""
+    try:
+        # Create sample document data
+        sample_docs = [
+            {
+                'patient_name': 'Test Patient',
+                'patient_id': 'test123',
+                'room_number': '101',
+                'template_name': 'Test Template', 
+                'populated_content': 'This is a test document content.\n\nIt has multiple paragraphs to test PDF generation.\n\nThis should appear as a proper PDF if everything is working correctly.',
+                'generated_at': '2025-08-25 10:25:00',
+                'ai_enhanced': True
+            }
+        ]
+        
+        # Test the download logic directly
+        import tempfile
+        import zipfile
+        import os
+        from io import BytesIO
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            files_created = []
+            export_format = 'pdf'  # Force PDF format
+            
+            # Test PDF generation logic
+            try:
+                from reportlab.lib.pagesizes import letter, A4
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                from reportlab.lib.units import inch
+                from reportlab.lib.enums import TA_LEFT, TA_CENTER
+                
+                current_app.logger.info("✅ ReportLab successfully imported in test")
+                pdf_available = True
+            except ImportError as e:
+                current_app.logger.error(f"❌ ReportLab import failed in test: {e}")
+                pdf_available = False
+            except Exception as e:
+                current_app.logger.error(f"❌ Unexpected error importing ReportLab in test: {e}")
+                pdf_available = False
+            
+            for doc in sample_docs:
+                if pdf_available:
+                    filename = f"test_document.pdf"
+                    filepath = os.path.join(temp_dir, filename)
+                    
+                    # Create PDF document using the same logic as the main function
+                    pdf_doc = SimpleDocTemplate(
+                        filepath,
+                        pagesize=letter,
+                        rightMargin=72,
+                        leftMargin=72,
+                        topMargin=72,
+                        bottomMargin=18
+                    )
+                    
+                    # Get styles
+                    styles = getSampleStyleSheet()
+                    
+                    # Custom styles for medical documents
+                    title_style = ParagraphStyle(
+                        'CustomTitle',
+                        parent=styles['Heading1'],
+                        fontSize=16,
+                        textColor='#2c3e50',
+                        alignment=TA_CENTER,
+                        spaceAfter=20
+                    )
+                    
+                    # Build PDF content
+                    story = []
+                    story.append(Paragraph("Test PDF Generation", title_style))
+                    story.append(Spacer(1, 20))
+                    story.append(Paragraph("This is a test PDF to verify the generation is working.", styles['Normal']))
+                    
+                    # Build PDF
+                    try:
+                        pdf_doc.build(story)
+                        current_app.logger.info(f"✅ Successfully generated test PDF")
+                        
+                        # Check file size
+                        file_size = os.path.getsize(filepath)
+                        current_app.logger.info(f"📊 Test PDF file size: {file_size} bytes")
+                        
+                        files_created.append((filepath, filename))
+                        
+                    except Exception as pdf_error:
+                        current_app.logger.error(f"❌ PDF generation error in test: {pdf_error}")
+                        return jsonify({
+                            'success': False,
+                            'message': f'PDF generation failed: {pdf_error}',
+                            'pdf_available': pdf_available
+                        })
+                
+            if files_created:
+                return jsonify({
+                    'success': True,
+                    'message': f'Successfully created {len(files_created)} PDF files',
+                    'files': [f[1] for f in files_created],  # Just filenames
+                    'pdf_available': pdf_available
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'No files were created',
+                    'pdf_available': pdf_available
+                })
+                
+    except Exception as e:
+        current_app.logger.error(f"Test PDF download error: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Test failed: {e}'
+        })
+
+@document_generation_bp.route('/test-pdf-generation', methods=['GET'])
+def test_pdf_generation():
+    """Test PDF generation capability without authentication"""
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Paragraph
+        from reportlab.lib.styles import getSampleStyleSheet
+        import tempfile
+        import os
+        
+        # Create a test PDF
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_file:
+            doc = SimpleDocTemplate(tmp_file.name, pagesize=letter)
+            styles = getSampleStyleSheet()
+            story = [Paragraph("Test PDF Generation - MeDocPro", styles['Title'])]
+            doc.build(story)
+            
+            # Check if file was created and has content
+            if os.path.exists(tmp_file.name) and os.path.getsize(tmp_file.name) > 0:
+                os.unlink(tmp_file.name)  # Clean up
+                return jsonify({
+                    'success': True,
+                    'message': 'PDF generation is working correctly',
+                    'reportlab_available': True
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'PDF file was not created properly',
+                    'reportlab_available': True
+                })
+                
+    except ImportError as e:
+        return jsonify({
+            'success': False,
+            'message': f'ReportLab not available: {e}',
+            'reportlab_available': False
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'PDF generation error: {e}',
+            'reportlab_available': True
+        })
+
 @document_generation_bp.route('/test-ai-enhancement', methods=['POST'])
 @jwt_required()
 def test_ai_enhancement():
@@ -1035,7 +1198,7 @@ def generate_batch_documents():
             'error': f'Failed to generate documents: {str(e)}'
         }), 500
 
-@document_generation_bp.route('/generate-documents/<batch_id>/download', methods=['GET'])
+@document_generation_bp.route('/generate-documents/<batch_id>/download', methods=['GET', 'POST'])
 @jwt_required()
 def download_batch_documents(batch_id):
     """Download generated documents as a zip file"""
@@ -1050,23 +1213,47 @@ def download_batch_documents(batch_id):
         # Get user ID for security
         current_user_id = get_jwt_identity()
         
-        # Get query parameters for format and document data
-        export_format = request.args.get('format', 'individual')
-        documents_json = request.args.get('documents')
-        
-        if not documents_json:
-            return jsonify({
-                'success': False,
-                'error': 'Document data is required for download'
-            }), 400
-        
-        try:
-            documents = json.loads(documents_json)
-        except json.JSONDecodeError:
-            return jsonify({
-                'success': False,
-                'error': 'Invalid document data format'
-            }), 400
+        # Handle both GET (legacy with URL params) and POST (with request body) methods
+        if request.method == 'POST':
+            # POST request - get data from request body
+            data = request.get_json()
+            if not data:
+                return jsonify({
+                    'success': False,
+                    'error': 'Request body is required for POST requests'
+                }), 400
+            
+            export_format = data.get('format', 'individual')
+            documents = data.get('documents')
+            
+            current_app.logger.info(f"🔍 POST Request - Export format requested: '{export_format}', Documents: {len(documents) if documents else 0}")
+            
+            if not documents:
+                return jsonify({
+                    'success': False,
+                    'error': 'Documents data is required'
+                }), 400
+        else:
+            # GET request - get data from query parameters (legacy support)
+            export_format = request.args.get('format', 'individual')
+            documents_json = request.args.get('documents')
+            
+            current_app.logger.info(f"🔍 GET Request - Export format requested: '{export_format}'")
+            
+            if not documents_json:
+                return jsonify({
+                    'success': False,
+                    'error': 'Document data is required for download'
+                }), 400
+            
+            try:
+                documents = json.loads(documents_json)
+                current_app.logger.info(f"🔍 GET Request - Parsed {len(documents)} documents")
+            except json.JSONDecodeError:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid document data format'
+                }), 400
         
         if not documents:
             return jsonify({
@@ -1074,7 +1261,7 @@ def download_batch_documents(batch_id):
                 'error': 'No documents to download'
             }), 400
         
-        current_app.logger.info(f"Starting download for batch {batch_id} with {len(documents)} documents in {export_format} format")
+        current_app.logger.info(f"🚀 Starting download for batch {batch_id} with {len(documents)} documents in '{export_format}' format")
         
         # Create a temporary directory for files
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1104,23 +1291,146 @@ def download_batch_documents(batch_id):
                 files_created.append((combined_path, combined_filename))
                 
             elif export_format == 'pdf':
-                # For PDF export, create text files (PDF generation would require additional libraries)
+                # Generate actual PDF files using reportlab
+                try:
+                    from reportlab.lib.pagesizes import letter, A4
+                    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+                    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                    from reportlab.lib.units import inch
+                    from reportlab.lib.enums import TA_LEFT, TA_CENTER
+                    
+                    current_app.logger.info("✅ ReportLab successfully imported - generating PDF documents")
+                    pdf_available = True
+                except ImportError as e:
+                    current_app.logger.error(f"❌ ReportLab import failed for PDF generation: {e}")
+                    current_app.logger.info("Falling back to text file generation for PDF export")
+                    pdf_available = False
+                except Exception as e:
+                    current_app.logger.error(f"❌ Unexpected error importing ReportLab: {e}")
+                    pdf_available = False
+                
+                current_app.logger.info(f"🔄 Processing {len(documents)} documents with pdf_available={pdf_available}")
+                
                 for doc in documents:
                     safe_patient_name = "".join(c for c in doc.get('patient_name', 'Unknown') if c.isalnum() or c in (' ', '-', '_')).strip()
                     safe_template_name = "".join(c for c in doc.get('template_name', 'Document') if c.isalnum() or c in (' ', '-', '_')).strip()
                     
-                    filename = f"{safe_template_name}_{safe_patient_name}_{doc.get('patient_id', 'unknown')}.txt"
-                    filepath = os.path.join(temp_dir, filename)
+                    current_app.logger.info(f"📄 Processing document for patient: {doc.get('patient_name', 'Unknown')}")
                     
-                    with open(filepath, 'w', encoding='utf-8') as doc_file:
-                        doc_file.write(f"Template: {doc.get('template_name', 'Unknown Template')}\n")
-                        doc_file.write(f"Patient: {doc.get('patient_name', 'Unknown Patient')}\n")
-                        doc_file.write(f"Room: {doc.get('room_number', 'N/A')}\n")
-                        doc_file.write(f"Generated: {doc.get('generated_at', 'Unknown')}\n")
+                    if pdf_available:
+                        filename = f"{safe_template_name}_{safe_patient_name}_{doc.get('patient_id', 'unknown')}.pdf"
+                        filepath = os.path.join(temp_dir, filename)
+                        current_app.logger.info(f"📋 Creating PDF file: {filename}")
+                    else:
+                        # Fallback to text files
+                        filename = f"{safe_template_name}_{safe_patient_name}_{doc.get('patient_id', 'unknown')}.txt"
+                        filepath = os.path.join(temp_dir, filename)
+                        current_app.logger.info(f"📄 Creating TEXT file (fallback): {filename}")
+                    
+                    if pdf_available:
+                        # Create PDF document
+                        pdf_doc = SimpleDocTemplate(
+                            filepath,
+                            pagesize=letter,
+                            rightMargin=72,
+                            leftMargin=72,
+                            topMargin=72,
+                            bottomMargin=18
+                        )
+                        
+                        # Get styles
+                        styles = getSampleStyleSheet()
+                        
+                        # Custom styles for medical documents
+                        title_style = ParagraphStyle(
+                            'CustomTitle',
+                            parent=styles['Heading1'],
+                            fontSize=16,
+                            textColor='#2c3e50',
+                            alignment=TA_CENTER,
+                            spaceAfter=20
+                        )
+                        
+                        header_style = ParagraphStyle(
+                            'CustomHeader',
+                            parent=styles['Heading2'],
+                            fontSize=12,
+                            textColor='#34495e',
+                            spaceBefore=10,
+                            spaceAfter=6
+                        )
+                        
+                        body_style = ParagraphStyle(
+                            'CustomBody',
+                            parent=styles['Normal'],
+                            fontSize=11,
+                            leading=14,
+                            textColor='#2c3e50',
+                            alignment=TA_LEFT,
+                            leftIndent=0,
+                            rightIndent=0
+                        )
+                        
+                        # Build PDF content
+                        story = []
+                        
+                        # Title
+                        story.append(Paragraph(doc.get('template_name', 'Clinical Document'), title_style))
+                        story.append(Spacer(1, 20))
+                        
+                        # Patient information header
+                        patient_info = f"""
+                        <b>Patient:</b> {doc.get('patient_name', 'Unknown Patient')}<br/>
+                        <b>Room:</b> {doc.get('room_number', 'N/A')}<br/>
+                        <b>Date Generated:</b> {doc.get('generated_at', 'Unknown')}<br/>
+                        """
                         if doc.get('ai_enhanced'):
-                            doc_file.write("AI Enhanced: Yes\n")
-                        doc_file.write("=" * 60 + "\n\n")
-                        doc_file.write(doc.get('populated_content', doc.get('content', 'No content available')))
+                            patient_info += "<b>AI Enhanced:</b> Yes<br/>"
+                        
+                        story.append(Paragraph(patient_info, header_style))
+                        story.append(Spacer(1, 20))
+                        
+                        # Document content
+                        content = doc.get('populated_content', doc.get('content', 'No content available'))
+                        
+                        # Handle line breaks and formatting in content
+                        content_paragraphs = content.split('\n\n')
+                        for para in content_paragraphs:
+                            if para.strip():
+                                # Handle single line breaks within paragraphs
+                                formatted_para = para.replace('\n', '<br/>')
+                                story.append(Paragraph(formatted_para, body_style))
+                                story.append(Spacer(1, 12))
+                        
+                        # Build PDF
+                        try:
+                            pdf_doc.build(story)
+                            current_app.logger.info(f"Successfully generated PDF for {doc.get('patient_name', 'Unknown')}")
+                        except Exception as pdf_error:
+                            current_app.logger.error(f"PDF generation error for {doc.get('patient_name', 'Unknown')}: {pdf_error}")
+                            # If PDF generation fails, create a text file instead
+                            filename = f"{safe_template_name}_{safe_patient_name}_{doc.get('patient_id', 'unknown')}.txt"
+                            filepath = os.path.join(temp_dir, filename)
+                            with open(filepath, 'w', encoding='utf-8') as doc_file:
+                                doc_file.write(f"Template: {doc.get('template_name', 'Unknown Template')}\n")
+                                doc_file.write(f"Patient: {doc.get('patient_name', 'Unknown Patient')}\n")
+                                doc_file.write(f"Room: {doc.get('room_number', 'N/A')}\n")
+                                doc_file.write(f"Generated: {doc.get('generated_at', 'Unknown')}\n")
+                                if doc.get('ai_enhanced'):
+                                    doc_file.write("AI Enhanced: Yes\n")
+                                doc_file.write("=" * 60 + "\n\n")
+                                doc_file.write(doc.get('populated_content', doc.get('content', 'No content available')))
+                    else:
+                        # Fallback to text file generation
+                        with open(filepath, 'w', encoding='utf-8') as doc_file:
+                            doc_file.write(f"Template: {doc.get('template_name', 'Unknown Template')}\n")
+                            doc_file.write(f"Patient: {doc.get('patient_name', 'Unknown Patient')}\n")
+                            doc_file.write(f"Room: {doc.get('room_number', 'N/A')}\n")
+                            doc_file.write(f"Generated: {doc.get('generated_at', 'Unknown')}\n")
+                            if doc.get('ai_enhanced'):
+                                doc_file.write("AI Enhanced: Yes\n")
+                            doc_file.write("=" * 60 + "\n\n")
+                            doc_file.write(doc.get('populated_content', doc.get('content', 'No content available')))
                     
                     files_created.append((filepath, filename))
                     

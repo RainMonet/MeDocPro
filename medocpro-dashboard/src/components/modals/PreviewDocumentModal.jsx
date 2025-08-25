@@ -19,9 +19,9 @@ const getThemeStyles = (theme = 'dark') => ({
 const FormatSelector = ({ value, onChange, theme }) => {
   const styles = getThemeStyles(theme);
   const formats = [
-    { value: 'individual', label: 'Individual Files', description: 'One .doc file per patient' },
-    { value: 'combined', label: 'Combined File', description: 'All notes in one .doc file' },
-    { value: 'pdf', label: 'PDF Export', description: 'Formatted PDF documents' }
+    { value: 'individual', label: 'Individual Files', description: 'One .txt file per patient' },
+    { value: 'combined', label: 'Combined File', description: 'All notes in one .txt file' },
+    { value: 'pdf', label: 'PDF Export', description: 'Professional PDF documents with formatting' }
   ];
 
   return (
@@ -359,9 +359,8 @@ const DocumentPreview = ({
             }))}
             style={{
               width: '100%',
-              flex: 1,
-              minHeight: '300px',
-              maxHeight: '60vh',
+              minHeight: '500px', // Increased minimum height for better initial view
+              height: `${Math.max(500, (editedDocuments[selectedDoc] || '').split('\n').length * 24 + 50)}px`, // Dynamic height based on content
               fontFamily: 'Georgia, serif',
               fontSize: '14px',
               lineHeight: '1.6',
@@ -370,9 +369,10 @@ const DocumentPreview = ({
               border: `1px solid ${styles.borderColor}`,
               borderRadius: '4px',
               padding: '12px',
-              resize: 'none',
+              resize: 'vertical', // Allow vertical resizing for user control
               outline: 'none',
-              overflow: 'auto'
+              overflow: 'auto', // Enable scrolling within textarea
+              boxSizing: 'border-box' // Ensure padding is included in height calculation
             }}
             placeholder="Enter document content..."
           />
@@ -565,10 +565,9 @@ const PreviewDocumentModal = ({
           content: editedDocuments[index] || doc.populated_content || doc.content
         }));
 
-        // Prepare download URL with updated documents data
+        // Prepare download request with documents data in request body
         const apiBaseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-        const documentsParam = encodeURIComponent(JSON.stringify(updatedDocuments));
-        const downloadUrl = `${apiBaseURL}/api/generate-documents/${batchInfo.batchId || 'unknown'}/download?format=${outputFormat}&documents=${documentsParam}`;
+        const downloadUrl = `${apiBaseURL}/api/generate-documents/${batchInfo.batchId || 'unknown'}/download`;
         
         console.log('Starting document download...', {
           batchId: batchInfo.batchId,
@@ -576,19 +575,18 @@ const PreviewDocumentModal = ({
           documentCount: documents.length
         });
 
-        // Create a temporary link to trigger download
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.target = '_blank';
-        
-        // Add authorization header by fetching the file and creating a blob URL
+        // Use POST request with document data in body to avoid URL length limits
         try {
           const response = await fetch(downloadUrl, {
-            method: 'GET',
+            method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({
+              format: outputFormat,
+              documents: updatedDocuments
+            })
           });
 
           if (!response.ok) {
@@ -634,8 +632,7 @@ const PreviewDocumentModal = ({
         alert(`📧 Email functionality coming soon!\n\nFor now, please use the download option and send the files manually.\nRecipients would receive ${documents.length} document(s).`);
       }
       
-      // Close modal after successful export
-      onClose();
+      // Keep modal open after successful export so user can continue editing or finalizing
     } catch (error) {
       console.error('Export error:', error);
       
@@ -795,8 +792,8 @@ const PreviewDocumentModal = ({
 
       // Show results
       if (successCount > 0 && errorCount === 0) {
-        alert(`✅ All ${successCount} documents finalized successfully!\n\nDocuments are now saved in your Recent Documents and will be available for 7 days for backup download.`);
-        onClose(); // Close modal on complete success
+        alert(`✅ All ${successCount} documents finalized successfully!\n\nDocuments are now saved in your Recent Documents and will be available for 7 days for backup download.\n\nModal will remain open so you can continue editing or export if needed.`);
+        // Keep modal open so user can continue working or export documents
       } else if (successCount > 0 && errorCount > 0) {
         alert(`⚠️ Finalization completed with some issues:\n\n✅ Successfully finalized: ${successCount} documents\n❌ Failed: ${errorCount} documents\n\nErrors:\n${errors.slice(0, 3).join('\n')}${errors.length > 3 ? '\n...' : ''}`);
       } else {
@@ -917,7 +914,7 @@ const PreviewDocumentModal = ({
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            overflow: 'hidden'
+            overflow: 'visible' // Allow content to expand and be scrollable
           }}>
             <label style={{
               display: 'block',

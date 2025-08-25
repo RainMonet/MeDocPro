@@ -868,8 +868,7 @@ const DailyInfoEntryModal = ({ isOpen, onClose, theme = 'dark' }) => {
         const response = await fetch(`${apiService.baseURL}/api/templates/top-used`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           }
         });
         
@@ -929,8 +928,7 @@ const DailyInfoEntryModal = ({ isOpen, onClose, theme = 'dark' }) => {
           
           const response = await fetch(`http://localhost:5000/api/templates/${selectedTemplate.id}`, {
             headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
+              'Authorization': `Bearer ${token}`
             }
           });
           
@@ -980,8 +978,7 @@ const DailyInfoEntryModal = ({ isOpen, onClose, theme = 'dark' }) => {
       try {
         const censusResponse = await fetch(`${apiService.baseURL}/api/patient-census/today`, {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Authorization': `Bearer ${token}`
           }
         });
         
@@ -1014,8 +1011,7 @@ const DailyInfoEntryModal = ({ isOpen, onClose, theme = 'dark' }) => {
       try {
         const todayResponse = await fetch(`${apiService.baseURL}/api/daily-info/today`, {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Authorization': `Bearer ${token}`
           }
         });
         
@@ -2366,8 +2362,7 @@ const DailyInfoEntryModal = ({ isOpen, onClose, theme = 'dark' }) => {
                     
                     const response = await fetch(`${apiService.baseURL}/api/daily-info/today`, {
                       headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+                        'Authorization': `Bearer ${token}`
                       }
                     });
                     

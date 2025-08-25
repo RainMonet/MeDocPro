@@ -60,8 +60,7 @@ const TemplateSelector = ({ onSelect, theme }) => {
         const response = await fetch(`${apiService.baseURL}/api/templates`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           }
         });
         
@@ -72,11 +71,11 @@ const TemplateSelector = ({ onSelect, theme }) => {
           setTemplates(allTemplates);
         } else {
           console.error('Failed to load templates');
-          // Fallback to default templates
+          // Fallback to default templates (using actual database IDs)
           setTemplates([
-            { id: 1, name: 'Assessment', category: 'assessment' },
-            { id: 2, name: 'Discharge Summary', category: 'discharge' },
-            { id: 3, name: 'Initial Evaluation', category: 'evaluation' },
+            { id: 6, name: 'Daily Progress Note', category: 'progress' },
+            { id: 8, name: 'Initial Assessment', category: 'assessment' },
+            { id: 9, name: 'Discharge Summary', category: 'discharge' },
             { id: 4, name: 'Progress Note', category: 'progress' },
             { id: 5, name: 'Treatment Plan', category: 'treatment' },
             { id: 6, name: 'Crisis Assessment', category: 'crisis' },
@@ -411,35 +410,22 @@ const BatchDocumentationCard = ({
         controller.abort();
       }, 180000); // 3 minute timeout for multiple documents
       
-      const response = await fetch(`${apiService.baseURL}/api/generate-documents`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          template: selectedTemplate,
-          patients: selectedPatients,
-          exportFormat,
-          aiEnhancement,
-          computeMode
-        }),
-        signal: controller.signal
+      const response = await apiService.post('/api/generate-documents', {
+        template: selectedTemplate,
+        patients: selectedPatients,
+        exportFormat,
+        aiEnhancement,
+        computeMode
       });
       
       clearTimeout(timeoutId);
       clearInterval(progressInterval);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
-      }
-
       // Complete progress and show completion status
       setProgress({ current: selectedPatients.length, total: selectedPatients.length });
       setProgressStatus('Processing results...');
 
-      const finalResult = await response.json();
+      const finalResult = response;
       console.log('🎉 Generation completed:', finalResult);
       
       if (finalResult.ai_enhancement_used) {
