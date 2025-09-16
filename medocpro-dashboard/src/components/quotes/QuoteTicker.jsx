@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './QuoteTicker.css';
 
 const QuoteTicker = ({ showInHeader = false }) => {
   const [quotes, setQuotes] = useState([]);
@@ -9,6 +10,7 @@ const QuoteTicker = ({ showInHeader = false }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [isScrolling, setIsScrolling] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [scrollSpeed, setScrollSpeed] = useState('normal');
 
   // Default inspirational quotes
   const defaultQuotes = [
@@ -21,23 +23,53 @@ const QuoteTicker = ({ showInHeader = false }) => {
 
   // Load quotes and settings from localStorage
   useEffect(() => {
-    const savedQuotes = localStorage.getItem('quoteTicker_quotes');
-    const savedEnabled = localStorage.getItem('quoteTicker_enabled');
-    
-    if (savedQuotes) {
-      try {
-        const parsed = JSON.parse(savedQuotes);
-        setQuotes(parsed.length > 0 ? parsed : defaultQuotes);
-      } catch (e) {
+    const loadSettings = () => {
+      console.log('🎯 Loading QuoteTicker settings from localStorage...');
+      
+      const savedQuotes = localStorage.getItem('quoteTicker_quotes');
+      const savedEnabled = localStorage.getItem('quoteTicker_enabled');
+      const savedSpeed = localStorage.getItem('quoteTicker_scrollSpeed');
+      
+      console.log('📚 Saved settings found:', {
+        quotes: !!savedQuotes,
+        enabled: savedEnabled,
+        speed: savedSpeed
+      });
+      
+      if (savedQuotes) {
+        try {
+          const parsed = JSON.parse(savedQuotes);
+          setQuotes(parsed.length > 0 ? parsed : defaultQuotes);
+        } catch (e) {
+          console.error('❌ Failed to parse saved quotes, using defaults');
+          setQuotes(defaultQuotes);
+        }
+      } else {
         setQuotes(defaultQuotes);
       }
-    } else {
-      setQuotes(defaultQuotes);
-    }
+      
+      if (savedEnabled !== null) {
+        const enabledValue = savedEnabled === 'true';
+        console.log('✅ Setting enabled to:', enabledValue);
+        setIsEnabled(enabledValue);
+      }
+      
+      if (savedSpeed) {
+        console.log('🏃 Setting speed to:', savedSpeed);
+        setScrollSpeed(savedSpeed);
+      } else {
+        console.log('🏃 No saved speed found, using default: normal');
+        setScrollSpeed('normal');
+      }
+    };
+
+    // Load immediately
+    loadSettings();
     
-    if (savedEnabled !== null) {
-      setIsEnabled(savedEnabled === 'true');
-    }
+    // Also load after a short delay to handle any timing issues
+    const timeoutId = setTimeout(loadSettings, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, []);
 
   // Save quotes to localStorage
@@ -51,6 +83,30 @@ const QuoteTicker = ({ showInHeader = false }) => {
   useEffect(() => {
     localStorage.setItem('quoteTicker_enabled', isEnabled.toString());
   }, [isEnabled]);
+
+  // Save scroll speed
+  useEffect(() => {
+    console.log('💾 Saving scroll speed to localStorage:', scrollSpeed);
+    localStorage.setItem('quoteTicker_scrollSpeed', scrollSpeed);
+  }, [scrollSpeed]);
+
+  // Additional check to ensure scroll speed is properly loaded
+  useEffect(() => {
+    const checkScrollSpeed = () => {
+      const currentStoredSpeed = localStorage.getItem('quoteTicker_scrollSpeed');
+      if (currentStoredSpeed && currentStoredSpeed !== scrollSpeed) {
+        console.log('🔄 Scroll speed sync correction - stored:', currentStoredSpeed, 'state:', scrollSpeed);
+        setScrollSpeed(currentStoredSpeed);
+      }
+    };
+
+    // Check periodically for the first few seconds
+    const intervals = [100, 500, 1000, 2000].map(delay => 
+      setTimeout(checkScrollSpeed, delay)
+    );
+
+    return () => intervals.forEach(clearTimeout);
+  }, [scrollSpeed]);
 
   // Listen for storage changes to sync state across components
   useEffect(() => {
@@ -66,13 +122,19 @@ const QuoteTicker = ({ showInHeader = false }) => {
           console.error('Failed to parse updated quotes:', error);
         }
       }
+      if (e.key === 'quoteTicker_scrollSpeed') {
+        setScrollSpeed(e.newValue || 'normal');
+      }
     };
 
     const handleCustomSettingsChange = (e) => {
-      const { enabled, quotes: updatedQuotes } = e.detail;
+      const { enabled, quotes: updatedQuotes, scrollSpeed: newScrollSpeed } = e.detail;
       setIsEnabled(enabled);
       if (updatedQuotes && updatedQuotes.length > 0) {
         setQuotes(updatedQuotes);
+      }
+      if (newScrollSpeed) {
+        setScrollSpeed(newScrollSpeed);
       }
     };
 
@@ -152,6 +214,54 @@ const QuoteTicker = ({ showInHeader = false }) => {
     }, 400);
   };
 
+  // Function to get animation duration based on speed setting and quote length
+  const getAnimationStyle = (quoteText, authorText) => {
+    const totalLength = quoteText.length + authorText.length;
+    
+    // Base durations for different quote lengths
+    let longDuration, mediumDuration, shortDuration;
+    
+    switch (scrollSpeed) {
+      case 'very-slow':
+        longDuration = 60;  // Was 25s
+        mediumDuration = 45; // Was 20s  
+        shortDuration = 12;  // Was 6s
+        break;
+      case 'slow':
+        longDuration = 45;  // Was 25s
+        mediumDuration = 30; // Was 20s
+        shortDuration = 9;   // Was 6s
+        break;
+      case 'normal':
+        longDuration = 25;  // Original
+        mediumDuration = 20; // Original
+        shortDuration = 6;   // Original
+        break;
+      case 'fast':
+        longDuration = 15;  // Faster than original
+        mediumDuration = 12; // Faster than original
+        shortDuration = 4;   // Faster than original
+        break;
+      case 'very-fast':
+        longDuration = 8;   // Much faster
+        mediumDuration = 6;  // Much faster
+        shortDuration = 2;   // Much faster
+        break;
+      default:
+        longDuration = 25;
+        mediumDuration = 20;
+        shortDuration = 6;
+    }
+
+    if (totalLength > 80) {
+      return `scroll-text ${longDuration}s linear infinite`;
+    } else if (totalLength > 50) {
+      return `scroll-text ${mediumDuration}s linear infinite`;
+    } else {
+      return `quote-fade-cycle ${shortDuration}s ease-in-out infinite`;
+    }
+  };
+
   if (!isEnabled) return null;
 
   const currentQuote = quotes[currentQuoteIndex];
@@ -186,19 +296,7 @@ const QuoteTicker = ({ showInHeader = false }) => {
                 lineHeight: '1.4',
                 whiteSpace: 'nowrap',
                 display: 'inline-block',
-                animation: (() => {
-                  const totalLength = currentQuote.text.length + currentQuote.author.length;
-                  if (totalLength > 80) {
-                    // Long quotes: slower scrolling (25s instead of 12s)
-                    return 'scroll-text 25s linear infinite';
-                  } else if (totalLength > 50) {
-                    // Medium quotes: moderate scrolling
-                    return 'scroll-text 20s linear infinite';
-                  } else {
-                    // Short quotes: gentle fade in/out instead of scrolling
-                    return 'quote-fade-cycle 6s ease-in-out infinite';
-                  }
-                })(),
+                animation: getAnimationStyle(currentQuote.text, currentQuote.author),
                 paddingRight: currentQuote.text.length + currentQuote.author.length > 50 ? '20px' : '0', // Only add padding for scrolling quotes
                 opacity: isTransitioning ? 0 : 1,
                 transition: 'opacity 0.4s ease-in-out',
@@ -368,22 +466,44 @@ export const QuoteTickerSettings = ({ onClose }) => {
   const [newQuote, setNewQuote] = useState('');
   const [newAuthor, setNewAuthor] = useState('');
   const [isEnabled, setIsEnabled] = useState(true);
+  const [scrollSpeed, setScrollSpeed] = useState('normal');
 
   // Load data on mount
   useEffect(() => {
+    console.log('🛠️ Loading QuoteTicker Settings modal data...');
+    
     const savedQuotes = localStorage.getItem('quoteTicker_quotes');
     const savedEnabled = localStorage.getItem('quoteTicker_enabled');
+    const savedSpeed = localStorage.getItem('quoteTicker_scrollSpeed');
+    
+    console.log('⚙️ Settings modal found:', {
+      quotes: !!savedQuotes,
+      enabled: savedEnabled,
+      speed: savedSpeed
+    });
     
     if (savedQuotes) {
       try {
         setQuotes(JSON.parse(savedQuotes));
       } catch (e) {
+        console.error('❌ Settings modal: Failed to parse saved quotes');
         setQuotes([]);
       }
     }
     
     if (savedEnabled !== null) {
-      setIsEnabled(savedEnabled === 'true');
+      const enabledValue = savedEnabled === 'true';
+      console.log('⚙️ Settings modal: Setting enabled to:', enabledValue);
+      setIsEnabled(enabledValue);
+    }
+    
+    if (savedSpeed) {
+      console.log('⚙️ Settings modal: Setting speed to:', savedSpeed);
+      setScrollSpeed(savedSpeed);
+    } else {
+      console.log('⚙️ Settings modal: No saved speed, using default: normal');
+      // Explicitly set to normal if no speed is saved
+      setScrollSpeed('normal');
     }
   }, []);
 
@@ -402,7 +522,7 @@ export const QuoteTickerSettings = ({ onClose }) => {
     
     // Dispatch custom event to notify other components immediately
     window.dispatchEvent(new CustomEvent('quoteTickerSettingsChange', {
-      detail: { enabled: isEnabled, quotes: updatedQuotes }
+      detail: { enabled: isEnabled, quotes: updatedQuotes, scrollSpeed: scrollSpeed }
     }));
     
     setNewQuote('');
@@ -416,7 +536,7 @@ export const QuoteTickerSettings = ({ onClose }) => {
     
     // Dispatch custom event to notify other components immediately
     window.dispatchEvent(new CustomEvent('quoteTickerSettingsChange', {
-      detail: { enabled: isEnabled, quotes: updatedQuotes }
+      detail: { enabled: isEnabled, quotes: updatedQuotes, scrollSpeed: scrollSpeed }
     }));
   };
 
@@ -427,8 +547,21 @@ export const QuoteTickerSettings = ({ onClose }) => {
     
     // Dispatch custom event to notify other components immediately
     window.dispatchEvent(new CustomEvent('quoteTickerSettingsChange', {
-      detail: { enabled: newEnabled, quotes: quotes }
+      detail: { enabled: newEnabled, quotes: quotes, scrollSpeed: scrollSpeed }
     }));
+  };
+
+  const handleSpeedChange = (newSpeed) => {
+    console.log('🎛️ Settings modal: Speed changed to:', newSpeed);
+    setScrollSpeed(newSpeed);
+    localStorage.setItem('quoteTicker_scrollSpeed', newSpeed);
+    console.log('💾 Settings modal: Speed saved to localStorage');
+    
+    // Dispatch custom event to notify other components immediately
+    window.dispatchEvent(new CustomEvent('quoteTickerSettingsChange', {
+      detail: { enabled: isEnabled, quotes: quotes, scrollSpeed: newSpeed }
+    }));
+    console.log('📡 Settings modal: Speed change event dispatched');
   };
 
   return (
@@ -535,6 +668,48 @@ export const QuoteTickerSettings = ({ onClose }) => {
             }} />
           </div>
         </div>
+
+        {/* Scroll Speed Control */}
+        {isEnabled && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 16px',
+            backgroundColor: 'var(--bg-secondary)',
+            borderRadius: '8px',
+            marginBottom: '20px'
+          }}>
+            <div>
+              <div style={{ color: 'var(--text-primary)', fontWeight: '500' }}>
+                Scrolling Speed
+              </div>
+              <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                How fast quotes scroll across the screen
+              </div>
+            </div>
+            <select
+              value={scrollSpeed}
+              onChange={(e) => handleSpeedChange(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                backgroundColor: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+                fontSize: '14px',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+            >
+              <option value="very-slow">Very Slow</option>
+              <option value="slow">Slow</option>
+              <option value="normal">Normal</option>
+              <option value="fast">Fast</option>
+              <option value="very-fast">Very Fast</option>
+            </select>
+          </div>
+        )}
 
         {isEnabled && (
           <>
