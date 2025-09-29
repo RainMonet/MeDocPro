@@ -518,7 +518,7 @@ const BatchDocumentationCard = ({
       const token = localStorage.getItem('token');
       if (!token) return;
       
-      const response = await fetch(`${apiService.baseURL}/api/ai-enhancement-status`, {
+      const response = await fetch(`${apiService.baseURL}/api/ai/ai-enhancement-status`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -530,11 +530,11 @@ const BatchDocumentationCard = ({
         const status = await response.json();
         setAiEnhancementAvailable(status.ai_enhancement_available);
         
-        if (status.circuit_breaker_active) {
-          const minutesLeft = Math.ceil(status.time_until_retry / 60);
+        if (status.circuit_breaker && status.circuit_breaker.active) {
+          const minutesLeft = Math.ceil((status.circuit_breaker.time_until_retry || 0) / 60);
           setAiStatusMessage(`Temporarily disabled (${minutesLeft}m remaining)`);
-        } else if (!status.ollama_available) {
-          setAiStatusMessage('AI service unavailable');
+        } else if (status.status !== 'available') {
+          setAiStatusMessage(status.error_message || 'AI service unavailable');
         } else {
           setAiStatusMessage('');
         }

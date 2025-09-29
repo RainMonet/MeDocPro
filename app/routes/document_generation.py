@@ -17,87 +17,9 @@ ai_enhancement_disabled_until = None
 
 document_generation_bp = Blueprint('document_generation', __name__)
 
-@document_generation_bp.route('/ai-enhancement-status', methods=['GET', 'OPTIONS'])
-@jwt_required(optional=True)
-def get_ai_enhancement_status():
-    """Get current AI enhancement status and availability"""
-    
-    # Handle preflight OPTIONS request for CORS
-    if request.method == 'OPTIONS':
-        from flask import Response
-        response = Response()
-        response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
-        response.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,X-Requested-With'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-        return response
-    
-    try:
-        # Try to use the AI enhancement module's circuit breaker state
-        try:
-            from . import ai_enhancement
-            if hasattr(ai_enhancement, 'check_ai_circuit_breaker'):
-                available, reason = ai_enhancement.check_ai_circuit_breaker()
-                
-                # Get additional details if available
-                failures = getattr(ai_enhancement, '_ai_failures', 0)
-                disabled_until = getattr(ai_enhancement, '_ai_disabled_until', None)
-                
-                circuit_breaker_active = not available
-                time_until_retry = 0
-                
-                if disabled_until and datetime.now() < disabled_until:
-                    time_until_retry = (disabled_until - datetime.now()).total_seconds()
-                
-            else:
-                # Fallback to local state  
-                current_time = datetime.now()
-                circuit_breaker_active = ai_enhancement_disabled_until and current_time < ai_enhancement_disabled_until
-                available = not circuit_breaker_active
-                reason = f"Local circuit breaker active until {ai_enhancement_disabled_until}" if circuit_breaker_active else None
-                failures = ai_enhancement_failures
-                disabled_until = ai_enhancement_disabled_until
-                time_until_retry = (ai_enhancement_disabled_until - current_time).total_seconds() if circuit_breaker_active else 0
-                
-        except ImportError:
-            # Fallback to local state
-            current_time = datetime.now()
-            circuit_breaker_active = ai_enhancement_disabled_until and current_time < ai_enhancement_disabled_until
-            available = not circuit_breaker_active
-            reason = f"Local circuit breaker active until {ai_enhancement_disabled_until}" if circuit_breaker_active else None
-            failures = ai_enhancement_failures
-            disabled_until = ai_enhancement_disabled_until
-            time_until_retry = (ai_enhancement_disabled_until - current_time).total_seconds() if circuit_breaker_active else 0
-        
-        # Test Ollama availability
-        ollama_available = False
-        try:
-            base_url = current_app.config.get('OLLAMA_BASE_URL', 'http://localhost:11434')
-            response = requests.get(f"{base_url}/api/tags", timeout=5)
-            ollama_available = response.status_code == 200
-        except Exception:
-            ollama_available = False
-        
-        final_available = available and ollama_available
-        
-        return jsonify({
-            'success': True,
-            'ai_enhancement_available': final_available,
-            'circuit_breaker_active': circuit_breaker_active,
-            'disabled_until': disabled_until.isoformat() if disabled_until else None,
-            'failure_count': failures,
-            'ollama_available': ollama_available,
-            'time_until_retry': max(0, time_until_retry),
-            'status_reason': reason if not final_available else 'Available'
-        }), 200
-        
-    except Exception as e:
-        current_app.logger.error(f"Error checking AI enhancement status: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'ai_enhancement_available': False
-        }), 500
+# Removed duplicate ai-enhancement-status endpoint
+# This is now handled by the ai_enhancement blueprint at /api/ai/ai-enhancement-status
+# to avoid conflicts and confusion
 
 @document_generation_bp.route('/test-pdf-download', methods=['POST'])
 def test_pdf_download():
@@ -1196,6 +1118,200 @@ def generate_batch_documents():
         return jsonify({
             'success': False,
             'error': f'Failed to generate documents: {str(e)}'
+        }), 500
+
+@document_generation_bp.route('/generate-documents/<batch_id>/google-docs', methods=['POST'])
+@jwt_required()
+def export_to_google_docs(batch_id):
+    """Export generated documents to Google Docs"""
+    try:
+        # Get user ID for security
+        current_user_id = get_jwt_identity()
+        
+        # Get data from request body
+        data = request.get_json()
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'Request body is required'
+            }), 400
+        
+        documents = data.get('documents')
+        google_folder_name = data.get('folderName', f'MeDocPro Export - {datetime.now().strftime("%Y-%m-%d %H:%M")}')
+        
+        current_app.logger.info(f"🔍 Google Docs Export Request - Documents: {len(documents) if documents else 0}")
+        
+        if not documents:
+            return jsonify({
+                'success': False,
+                'error': 'Documents data is required'
+            }), 400
+        
+        # Check if Google Drive credentials are available
+        credentials_path = current_app.config.get('GOOGLE_CREDENTIALS_PATH')
+        if not credentials_path:
+            return jsonify({
+                'success': False,
+                'error': 'Google Drive integration not configured. Please contact your administrator.'
+            }), 400
+        
+        try:
+            # Use the Google Drive helper class
+            from ..utils.google_drive import get_google_drive_instance
+            
+            google_drive = get_google_drive_instance()
+            
+            # Check if Google Drive is configured
+            if not google_drive.is_configured():
+                return jsonify({
+                    'success': False,
+                    'error': 'Google Drive integration not configured. Please contact your administrator.'
+                }), 400
+            
+            # Authenticate with Google Drive
+            auth_success, auth_error = google_drive.authenticate()
+            if not auth_success:
+                return jsonify({
+                    'success': False,
+                    'error': auth_error or 'Google Drive authentication failed'
+                }), 401
+            
+            current_app.logger.info(f"📁 Creating Google Drive folder: {google_folder_name}")
+            
+            # Create a folder for this export
+            folder_success, folder_info, folder_error = google_drive.create_folder(google_folder_name)
+            if not folder_success:
+                return jsonify({
+                    'success': False,
+                    'error': folder_error or 'Failed to create Google Drive folder'
+                }), 500
+            
+            folder_id = folder_info.get('id')
+            folder_link = folder_info.get('webViewLink')
+            current_app.logger.info(f"✅ Created folder: {folder_id}")
+            
+            # Upload each document as a Google Doc
+            uploaded_docs = []
+            successful_count = 0
+            failed_docs = []
+            
+            for i, doc in enumerate(documents):
+                try:
+                    patient_name = doc.get('patient_name', 'Unknown Patient')
+                    template_name = doc.get('template_name', 'Document')
+                    
+                    current_app.logger.info(f"📝 Processing document {i+1}/{len(documents)}: {patient_name}")
+                    
+                    # Create document title
+                    doc_title = f"{template_name} - {patient_name}"
+                    if doc.get('room_number'):
+                        doc_title += f" (Room {doc.get('room_number')})"
+                    
+                    # Prepare document content with header information
+                    content_lines = [
+                        doc_title,
+                        "=" * len(doc_title),
+                        "",
+                        f"Patient: {patient_name}",
+                        f"Room: {doc.get('room_number', 'N/A')}",
+                        f"Generated: {doc.get('generated_at', 'Unknown')}",
+                        f"Template: {template_name}"
+                    ]
+                    
+                    if doc.get('ai_enhanced'):
+                        content_lines.append("AI Enhanced: Yes")
+                    
+                    content_lines.extend([
+                        "",
+                        "-" * 60,
+                        "",
+                        doc.get('populated_content', doc.get('content', 'No content available'))
+                    ])
+                    
+                    full_content = '\n'.join(content_lines)
+                    
+                    current_app.logger.info(f"⬆️ Uploading to Google Docs: {doc_title}")
+                    
+                    # Upload document
+                    upload_success, file_result, upload_error = google_drive.upload_document(
+                        content=full_content,
+                        title=doc_title,
+                        folder_id=folder_id
+                    )
+                    
+                    if upload_success:
+                        uploaded_docs.append({
+                            'patient_name': patient_name,
+                            'document_title': doc_title,
+                            'google_doc_id': file_result.get('id'),
+                            'google_doc_link': file_result.get('webViewLink'),
+                            'folder_id': folder_id
+                        })
+                        successful_count += 1
+                        current_app.logger.info(f"✅ Successfully uploaded: {doc_title}")
+                    else:
+                        raise Exception(upload_error)
+                    
+                except Exception as doc_error:
+                    error_msg = str(doc_error)
+                    current_app.logger.error(f"❌ Failed to upload document for {doc.get('patient_name', 'Unknown')}: {error_msg}")
+                    failed_docs.append({
+                        'patient_name': doc.get('patient_name', 'Unknown'),
+                        'error': error_msg
+                    })
+            
+            # Log audit event
+            log_audit_event(
+                user_id=current_user_id,
+                action='google_docs_export',
+                resource_type='document_export',
+                resource_id=batch_id,
+                details={
+                    'batch_id': batch_id,
+                    'total_documents': len(documents),
+                    'successful_count': successful_count,
+                    'failed_count': len(failed_docs),
+                    'folder_name': google_folder_name,
+                    'folder_id': folder_id
+                }
+            )
+            
+            current_app.logger.info(f"🎉 Google Docs export completed: {successful_count}/{len(documents)} successful")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Successfully exported {successful_count} documents to Google Docs',
+                'results': {
+                    'folder_name': google_folder_name,
+                    'folder_id': folder_id,
+                    'folder_link': folder_link,
+                    'total_documents': len(documents),
+                    'successful_count': successful_count,
+                    'failed_count': len(failed_docs),
+                    'uploaded_documents': uploaded_docs,
+                    'failed_documents': failed_docs
+                }
+            }), 200
+            
+        except ImportError as import_error:
+            current_app.logger.error(f"Google API libraries not available: {import_error}")
+            return jsonify({
+                'success': False,
+                'error': 'Google Drive integration not available. Please install required dependencies.'
+            }), 500
+            
+        except Exception as google_error:
+            current_app.logger.error(f"Google Drive API error: {google_error}")
+            return jsonify({
+                'success': False,
+                'error': f'Google Drive error: {str(google_error)}'
+            }), 500
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in Google Docs export for batch {batch_id}: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to export to Google Docs: {str(e)}'
         }), 500
 
 @document_generation_bp.route('/generate-documents/<batch_id>/download', methods=['GET', 'POST'])

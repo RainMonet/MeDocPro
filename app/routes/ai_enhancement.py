@@ -28,11 +28,19 @@ _ai_session = None
 _session_lock = threading.Lock()
 _session_last_used = None
 
-# AI service circuit breaker
+# AI service circuit breaker - More lenient settings with startup awareness
 _ai_failures = 0
 _ai_disabled_until = None
-_max_failures = 3
-_failure_window = timedelta(minutes=10)
+_max_failures = 6  # Increased from 3 to 6 - less aggressive
+_failure_window = timedelta(minutes=5)  # Reduced from 10 to 5 minutes
+_circuit_breaker_lock = threading.Lock()  # Add proper locking
+
+# Startup detection variables
+_backend_start_time = datetime.now()
+_startup_grace_period = timedelta(minutes=3)  # 3-minute grace period for startup
+_ollama_verified_ready = False
+_ollama_warmup_check_time = None
+_startup_lock = threading.Lock()
 
 # AI request queue and thread pool for async processing
 _ai_thread_pool = None
@@ -99,40 +107,128 @@ def check_ai_circuit_breaker():
     """Check if AI service is available or if circuit breaker is active"""
     global _ai_failures, _ai_disabled_until
     
-    now = datetime.now()
-    
-    # Reset circuit breaker if timeout has passed
-    if _ai_disabled_until and now > _ai_disabled_until:
-        _ai_failures = 0
-        _ai_disabled_until = None
-        current_app.logger.info("AI circuit breaker reset - service available again")
-    
-    # Check if circuit breaker is active
-    if _ai_disabled_until and now < _ai_disabled_until:
-        return False, f"AI service disabled until {_ai_disabled_until.strftime('%H:%M:%S')}"
-    
-    return True, None
+    with _circuit_breaker_lock:  # Add proper locking
+        now = datetime.now()
+        
+        # Reset circuit breaker if timeout has passed
+        if _ai_disabled_until and now > _ai_disabled_until:
+            _ai_failures = 0
+            _ai_disabled_until = None
+            current_app.logger.info("AI circuit breaker reset - service available again")
+        
+        # Check if circuit breaker is active
+        if _ai_disabled_until and now < _ai_disabled_until:
+            minutes_remaining = (_ai_disabled_until - now).total_seconds() / 60
+            return False, f"AI service disabled for {minutes_remaining:.1f} more minutes (failures: {_ai_failures})"
+        
+        return True, None
 
 def record_ai_failure():
-    """Record an AI service failure and activate circuit breaker if needed"""
-    global _ai_failures, _ai_disabled_until
-    
-    _ai_failures += 1
-    current_app.logger.warning(f"AI service failure #{_ai_failures}")
-    
-    # Activate circuit breaker if too many failures
-    if _ai_failures >= _max_failures:
-        _ai_disabled_until = datetime.now() + _failure_window
-        current_app.logger.error(f"AI circuit breaker activated until {_ai_disabled_until.strftime('%H:%M:%S')}")
+    """Record an AI service failure with startup awareness"""
+    record_ai_failure_with_startup_awareness()
 
 def record_ai_success():
     """Record successful AI interaction"""
+    global _ai_failures, _ai_disabled_until, _ollama_verified_ready, _ollama_warmup_check_time
+    
+    with _circuit_breaker_lock:  # Add proper locking
+        # Only reset if we had failures - don't spam logs
+        if _ai_failures > 0 or _ai_disabled_until:
+            previous_failures = _ai_failures
+            _ai_failures = 0
+            _ai_disabled_until = None
+            current_app.logger.info(f"AI service recovered - reset {previous_failures} failures")
+    
+    # Mark Ollama as verified ready on first success
+    with _startup_lock:
+        if not _ollama_verified_ready:
+            _ollama_verified_ready = True
+            _ollama_warmup_check_time = datetime.now()
+            startup_duration = (_ollama_warmup_check_time - _backend_start_time).total_seconds()
+            current_app.logger.info(f"Ollama verified ready after {startup_duration:.1f} seconds")
+
+def is_startup_phase():
+    """Check if we're still in the startup grace period"""
+    with _startup_lock:
+        now = datetime.now()
+        time_since_start = now - _backend_start_time
+        return time_since_start < _startup_grace_period
+
+def is_ollama_verified_ready():
+    """Check if Ollama has been verified as fully ready"""
+    with _startup_lock:
+        return _ollama_verified_ready
+
+def verify_ollama_warmup(session, ollama_url, timeout=30):
+    """
+    Verify that Ollama is not just running but fully warmed up and ready.
+    This includes checking that models are loaded and can respond to requests.
+    """
+    try:
+        # Step 1: Check if models are available
+        response = session.get(f"{ollama_url}/api/tags", timeout=timeout)
+        if response.status_code != 200:
+            return False, f"Models endpoint failed: {response.status_code}"
+        
+        models_data = response.json()
+        models = models_data.get('models', [])
+        if not models:
+            return False, "No models available"
+        
+        # Step 2: Try to ping a model to ensure it's loaded and responsive
+        # Use the first available model for a simple test
+        test_model = models[0].get('name', 'mistral:latest')
+        
+        # Send a minimal generation request to verify model is loaded
+        ping_request = {
+            "model": test_model,
+            "prompt": "Hi",
+            "stream": False,
+            "options": {
+                "num_predict": 1,  # Generate only 1 token
+                "temperature": 0.1
+            }
+        }
+        
+        response = session.post(
+            f"{ollama_url}/api/generate", 
+            json=ping_request, 
+            timeout=timeout
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            # Check if we got a proper response (not an error)
+            if 'response' in result or 'message' in result:
+                return True, f"Model {test_model} ready and responsive"
+            else:
+                return False, f"Model {test_model} returned invalid response format"
+        else:
+            return False, f"Model ping failed: {response.status_code} - {response.text[:100]}"
+            
+    except requests.exceptions.Timeout:
+        return False, f"Warmup verification timeout ({timeout}s)"
+    except Exception as e:
+        return False, f"Warmup verification error: {str(e)[:100]}"
+
+def record_ai_failure_with_startup_awareness():
+    """Record AI failure with startup phase awareness"""
     global _ai_failures, _ai_disabled_until
     
-    if _ai_failures > 0:
-        _ai_failures = 0
-        _ai_disabled_until = None
-        current_app.logger.info("AI service recovered - resetting failure counter")
+    # During startup phase, be more lenient with failures
+    if is_startup_phase():
+        current_app.logger.info(f"AI connection failed during startup grace period (not recording failure)")
+        return
+    
+    # Normal failure recording
+    with _circuit_breaker_lock:
+        _ai_failures += 1
+        current_app.logger.warning(f"AI service failure #{_ai_failures} (max: {_max_failures})")
+        
+        # Activate circuit breaker if too many failures
+        if _ai_failures >= _max_failures:
+            _ai_disabled_until = datetime.now() + _failure_window
+            current_app.logger.error(f"AI circuit breaker activated until {_ai_disabled_until.strftime('%H:%M:%S')} ({_failure_window.total_seconds()/60:.1f} minutes)")
 
 # Enhanced PHI detection patterns
 PHI_PATTERNS = {
@@ -513,8 +609,8 @@ def call_ollama_api(prompt, model, compute_mode='cpu', temperature=0.7, max_toke
         # Get persistent session with connection pooling
         session = get_ai_session()
         
-        # Adjust timeout based on text length (longer texts need more time)
-        timeout = min(60, max(15, len(prompt) // 100 + 15))
+        # Improved timeout calculation - more generous for longer texts
+        timeout = min(90, max(20, len(prompt) // 80 + 20))  # Increased base timeout from 15 to 20 seconds
         
         # Configure compute options based on mode
         options = {
@@ -976,71 +1072,324 @@ def grammar_check_only():
         current_app.logger.error(f"Grammar check error: {str(e)}")
         return jsonify({'error': 'An error occurred during grammar check'}), 500
 
-@ai_bp.route('/ai-enhancement-status', methods=['GET'])
+@ai_bp.route('/ai-enhancement-status', methods=['GET', 'OPTIONS'])
 def ai_enhancement_status():
     """
-    Get AI enhancement service status and availability
+    Enhanced AI service status with circuit breaker information and longer timeout
     
-    Returns:
-    {
-        "status": "available|unavailable|error",
-        "ollama_url": "http://localhost:11434",
-        "models_available": ["llama2", "mistral"],
-        "last_check": "2025-08-20T18:30:00Z",
-        "error_message": null
-    }
+    Returns comprehensive status including circuit breaker state, Ollama connectivity,
+    and available models with better error handling.
     """
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        from flask import Response
+        response = Response()
+        response.headers['Access-Control-Allow-Origin'] = 'http://localhost:5173'
+        response.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,X-Requested-With'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
+    
     try:
         import os
+        start_time = time.time()
         
         # Get Ollama configuration
-        ollama_url = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
+        ollama_url = current_app.config.get('OLLAMA_BASE_URL', 'http://localhost:11434')
         
-        # Test Ollama connectivity
+        # Check circuit breaker status first
+        circuit_available, circuit_reason = check_ai_circuit_breaker()
+        
+        # Add startup awareness information
+        startup_phase = is_startup_phase()
+        ollama_ready = is_ollama_verified_ready()
+        time_since_start = (datetime.now() - _backend_start_time).total_seconds()
+        
+        # Initialize status info with circuit breaker and startup details
+        status_info = {
+            'ollama_url': ollama_url,
+            'last_check': datetime.utcnow().isoformat() + 'Z',
+            'check_duration_ms': 0,
+            'startup_info': {
+                'in_startup_phase': startup_phase,
+                'ollama_verified_ready': ollama_ready,
+                'time_since_backend_start': time_since_start,
+                'startup_grace_period_seconds': _startup_grace_period.total_seconds()
+            },
+            'circuit_breaker': {
+                'active': not circuit_available,
+                'failure_count': _ai_failures,
+                'max_failures': _max_failures,
+                'disabled_until': _ai_disabled_until.isoformat() + 'Z' if _ai_disabled_until else None,
+                'reason': circuit_reason
+            }
+        }
+        
+        # If circuit breaker is active, return early
+        if not circuit_available:
+            status_info.update({
+                'status': 'circuit_breaker_active',
+                'ai_enhancement_available': False,
+                'models_available': [],
+                'error_message': circuit_reason,
+                'connection_test': 'skipped_circuit_breaker'
+            })
+            status_info['check_duration_ms'] = int((time.time() - start_time) * 1000)
+            return jsonify(status_info), 200
+        
+        # Enhanced Ollama connectivity test with startup awareness and warmup verification
         try:
-            response = requests.get(f"{ollama_url}/api/tags", timeout=3)
+            # Use the persistent session for better connection handling
+            session = get_ai_session()
+            
+            # Determine timeout based on startup phase
+            if startup_phase:
+                timeout = 30  # Longer timeout during startup
+                current_app.logger.info("Using extended timeout during startup phase")
+            else:
+                timeout = 10  # Normal timeout
+            
+            # Step 1: Test basic connectivity (models endpoint)
+            response = session.get(f"{ollama_url}/api/tags", timeout=timeout)
+            
             if response.status_code == 200:
                 models_data = response.json()
                 models = [model.get('name', 'unknown') for model in models_data.get('models', [])]
                 
-                status_info = {
-                    'status': 'available',
-                    'ollama_url': ollama_url,
-                    'models_available': models,
-                    'last_check': datetime.utcnow().isoformat() + 'Z',
-                    'error_message': None,
-                    'connection_test': 'passed'
-                }
+                if not models:
+                    status_info.update({
+                        'status': 'no_models',
+                        'ai_enhancement_available': False,
+                        'models_available': [],
+                        'error_message': 'Ollama is running but no models are available',
+                        'connection_test': 'passed_no_models'
+                    })
+                else:
+                    # Step 2: If not yet verified ready, perform warmup verification
+                    if not ollama_ready:
+                        warmup_success, warmup_message = verify_ollama_warmup(session, ollama_url, timeout)
+                        
+                        if warmup_success:
+                            # Ollama is fully ready - record success
+                            record_ai_success()
+                            status_info.update({
+                                'status': 'available',
+                                'ai_enhancement_available': True,
+                                'models_available': models,
+                                'model_count': len(models),
+                                'error_message': None,
+                                'connection_test': 'passed_verified_ready',
+                                'warmup_status': warmup_message,
+                                'default_model': current_app.config.get('OLLAMA_MODEL', 'mistral:latest')
+                            })
+                        else:
+                            # Ollama running but not ready - during startup, don't record as failure
+                            if startup_phase:
+                                status_info.update({
+                                    'status': 'warming_up',
+                                    'ai_enhancement_available': False,
+                                    'models_available': models,
+                                    'model_count': len(models),
+                                    'error_message': f'Ollama warming up: {warmup_message}',
+                                    'connection_test': 'warmup_in_progress',
+                                    'warmup_status': warmup_message
+                                })
+                            else:
+                                # Outside startup phase - this might be a real issue
+                                record_ai_failure()
+                                status_info.update({
+                                    'status': 'warmup_failed',
+                                    'ai_enhancement_available': False,
+                                    'models_available': models,
+                                    'error_message': f'Warmup verification failed: {warmup_message}',
+                                    'connection_test': 'failed_warmup',
+                                    'warmup_status': warmup_message
+                                })
+                    else:
+                        # Already verified ready - quick check is sufficient
+                        record_ai_success()
+                        status_info.update({
+                            'status': 'available',
+                            'ai_enhancement_available': True,
+                            'models_available': models,
+                            'model_count': len(models),
+                            'error_message': None,
+                            'connection_test': 'passed_already_verified',
+                            'default_model': current_app.config.get('OLLAMA_MODEL', 'mistral:latest')
+                        })
             else:
-                status_info = {
+                # HTTP error - don't record as failure during startup
+                error_message = f'Ollama returned status {response.status_code}: {response.text[:100]}'
+                if not startup_phase:
+                    record_ai_failure()
+                
+                status_info.update({
                     'status': 'error',
-                    'ollama_url': ollama_url,
+                    'ai_enhancement_available': False,
                     'models_available': [],
-                    'last_check': datetime.utcnow().isoformat() + 'Z',
-                    'error_message': f'Ollama returned status {response.status_code}',
-                    'connection_test': 'failed'
-                }
-        except requests.exceptions.RequestException as e:
-            status_info = {
-                'status': 'unavailable',
-                'ollama_url': ollama_url,
+                    'error_message': error_message,
+                    'connection_test': 'failed_http_error'
+                })
+                
+        except requests.exceptions.Timeout:
+            timeout_message = f'Ollama service timeout ({timeout} seconds)'
+            if startup_phase:
+                timeout_message += ' - startup in progress'
+            else:
+                timeout_message += ' - service may be overloaded'
+                record_ai_failure()
+            
+            status_info.update({
+                'status': 'timeout',
+                'ai_enhancement_available': False,
                 'models_available': [],
-                'last_check': datetime.utcnow().isoformat() + 'Z',
-                'error_message': f'Connection failed: {str(e)}',
-                'connection_test': 'failed'
-            }
+                'error_message': timeout_message,
+                'connection_test': 'failed_timeout'
+            })
+            
+        except requests.exceptions.ConnectionError as e:
+            connection_message = f'Cannot connect to Ollama: {str(e)[:100]}'
+            if startup_phase:
+                connection_message += ' (startup in progress)'
+            else:
+                record_ai_failure()
+            
+            status_info.update({
+                'status': 'unavailable',
+                'ai_enhancement_available': False,
+                'models_available': [],
+                'error_message': connection_message,
+                'connection_test': 'failed_connection'
+            })
+            
+        except Exception as e:
+            error_message = f'Unexpected error: {str(e)[:100]}'
+            if not startup_phase:
+                record_ai_failure()
+            
+            status_info.update({
+                'status': 'error',
+                'ai_enhancement_available': False,
+                'models_available': [],
+                'error_message': error_message,
+                'connection_test': 'failed_unexpected'
+            })
         
+        status_info['check_duration_ms'] = int((time.time() - start_time) * 1000)
         return jsonify(status_info), 200
         
     except Exception as e:
-        current_app.logger.error(f"AI enhancement status error: {str(e)}")
+        current_app.logger.error(f"AI enhancement status check failed: {str(e)}")
         return jsonify({
-            'status': 'error',
+            'status': 'service_error',
+            'ai_enhancement_available': False,
             'ollama_url': 'unknown',
             'models_available': [],
             'last_check': datetime.utcnow().isoformat() + 'Z',
-            'error_message': f'Service error: {str(e)}',
-            'connection_test': 'error'
+            'error_message': f'Status service error: {str(e)[:100]}',
+            'connection_test': 'service_error',
+            'check_duration_ms': int((time.time() - start_time) * 1000) if 'start_time' in locals() else 0,
+            'circuit_breaker': {
+                'active': True,
+                'reason': 'Status service error'
+            }
+        }), 500
+
+@ai_bp.route('/reset-circuit-breaker', methods=['POST', 'GET'])
+def reset_ai_circuit_breaker():
+    """
+    Manual circuit breaker reset endpoint for troubleshooting.
+    Useful for testing and when you need to force-reset the AI service.
+    """
+    try:
+        global _ai_failures, _ai_disabled_until, _ollama_verified_ready, _ollama_warmup_check_time
+        
+        # Store previous state for logging
+        previous_failures = _ai_failures
+        previous_disabled = _ai_disabled_until is not None
+        previous_verified = _ollama_verified_ready
+        
+        # Reset circuit breaker state
+        with _circuit_breaker_lock:
+            _ai_failures = 0
+            _ai_disabled_until = None
+        
+        # Reset Ollama verification state to force re-verification
+        with _startup_lock:
+            _ollama_verified_ready = False
+            _ollama_warmup_check_time = None
+        
+        current_app.logger.info(f"Circuit breaker manually reset - was: {previous_failures} failures, disabled: {previous_disabled}, verified: {previous_verified}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Circuit breaker reset successfully',
+            'previous_state': {
+                'failure_count': previous_failures,
+                'was_disabled': previous_disabled,
+                'was_verified_ready': previous_verified
+            },
+            'new_state': {
+                'failure_count': 0,
+                'disabled': False,
+                'verified_ready': False
+            },
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Circuit breaker reset failed: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Reset failed: {str(e)}',
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }), 500
+
+@ai_bp.route('/debug-status', methods=['GET'])
+def ai_debug_status():
+    """
+    Debug endpoint that shows detailed internal state for troubleshooting.
+    Includes startup timings, circuit breaker state, and verification status.
+    """
+    try:
+        now = datetime.now()
+        time_since_start = (now - _backend_start_time).total_seconds()
+        
+        # Get detailed state information
+        debug_info = {
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'backend_start_time': _backend_start_time.isoformat(),
+            'time_since_backend_start_seconds': time_since_start,
+            'startup_phase': {
+                'in_startup_phase': is_startup_phase(),
+                'grace_period_seconds': _startup_grace_period.total_seconds(),
+                'remaining_grace_seconds': max(0, _startup_grace_period.total_seconds() - time_since_start)
+            },
+            'ollama_verification': {
+                'verified_ready': _ollama_verified_ready,
+                'warmup_check_time': _ollama_warmup_check_time.isoformat() if _ollama_warmup_check_time else None,
+                'time_to_verify_seconds': (_ollama_warmup_check_time - _backend_start_time).total_seconds() if _ollama_warmup_check_time else None
+            },
+            'circuit_breaker': {
+                'failure_count': _ai_failures,
+                'max_failures': _max_failures,
+                'disabled_until': _ai_disabled_until.isoformat() if _ai_disabled_until else None,
+                'failure_window_minutes': _failure_window.total_seconds() / 60,
+                'is_active': _ai_disabled_until is not None and now < _ai_disabled_until
+            },
+            'configuration': {
+                'ollama_url': current_app.config.get('OLLAMA_BASE_URL', 'http://localhost:11434'),
+                'default_model': current_app.config.get('OLLAMA_MODEL', 'mistral:latest')
+            }
+        }
+        
+        return jsonify(debug_info), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Debug status failed: {str(e)}")
+        return jsonify({
+            'error': f'Debug status failed: {str(e)}',
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
         }), 500
 
 @ai_bp.route('/ollama/pull-model', methods=['POST'])
@@ -1122,6 +1471,100 @@ def pull_ollama_model():
     except Exception as e:
         current_app.logger.error(f"Model pull error: {str(e)}")
         return jsonify({'error': 'An error occurred while pulling the model'}), 500
+
+@ai_bp.route('/debug-status', methods=['GET'])
+def debug_ai_status():
+    """Debug endpoint to help diagnose AI enhancement issues"""
+    try:
+        debug_info = {
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'circuit_breaker': {
+                'failures': _ai_failures,
+                'max_failures': _max_failures,
+                'disabled_until': _ai_disabled_until.isoformat() + 'Z' if _ai_disabled_until else None,
+                'is_active': _ai_disabled_until and datetime.now() < _ai_disabled_until if _ai_disabled_until else False
+            },
+            'session_info': {
+                'session_exists': _ai_session is not None,
+                'last_used': _session_last_used.isoformat() + 'Z' if _session_last_used else None,
+                'thread_pool_exists': _ai_thread_pool is not None
+            },
+            'config': {
+                'ollama_url': current_app.config.get('OLLAMA_BASE_URL', 'http://localhost:11434'),
+                'ollama_model': current_app.config.get('OLLAMA_MODEL', 'mistral:latest')
+            }
+        }
+        
+        # Quick Ollama ping test
+        try:
+            start_time = time.time()
+            session = get_ai_session()
+            response = session.get(f"{debug_info['config']['ollama_url']}/api/version", timeout=5)
+            ping_time = int((time.time() - start_time) * 1000)
+            
+            debug_info['ollama_ping'] = {
+                'success': response.status_code == 200,
+                'status_code': response.status_code,
+                'response_time_ms': ping_time,
+                'error': None
+            }
+            
+            if response.status_code == 200:
+                try:
+                    version_data = response.json()
+                    debug_info['ollama_ping']['version'] = version_data.get('version', 'unknown')
+                except:
+                    debug_info['ollama_ping']['version'] = 'could_not_parse'
+                    
+        except Exception as e:
+            debug_info['ollama_ping'] = {
+                'success': False,
+                'error': str(e)[:100],
+                'response_time_ms': int((time.time() - start_time) * 1000) if 'start_time' in locals() else 0
+            }
+        
+        return jsonify(debug_info), 200
+        
+    except Exception as e:
+        return jsonify({
+            'error': f'Debug status failed: {str(e)}',
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }), 500
+
+@ai_bp.route('/reset-circuit-breaker', methods=['POST'])
+@jwt_required()
+def reset_circuit_breaker():
+    """Manual circuit breaker reset for debugging (admin only)"""
+    try:
+        global _ai_failures, _ai_disabled_until
+        
+        with _circuit_breaker_lock:
+            previous_failures = _ai_failures
+            previous_disabled = _ai_disabled_until
+            
+            _ai_failures = 0
+            _ai_disabled_until = None
+            
+            current_app.logger.info(f"Circuit breaker manually reset by user {get_jwt_identity()}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Circuit breaker reset successfully',
+                'previous_state': {
+                    'failures': previous_failures,
+                    'disabled_until': previous_disabled.isoformat() + 'Z' if previous_disabled else None
+                },
+                'new_state': {
+                    'failures': 0,
+                    'disabled_until': None
+                }
+            }), 200
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to reset circuit breaker: {str(e)}'
+        }), 500
 
 @ai_bp.route('/ollama/models', methods=['GET'])
 @jwt_required()

@@ -919,31 +919,73 @@ const PatientCensusCard = ({
               {selectedPatients.size} of {patients.length} selected
             </div>
           </div>
-          <button
-            onClick={onOpenCensusModal}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: 'transparent',
-              color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
-              border: `1px solid ${styles.borderColor}`,
-              borderRadius: '6px',
-              fontSize: '13px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontWeight: '500',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = styles.bgAccent;
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'transparent';
-            }}
-          >
-            Manage
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {/* Clear Priority Colors Button */}
+            {patients.some(p => p.priorityColor) && (
+              <button
+                onClick={() => {
+                  // Clear all priority colors
+                  setPatients(prev => prev.map(patient => {
+                    // Clear from localStorage
+                    const patientKey = patient.patient_name.replace(/[^a-zA-Z0-9]/g, '_');
+                    const colorMap = JSON.parse(localStorage.getItem('patientColorPriorities') || '{}');
+                    delete colorMap[patientKey];
+                    localStorage.setItem('patientColorPriorities', JSON.stringify(colorMap));
+                    
+                    return { ...patient, priorityColor: '' };
+                  }));
+                }}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: 'transparent',
+                  color: styles.errorColor,
+                  border: `1px solid ${styles.errorColor}`,
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = `${styles.errorColor}15`;
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                }}
+                title="Clear all priority colors"
+              >
+                Clear Colors
+              </button>
+            )}
+            <button
+              onClick={onOpenCensusModal}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: 'transparent',
+                color: currentTheme === 'dark' ? '#ffffff' : styles.primaryColor,
+                border: `1px solid ${styles.borderColor}`,
+                borderRadius: '6px',
+                fontSize: '13px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontWeight: '500',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = styles.bgAccent;
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+              }}
+            >
+              Manage
+            </button>
+          </div>
         </div>
 
         {/* Error Display */}

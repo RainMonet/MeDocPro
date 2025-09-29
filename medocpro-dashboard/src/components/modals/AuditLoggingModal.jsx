@@ -218,6 +218,13 @@ const AuditLoggingModal = ({ isOpen, onClose, theme = 'dark' }) => {
 
   // Fetch audit logs from API
   const fetchAuditLogs = async () => {
+    // Check if user is authenticated
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('Not authenticated. Please log in to view audit logs.');
+      return;
+    }
+    
     if (!startDate || !endDate) {
       setError('Please select both start and end dates');
       return;
@@ -244,7 +251,15 @@ const AuditLoggingModal = ({ isOpen, onClose, theme = 'dark' }) => {
       }
     } catch (err) {
       console.error('Error fetching audit logs:', err);
-      setError('Network error while fetching audit logs');
+      
+      // Check if it's an authentication error
+      if (err.message.includes('401') || err.message.includes('Unauthorized') || err.message.includes('Missing Authorization Header')) {
+        setError('Authentication expired. Please refresh the page and log in again.');
+      } else if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+        setError('Network error: Cannot connect to server. Please check if the backend is running.');
+      } else {
+        setError(`Error loading logs: ${err.message}`);
+      }
     } finally {
       setLoading(false);
     }
