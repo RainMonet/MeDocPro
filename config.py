@@ -34,7 +34,13 @@ class Config:
     # CORS Configuration
     CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://localhost:5174').split(',')
     
-    # AI Configuration
+    # AI Configuration (llama.cpp)
+    LLAMA_SERVER_URL = os.environ.get('LLAMA_SERVER_URL', 'http://localhost:8080')
+    LLAMA_MODEL_PATH = os.environ.get('LLAMA_MODEL_PATH', '/mnt/c/Users/admin/Desktop/MeDocPro/models/mistral-7b-instruct-v0.3.Q4_K_M.gguf')
+    LLAMA_THREADS = int(os.environ.get('LLAMA_THREADS', '4'))
+    LLAMA_CONTEXT_SIZE = int(os.environ.get('LLAMA_CONTEXT_SIZE', '4096'))
+    
+    # Legacy Ollama support (for backward compatibility during migration)
     OLLAMA_BASE_URL = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
     OLLAMA_MODEL = os.environ.get('OLLAMA_MODEL', 'mistral:latest')
     
@@ -45,3 +51,7 @@ class Config:
     # Development Mode Configuration
     DEVELOPMENT_MODE = os.environ.get('DEVELOPMENT_MODE', 'true').lower() == 'true'
     DEVELOPMENT_ADMIN_PRIVILEGES = True  # Force admin privileges for all users in development
+    
+    # Google Drive Integration Configuration
+    GOOGLE_CREDENTIALS_PATH = os.environ.get('GOOGLE_CREDENTIALS_PATH', 'credentials.json')
+    GOOGLE_TOKEN_PATH = os.environ.get('GOOGLE_TOKEN_PATH', 'token.json')

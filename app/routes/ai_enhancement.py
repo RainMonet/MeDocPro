@@ -36,11 +36,12 @@ _failure_window = timedelta(minutes=5)  # Reduced from 10 to 5 minutes
 _circuit_breaker_lock = threading.Lock()  # Add proper locking
 
 # Startup detection variables
-_backend_start_time = datetime.now()
+_backend_start_time = None  # Will be set on first status check
 _startup_grace_period = timedelta(minutes=3)  # 3-minute grace period for startup
 _ollama_verified_ready = False
 _ollama_warmup_check_time = None
 _startup_lock = threading.Lock()
+_startup_initialized = False
 
 # AI request queue and thread pool for async processing
 _ai_thread_pool = None
@@ -147,12 +148,32 @@ def record_ai_success():
             startup_duration = (_ollama_warmup_check_time - _backend_start_time).total_seconds()
             current_app.logger.info(f"Ollama verified ready after {startup_duration:.1f} seconds")
 
+def initialize_startup_time():
+    """Initialize the startup time on first call"""
+    global _backend_start_time, _startup_initialized
+    with _startup_lock:
+        if not _startup_initialized:
+            _backend_start_time = datetime.now()
+            _startup_initialized = True
+            current_app.logger.info(f"AI startup timer initialized at {_backend_start_time.strftime('%H:%M:%S')}")
+
 def is_startup_phase():
     """Check if we're still in the startup grace period"""
+    initialize_startup_time()  # Ensure startup time is set
+    
     with _startup_lock:
+        if _backend_start_time is None:
+            return True  # If somehow not initialized, assume startup phase
+        
         now = datetime.now()
         time_since_start = now - _backend_start_time
-        return time_since_start < _startup_grace_period
+        in_startup = time_since_start < _startup_grace_period
+        
+        if in_startup:
+            remaining = (_startup_grace_period - time_since_start).total_seconds()
+            current_app.logger.debug(f"Still in startup grace period: {remaining:.1f}s remaining")
+        
+        return in_startup
 
 def is_ollama_verified_ready():
     """Check if Ollama has been verified as fully ready"""
@@ -215,15 +236,18 @@ def record_ai_failure_with_startup_awareness():
     """Record AI failure with startup phase awareness"""
     global _ai_failures, _ai_disabled_until
     
+    # Initialize startup time if needed
+    initialize_startup_time()
+    
     # During startup phase, be more lenient with failures
     if is_startup_phase():
-        current_app.logger.info(f"AI connection failed during startup grace period (not recording failure)")
+        current_app.logger.info(f"AI connection failed during startup grace period (not recording failure) - grace period active")
         return
     
     # Normal failure recording
     with _circuit_breaker_lock:
         _ai_failures += 1
-        current_app.logger.warning(f"AI service failure #{_ai_failures} (max: {_max_failures})")
+        current_app.logger.warning(f"AI service failure #{_ai_failures} (max: {_max_failures}) - startup grace period expired")
         
         # Activate circuit breaker if too many failures
         if _ai_failures >= _max_failures:
@@ -423,7 +447,7 @@ def enhance_text():
             include_spell_check, include_grammar_check
         )
         
-        # Call Ollama API
+        # Call llama-server API (replaces Ollama)
         ai_result = call_ollama_api(
             prompt=prompt,
             model=model,
@@ -587,6 +611,109 @@ Text to enhance:
 
     return prompt
 
+def call_ollama_api(prompt, model=None, compute_mode='cpu', temperature=0.7, max_tokens=500):
+    """Call llama-server API with OpenAI-compatible endpoints"""
+    
+    # Check circuit breaker first
+    available, reason = check_ai_circuit_breaker()
+    if not available:
+        return {
+            'success': False,
+            'error': f'AI service temporarily unavailable: {reason}',
+            'processing_time_ms': 0,
+            'circuit_breaker_active': True
+        }
+    
+    base_url = current_app.config.get('LLAMA_SERVER_URL', 'http://localhost:8080')
+    
+    start_time = time.time()
+    
+    try:
+        # Get persistent session with connection pooling
+        session = get_ai_session()
+        
+        # Improved timeout calculation - more generous for longer texts
+        timeout = min(90, max(20, len(prompt) // 80 + 20))
+        
+        # Use OpenAI-compatible completions endpoint
+        response = session.post(
+            f"{base_url}/v1/completions",
+            json={
+                "prompt": prompt,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "stop": ["</s>", "\n\n---", "\n\nUser:", "\n\nHuman:"],
+                "stream": False
+            },
+            timeout=timeout,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": "Bearer dummy"  # llama-server doesn't require real auth
+            }
+        )
+        
+        processing_time = int((time.time() - start_time) * 1000)
+        
+        if response.status_code == 200:
+            result = response.json()
+            # Record successful interaction
+            record_ai_success()
+            
+            # Extract response from OpenAI-compatible format
+            if 'choices' in result and len(result['choices']) > 0:
+                raw_response = result['choices'][0].get('text', '').strip()
+                cleaned_response = clean_ai_response(raw_response)
+                
+                return {
+                    'success': True,
+                    'response': cleaned_response,
+                    'processing_time_ms': processing_time,
+                    'model_used': 'llama-server',
+                    'compute_mode_used': compute_mode,
+                    'timeout_used': timeout
+                }
+            else:
+                # Record failure
+                record_ai_failure()
+                return {
+                    'success': False,
+                    'error': 'Invalid response format from llama-server',
+                    'processing_time_ms': processing_time,
+                    'circuit_breaker_active': False
+                }
+        else:
+            # Record failure and activate circuit breaker if needed
+            record_ai_failure()
+            
+            return {
+                'success': False,
+                'error': f"llama-server API error: {response.status_code} - {response.text[:200]}",
+                'processing_time_ms': processing_time,
+                'circuit_breaker_active': False
+            }
+    
+    except requests.exceptions.Timeout:
+        # Record failure for timeout
+        record_ai_failure()
+        
+        return {
+            'success': False,
+            'error': f'llama-server API timeout after {timeout}s',
+            'processing_time_ms': int((time.time() - start_time) * 1000),
+            'circuit_breaker_active': False
+        }
+    
+    except Exception as e:
+        # Record failure for any other error
+        record_ai_failure()
+        
+        return {
+            'success': False,
+            'error': f'llama-server connection error: {str(e)}',
+            'processing_time_ms': int((time.time() - start_time) * 1000),
+            'circuit_breaker_active': False
+        }
+
 def call_ollama_api(prompt, model, compute_mode='cpu', temperature=0.7, max_tokens=500):
     """Call Ollama API with connection pooling, circuit breaker, and error handling"""
     
@@ -699,8 +826,8 @@ def call_ollama_api(prompt, model, compute_mode='cpu', temperature=0.7, max_toke
             'processing_time_ms': int((time.time() - start_time) * 1000)
         }
 
-def call_ollama_api_async(prompt, model, temperature=0.7, max_tokens=500):
-    """Async wrapper for AI API calls using thread pool"""
+def call_llama_server_api_async(prompt, model=None, temperature=0.7, max_tokens=500):
+    """Async wrapper for llama-server API calls using thread pool"""
     
     # Check if we can process async requests
     available, reason = check_ai_circuit_breaker()
@@ -717,7 +844,7 @@ def call_ollama_api_async(prompt, model, temperature=0.7, max_tokens=500):
         thread_pool = get_ai_thread_pool()
         
         # Submit AI request to thread pool with timeout
-        future = thread_pool.submit(call_ollama_api, prompt, model, temperature, max_tokens)
+        future = thread_pool.submit(call_llama_server_api, prompt, model, 'cpu', temperature, max_tokens)
         
         # Wait for result with timeout to prevent hanging
         result = future.result(timeout=90)  # Longer timeout for async processing
@@ -1094,20 +1221,21 @@ def ai_enhancement_status():
         import os
         start_time = time.time()
         
-        # Get Ollama configuration
-        ollama_url = current_app.config.get('OLLAMA_BASE_URL', 'http://localhost:11434')
+        # Get llama-server configuration
+        ollama_url = current_app.config.get('OLLAMA_BASE_URL', 'http://localhost:8080')
         
         # Check circuit breaker status first
         circuit_available, circuit_reason = check_ai_circuit_breaker()
         
-        # Add startup awareness information
+        # Initialize startup time and get startup awareness information
+        initialize_startup_time()
         startup_phase = is_startup_phase()
         ollama_ready = is_ollama_verified_ready()
-        time_since_start = (datetime.now() - _backend_start_time).total_seconds()
+        time_since_start = (datetime.now() - _backend_start_time).total_seconds() if _backend_start_time else 0
         
         # Initialize status info with circuit breaker and startup details
         status_info = {
-            'ollama_url': ollama_url,
+            'llama_server_url': llama_server_url,
             'last_check': datetime.utcnow().isoformat() + 'Z',
             'check_duration_ms': 0,
             'startup_info': {
@@ -1149,74 +1277,78 @@ def ai_enhancement_status():
             else:
                 timeout = 10  # Normal timeout
             
-            # Step 1: Test basic connectivity (models endpoint)
-            response = session.get(f"{ollama_url}/api/tags", timeout=timeout)
+            # Step 1: Test basic connectivity (health endpoint)
+            response = session.get(f"{llama_server_url}/health", timeout=timeout)
             
             if response.status_code == 200:
-                models_data = response.json()
-                models = [model.get('name', 'unknown') for model in models_data.get('models', [])]
+                # llama-server is responding, check if model is loaded
+                health_data = response.json()
                 
-                if not models:
-                    status_info.update({
-                        'status': 'no_models',
-                        'ai_enhancement_available': False,
-                        'models_available': [],
-                        'error_message': 'Ollama is running but no models are available',
-                        'connection_test': 'passed_no_models'
-                    })
-                else:
-                    # Step 2: If not yet verified ready, perform warmup verification
-                    if not ollama_ready:
-                        warmup_success, warmup_message = verify_ollama_warmup(session, ollama_url, timeout)
-                        
-                        if warmup_success:
-                            # Ollama is fully ready - record success
-                            record_ai_success()
-                            status_info.update({
-                                'status': 'available',
-                                'ai_enhancement_available': True,
-                                'models_available': models,
-                                'model_count': len(models),
-                                'error_message': None,
-                                'connection_test': 'passed_verified_ready',
-                                'warmup_status': warmup_message,
-                                'default_model': current_app.config.get('OLLAMA_MODEL', 'mistral:latest')
-                            })
-                        else:
-                            # Ollama running but not ready - during startup, don't record as failure
-                            if startup_phase:
-                                status_info.update({
-                                    'status': 'warming_up',
-                                    'ai_enhancement_available': False,
-                                    'models_available': models,
-                                    'model_count': len(models),
-                                    'error_message': f'Ollama warming up: {warmup_message}',
-                                    'connection_test': 'warmup_in_progress',
-                                    'warmup_status': warmup_message
-                                })
-                            else:
-                                # Outside startup phase - this might be a real issue
-                                record_ai_failure()
-                                status_info.update({
-                                    'status': 'warmup_failed',
-                                    'ai_enhancement_available': False,
-                                    'models_available': models,
-                                    'error_message': f'Warmup verification failed: {warmup_message}',
-                                    'connection_test': 'failed_warmup',
-                                    'warmup_status': warmup_message
-                                })
-                    else:
-                        # Already verified ready - quick check is sufficient
+                # Get model path from config
+                model_path = current_app.config.get('LLAMA_MODEL_PATH', '')
+                model_name = os.path.basename(model_path) if model_path else 'unknown'
+                
+                # Check if model is actually loaded by testing the completion endpoint
+                try:
+                    test_response = session.post(
+                        f"{llama_server_url}/v1/completions",
+                        json={
+                            "prompt": "Test",
+                            "max_tokens": 1,
+                            "temperature": 0.1
+                        },
+                        timeout=min(timeout, 15),  # Shorter timeout for test
+                        headers={
+                            "Content-Type": "application/json",
+                            "Authorization": "Bearer dummy"
+                        }
+                    )
+                    
+                    if test_response.status_code == 200:
+                        # llama-server is fully ready
                         record_ai_success()
+                        
                         status_info.update({
                             'status': 'available',
                             'ai_enhancement_available': True,
-                            'models_available': models,
-                            'model_count': len(models),
+                            'models_available': [model_name],
+                            'model_count': 1,
+                            'default_model': 'llama-server',
                             'error_message': None,
-                            'connection_test': 'passed_already_verified',
-                            'default_model': current_app.config.get('OLLAMA_MODEL', 'mistral:latest')
+                            'connection_test': 'passed_ready'
                         })
+                    else:
+                        # Health check passed but model not ready
+                        status_info.update({
+                            'status': 'starting',
+                            'ai_enhancement_available': False,
+                            'models_available': [model_name],
+                            'model_count': 1,
+                            'error_message': 'llama-server starting up - model not ready',
+                            'connection_test': 'passed_loading'
+                        })
+                        
+                except requests.exceptions.Timeout:
+                    # Health passed but completion timed out
+                    status_info.update({
+                        'status': 'slow_response',
+                        'ai_enhancement_available': False,
+                        'models_available': [model_name],
+                        'model_count': 1,
+                        'error_message': 'llama-server responding slowly - may be loading model',
+                        'connection_test': 'timeout_loading'
+                    })
+                    
+                except Exception as e:
+                    # Health passed but completion failed
+                    status_info.update({
+                        'status': 'partial',
+                        'ai_enhancement_available': False,
+                        'models_available': [model_name],
+                        'model_count': 1,
+                        'error_message': f'llama-server health ok but completion failed: {str(e)[:100]}',
+                        'connection_test': 'failed_completion'
+                    })
             else:
                 # HTTP error - don't record as failure during startup
                 error_message = f'Ollama returned status {response.status_code}: {response.text[:100]}'
@@ -1352,13 +1484,14 @@ def ai_debug_status():
     Includes startup timings, circuit breaker state, and verification status.
     """
     try:
+        initialize_startup_time()
         now = datetime.now()
-        time_since_start = (now - _backend_start_time).total_seconds()
+        time_since_start = (now - _backend_start_time).total_seconds() if _backend_start_time else 0
         
         # Get detailed state information
         debug_info = {
             'timestamp': datetime.utcnow().isoformat() + 'Z',
-            'backend_start_time': _backend_start_time.isoformat(),
+            'backend_start_time': _backend_start_time.isoformat() if _backend_start_time else None,
             'time_since_backend_start_seconds': time_since_start,
             'startup_phase': {
                 'in_startup_phase': is_startup_phase(),

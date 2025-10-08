@@ -33,7 +33,17 @@ class ApiService {
 
   // Helper method to handle API responses with automatic token refresh
   async handleResponse(response, originalRequest = null) {
-    const data = await response.json();
+    let data;
+    
+    // Try to parse as JSON, fallback to text if it fails
+    try {
+      data = await response.json();
+    } catch (error) {
+      // If JSON parsing fails, try to get text (likely HTML error page)
+      const text = await response.text();
+      console.error('Failed to parse JSON response:', text.substring(0, 200));
+      data = { error: `Server returned non-JSON response: ${response.status} ${response.statusText}` };
+    }
     
     // Debug logging in development
     if (DEBUG_MODE) {
@@ -444,6 +454,7 @@ class ApiService {
     const response = await fetch(`${this.baseURL}/api/patient-census/rows/${patientId}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
+      body: JSON.stringify({}), // Empty JSON body to satisfy backend expectations
     });
     
     return this.handleResponse(response);
