@@ -23,6 +23,202 @@ from ..models.audit_log import AuditLog
 
 ai_bp = Blueprint('ai', __name__)
 
+def get_ai_session():
+    """Get or create a persistent session with connection pooling"""
+    global _ai_session, _session_last_used
+    
+    with _session_lock:
+        # Create new session if needed or if it's been idle too long
+        now = datetime.now()
+        if (_ai_session is None or 
+            (_session_last_used and now - _session_last_used > timedelta(minutes=5))):
+            
+            if _ai_session:
+                _ai_session.close()
+            
+            # Create new session with connection pooling and retry strategy
+            _ai_session = requests.Session()
+            
+            # Configure retry strategy
+            retry_strategy = Retry(
+                total=2,
+                backoff_factor=1,
+                status_forcelist=[429, 500, 502, 503, 504],
+                allowed_methods=["POST"]  # Updated from deprecated method_whitelist
+            )
+            
+            # Configure connection pooling
+            adapter = HTTPAdapter(
+                max_retries=retry_strategy,
+                pool_connections=5,
+                pool_maxsize=10
+            )
+            
+            _ai_session.mount("http://", adapter)
+            _ai_session.mount("https://", adapter)
+            
+            # Set reasonable default timeout
+            _ai_session.timeout = (5, 30)  # (connect, read)
+        
+        _session_last_used = now
+        return _ai_session
+
+# llama-server status endpoint
+@ai_bp.route('/llama-server/status', methods=['GET'])
+@jwt_required()
+def get_llama_server_status():
+    """Get detailed llama-server status including model info and processing mode"""
+    try:
+        base_url = current_app.config.get('OLLAMA_BASE_URL') or current_app.config.get('LLAMA_SERVER_URL', 'http://localhost:11434')
+        model_path = current_app.config.get('LLAMA_MODEL_PATH', '')
+        threads = current_app.config.get('LLAMA_THREADS', 4)
+        context_size = current_app.config.get('LLAMA_CONTEXT_SIZE', 4096)
+        
+        # Get persistent session
+        session = get_ai_session()
+        
+        try:
+            # Test basic connectivity - try Ollama endpoints first, then llama-server endpoints
+            ollama_endpoints = ["/api/tags", "/"]
+            llama_server_endpoints = ["/v1/models", "/props", "/slots"]
+            endpoints_to_try = ollama_endpoints + llama_server_endpoints
+            
+            server_online = False
+            health_data = {}
+            
+            for endpoint in endpoints_to_try:
+                try:
+                    response = session.get(f"{base_url}{endpoint}", timeout=5)
+                    if response.status_code == 200:
+                        server_online = True
+                        try:
+                            health_data = response.json()
+                            # Add endpoint info to identify which service responded
+                            health_data["responding_endpoint"] = endpoint
+                        except:
+                            health_data = {"endpoint": endpoint, "status": "ok"}
+                        break
+                except Exception:
+                    continue
+                    
+        except Exception:
+            server_online = False
+            health_data = {}
+        
+        # Extract model name from path
+        model_name = "Unknown"
+        if model_path:
+            model_name = model_path.split('/')[-1].replace('.gguf', '')
+        
+        # Determine processing mode and GPU availability
+        processing_mode = "CPU"
+        gpu_available = False
+        gpu_info = {}
+        
+        # Check if GPU acceleration is available through multiple methods
+        try:
+            # Method 1: Check llama-server health endpoint for GPU info
+            if server_online:
+                if 'gpu' in str(health_data).lower() or 'cuda' in str(health_data).lower():
+                    gpu_available = True
+                    processing_mode = "GPU"
+            
+            # Method 2: Try to get server props/info endpoint
+            try:
+                response = session.get(f"{base_url}/props", timeout=3)
+                if response.status_code == 200:
+                    props_data = response.json()
+                    # Look for GPU-related properties
+                    if any(key.lower().find('gpu') != -1 or key.lower().find('cuda') != -1 
+                           for key in str(props_data).lower()):
+                        gpu_available = True
+                        processing_mode = "GPU"
+                    gpu_info['props'] = props_data
+            except Exception:
+                pass
+            
+            # Method 3: Check if the binary was compiled with GPU support
+            # Look for GPU libraries in the model loading logs
+            if 'offload' in str(health_data).lower() or 'gpu' in str(health_data).lower():
+                gpu_available = True
+            
+            # Method 4: Assume GPU is available if user explicitly configured it
+            # This allows manual override through frontend settings
+            compute_mode_setting = current_app.config.get('COMPUTE_MODE', 'cpu').lower()
+            if compute_mode_setting == 'gpu':
+                gpu_available = True
+                processing_mode = "GPU"
+                
+        except Exception as e:
+            current_app.logger.debug(f"GPU detection error: {e}")
+            pass
+        
+        # Get circuit breaker status
+        circuit_status = check_ai_circuit_breaker()
+        
+        return jsonify({
+            'success': True,
+            'server_online': server_online,
+            'server_url': base_url,
+            'model_name': model_name,
+            'model_path': model_path,
+            'processing_mode': processing_mode,
+            'gpu_available': gpu_available,
+            'threads': threads,
+            'context_size': context_size,
+            'circuit_breaker': {
+                'available': circuit_status[0],
+                'reason': circuit_status[1],
+                'failures': _ai_failures,
+                'max_failures': _max_failures
+            },
+            'health_data': health_data,
+            'timestamp': datetime.utcnow().isoformat()
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting llama-server status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to get server status: {str(e)}',
+            'server_online': False,
+            'timestamp': datetime.utcnow().isoformat()
+        }), 500
+
+@ai_bp.route('/llama-server/set-compute-mode', methods=['POST'])
+@jwt_required()
+def set_compute_mode():
+    """Set the compute mode (CPU/GPU) for AI processing"""
+    try:
+        data = request.get_json()
+        compute_mode = data.get('compute_mode', 'cpu').lower()
+        
+        if compute_mode not in ['cpu', 'gpu']:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid compute mode. Must be "cpu" or "gpu"'
+            }), 400
+        
+        # Store the setting in app config (temporary for this session)
+        current_app.config['COMPUTE_MODE'] = compute_mode
+        
+        # You could also store this in a database or config file for persistence
+        # For now, we'll just acknowledge the setting
+        
+        return jsonify({
+            'success': True,
+            'compute_mode': compute_mode,
+            'message': f'Compute mode set to {compute_mode.upper()}',
+            'timestamp': datetime.utcnow().isoformat()
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error setting compute mode: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to set compute mode: {str(e)}'
+        }), 500
+
 # Global session pool for connection reuse
 _ai_session = None
 _session_lock = threading.Lock()
@@ -59,50 +255,6 @@ def get_ai_thread_pool():
         )
     
     return _ai_thread_pool
-
-def get_ai_session():
-    """Get or create a persistent session with connection pooling"""
-    global _ai_session, _session_last_used
-    
-    with _session_lock:
-        # Create new session if needed or if it's been idle too long
-        now = datetime.now()
-        if (_ai_session is None or 
-            (_session_last_used and now - _session_last_used > timedelta(minutes=5))):
-            
-            if _ai_session:
-                _ai_session.close()
-            
-            # Create new session with connection pooling and retry strategy
-            _ai_session = requests.Session()
-            
-            # Configure retry strategy
-            retry_strategy = Retry(
-                total=2,
-                backoff_factor=1,
-                status_forcelist=[429, 500, 502, 503, 504],
-                allowed_methods=["POST"]  # Updated from deprecated method_whitelist
-            )
-            
-            # Configure connection pooling
-            adapter = HTTPAdapter(
-                pool_connections=2,
-                pool_maxsize=5,
-                max_retries=retry_strategy,
-                pool_block=False
-            )
-            
-            _ai_session.mount("http://", adapter)
-            _ai_session.mount("https://", adapter)
-            
-            # Set headers for connection reuse
-            _ai_session.headers.update({
-                'Connection': 'keep-alive',
-                'Keep-Alive': 'timeout=30, max=10'
-            })
-        
-        _session_last_used = now
-        return _ai_session
 
 def check_ai_circuit_breaker():
     """Check if AI service is available or if circuit breaker is active"""
@@ -475,9 +627,8 @@ def enhance_text():
         interaction_id = "temp_interaction_id"
         
         # Log audit event
-        AuditLog.log_event(
+        AuditLog.log_action(
             user_id=str(current_user.id),
-            event_type='ai_enhancement_request',
             action='CREATE',
             details={
                 'enhancement_type': enhancement_type,
@@ -490,8 +641,6 @@ def enhance_text():
                 'grammar_check_included': include_grammar_check,
                 'success': ai_result.get('success', False)
             },
-            phi_accessed=phi_found,
-            ip_address=request.remote_addr
         )
         
         if not ai_result.get('success'):
@@ -624,7 +773,7 @@ def call_ollama_api(prompt, model=None, compute_mode='cpu', temperature=0.7, max
             'circuit_breaker_active': True
         }
     
-    base_url = current_app.config.get('LLAMA_SERVER_URL', 'http://localhost:8080')
+    base_url = current_app.config.get('OLLAMA_BASE_URL') or current_app.config.get('LLAMA_SERVER_URL', 'http://localhost:11434')
     
     start_time = time.time()
     
@@ -1130,15 +1279,13 @@ def spell_check_only():
         current_user = User.query.get(current_user_id)
         
         # Log spell check request
-        AuditLog.log_event(
+        AuditLog.log_action(
             user_id=str(current_user.id),
-            event_type='spell_check',
             action='READ',
             details={
                 'text_length': len(text),
                 'issues_found': len(spelling_issues)
             },
-            ip_address=request.remote_addr
         )
         
         return jsonify({
@@ -1178,15 +1325,13 @@ def grammar_check_only():
         current_user = User.query.get(current_user_id)
         
         # Log grammar check request
-        AuditLog.log_event(
+        AuditLog.log_action(
             user_id=str(current_user.id),
-            event_type='grammar_check',
             action='READ',
             details={
                 'text_length': len(text),
                 'issues_found': len(grammar_issues)
             },
-            ip_address=request.remote_addr
         )
         
         return jsonify({
@@ -1221,8 +1366,8 @@ def ai_enhancement_status():
         import os
         start_time = time.time()
         
-        # Get llama-server configuration
-        ollama_url = current_app.config.get('OLLAMA_BASE_URL', 'http://localhost:8080')
+        # Get Ollama configuration (preferred over llama-server)
+        ollama_url = current_app.config.get('OLLAMA_BASE_URL') or current_app.config.get('LLAMA_SERVER_URL')
         
         # Check circuit breaker status first
         circuit_available, circuit_reason = check_ai_circuit_breaker()
@@ -1235,7 +1380,7 @@ def ai_enhancement_status():
         
         # Initialize status info with circuit breaker and startup details
         status_info = {
-            'llama_server_url': llama_server_url,
+            'ollama_url': ollama_url,
             'last_check': datetime.utcnow().isoformat() + 'Z',
             'check_duration_ms': 0,
             'startup_info': {
@@ -1277,43 +1422,61 @@ def ai_enhancement_status():
             else:
                 timeout = 10  # Normal timeout
             
-            # Step 1: Test basic connectivity (health endpoint)
-            response = session.get(f"{llama_server_url}/health", timeout=timeout)
+            # Step 1: Test basic connectivity (try multiple endpoints since llama-server doesn't have /health)
+            connection_success = False
+            health_data = {}
             
-            if response.status_code == 200:
+            # Try Ollama endpoints first, then llama-server endpoints
+            ollama_endpoints = ["/api/tags", "/"]
+            llama_server_endpoints = ["/v1/models", "/props", "/slots"]
+            endpoints_to_try = ollama_endpoints + llama_server_endpoints
+            
+            for endpoint in endpoints_to_try:
+                try:
+                    response = session.get(f"{ollama_url}{endpoint}", timeout=timeout)
+                    if response.status_code == 200:
+                        connection_success = True
+                        try:
+                            health_data = response.json()
+                        except:
+                            health_data = {"endpoint": endpoint, "status": "ok"}
+                        break
+                except Exception:
+                    continue
+            
+            if connection_success:
                 # llama-server is responding, check if model is loaded
-                health_data = response.json()
                 
                 # Get model path from config
                 model_path = current_app.config.get('LLAMA_MODEL_PATH', '')
                 model_name = os.path.basename(model_path) if model_path else 'unknown'
                 
-                # Check if model is actually loaded by testing the completion endpoint
+                # Check if model is actually loaded by testing the generate endpoint
                 try:
+                    # Test Ollama API endpoint first
                     test_response = session.post(
-                        f"{llama_server_url}/v1/completions",
+                        f"{ollama_url}/api/generate",
                         json={
+                            "model": "mistral:latest",
                             "prompt": "Test",
-                            "max_tokens": 1,
-                            "temperature": 0.1
+                            "stream": False
                         },
                         timeout=min(timeout, 15),  # Shorter timeout for test
                         headers={
-                            "Content-Type": "application/json",
-                            "Authorization": "Bearer dummy"
+                            "Content-Type": "application/json"
                         }
                     )
                     
                     if test_response.status_code == 200:
-                        # llama-server is fully ready
+                        # Ollama is fully ready
                         record_ai_success()
                         
                         status_info.update({
                             'status': 'available',
                             'ai_enhancement_available': True,
-                            'models_available': [model_name],
+                            'models_available': ['mistral:latest'],
                             'model_count': 1,
-                            'default_model': 'llama-server',
+                            'default_model': 'ollama',
                             'error_message': None,
                             'connection_test': 'passed_ready'
                         })
@@ -1322,9 +1485,9 @@ def ai_enhancement_status():
                         status_info.update({
                             'status': 'starting',
                             'ai_enhancement_available': False,
-                            'models_available': [model_name],
+                            'models_available': ['mistral:latest'],
                             'model_count': 1,
-                            'error_message': 'llama-server starting up - model not ready',
+                            'error_message': 'Ollama starting up - model not ready',
                             'connection_test': 'passed_loading'
                         })
                         
@@ -1335,7 +1498,7 @@ def ai_enhancement_status():
                         'ai_enhancement_available': False,
                         'models_available': [model_name],
                         'model_count': 1,
-                        'error_message': 'llama-server responding slowly - may be loading model',
+                        'error_message': 'Ollama responding slowly - may be loading model',
                         'connection_test': 'timeout_loading'
                     })
                     
@@ -1346,12 +1509,12 @@ def ai_enhancement_status():
                         'ai_enhancement_available': False,
                         'models_available': [model_name],
                         'model_count': 1,
-                        'error_message': f'llama-server health ok but completion failed: {str(e)[:100]}',
+                        'error_message': f'Ollama health ok but completion failed: {str(e)[:100]}',
                         'connection_test': 'failed_completion'
                     })
             else:
-                # HTTP error - don't record as failure during startup
-                error_message = f'Ollama returned status {response.status_code}: {response.text[:100]}'
+                # Connection failed - don't record as failure during startup
+                error_message = 'llama-server not responding to any endpoints'
                 if not startup_phase:
                     record_ai_failure()
                 
@@ -1360,7 +1523,7 @@ def ai_enhancement_status():
                     'ai_enhancement_available': False,
                     'models_available': [],
                     'error_message': error_message,
-                    'connection_test': 'failed_http_error'
+                    'connection_test': 'failed_connection'
                 })
                 
         except requests.exceptions.Timeout:
@@ -1559,16 +1722,14 @@ def pull_ollama_model():
             
             if response.status_code == 200:
                 # Log successful model pull
-                AuditLog.log_event(
+                AuditLog.log_action(
                     user_id=str(current_user.id),
-                    event_type='ollama_model_pull',
                     action='CREATE',
                     details={
                         'model': model,
                         'success': True
                     },
-                    ip_address=request.remote_addr
-                )
+                        )
                 
                 return jsonify({
                     'success': True,
@@ -1579,17 +1740,15 @@ def pull_ollama_model():
                 error_msg = f"Ollama API error: {response.status_code} - {response.text[:200]}"
                 
                 # Log failed model pull
-                AuditLog.log_event(
+                AuditLog.log_action(
                     user_id=str(current_user.id),
-                    event_type='ollama_model_pull',
                     action='CREATE',
                     details={
                         'model': model,
                         'success': False,
                         'error': error_msg
                     },
-                    ip_address=request.remote_addr
-                )
+                        )
                 
                 return jsonify({'error': error_msg}), 500
                 

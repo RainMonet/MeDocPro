@@ -34,8 +34,8 @@ class Config:
     # CORS Configuration
     CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://localhost:5174').split(',')
     
-    # AI Configuration (llama.cpp)
-    LLAMA_SERVER_URL = os.environ.get('LLAMA_SERVER_URL', 'http://localhost:8080')
+    # AI Configuration (llama.cpp) - DISABLED, using Ollama instead
+    LLAMA_SERVER_URL = os.environ.get('LLAMA_SERVER_URL')
     LLAMA_MODEL_PATH = os.environ.get('LLAMA_MODEL_PATH', '/mnt/c/Users/admin/Desktop/MeDocPro/models/mistral-7b-instruct-v0.3.Q4_K_M.gguf')
     LLAMA_THREADS = int(os.environ.get('LLAMA_THREADS', '4'))
     LLAMA_CONTEXT_SIZE = int(os.environ.get('LLAMA_CONTEXT_SIZE', '4096'))
